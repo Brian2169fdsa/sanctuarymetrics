@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Project Tracking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script>
+/* ── project tracker ──────────────────────────────────────────────────────
+   Seed rows come from the L10 dashboard (single source of truth: the L10
+   object in data.js). Rows added here are stored in THIS BROWSER's
+   localStorage — to make an item permanent for everyone, it goes into
+   data.js like the seeds.                                                 */
+var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete'];
+var LS_KEY = 'src_projects_v1';
+
+function seedItems() {
+  return L10.rows.map(function (r) {
+    return { title: r[0], owner: 'Brian Reinhart', status: r[1].text,
+             source: 'L10 dashboard · Aug 20, 2026', seed: true };
+  });
+}
+function customItems() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch (e) { return []; }
+}
+function saveCustom(list) { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+
+function tagFor(status) {
+  var s = status.toLowerCase();
+  if (s.indexOf('off') === 0) { return 'lo'; }
+  if (s === 'on-track' || s === 'complete') { return 'hi'; }
+  return 'eq';
+}
+
+function chips(items) {
+  var counts = {};
+  items.forEach(function (i) { counts[i.status] = (counts[i.status] || 0) + 1; });
+  var s = '<div class="chips"><span class="c">' + items.length + ' items</span>';
+  STATUSES.forEach(function (st) {
+    if (counts[st]) { s += '<span class="c">' + counts[st] + ' ' + esc(st) + '</span>'; }
+  });
+  return s + '</div>';
+}
+
+function rowsHtml(items) {
+  var s = '';
+  items.forEach(function (it, idx) {
+    var statusCell;
+    if (it.seed) {
+      statusCell = '<span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span>';
+    } else {
+      statusCell = '<select class="statsel" data-idx="' + it.customIdx + '" aria-label="Status">';
+      STATUSES.forEach(function (st) {
+        statusCell += '<option' + (st === it.status ? ' selected' : '') + '>' + esc(st) + '</option>';
+      });
+      statusCell += '</select> <button class="btn ghost" data-del="' + it.customIdx + '">remove</button>';
+    }
+    s += '<tr><td>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
+         '</td><td>' + esc(it.source) + '</td></tr>';
+  });
+  return s;
+}
+
+function render() {
+  var custom = customItems().map(function (c, i) { c.customIdx = i; return c; });
+  var items = seedItems().concat(custom);
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Project Tracking',
+      'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential',
+      'Seeded from the L10 Leadership dashboard · statuses as of the Aug 20, 2026 meeting', 'projects') +
+    '<section>' +
+      '<div class="eyebrow">Project tracker</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
+      '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
+      'added below. L10 rows update when the dashboard is re-imported; rows added here can be edited or removed at any time.</p>' +
+      chips(items) +
+      '<div class="tw"><table><thead><tr><th>Item</th><th>Owner</th><th>Status</th><th>Source</th></tr></thead>' +
+      '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
+    '</section>' +
+    '<section>' +
+      '<div class="sechead"><span class="dot" style="background:var(--blue)"></span><h2>Add a project</h2></div>' +
+      '<p class="sub">Added items are saved in this browser only. To make one permanent for everyone, send it over ' +
+      'and it will be added to the site\'s data model alongside the L10 seeds.</p>' +
+      '<div class="card"><div class="addform">' +
+        '<div class="f"><label for="np-title">Project / item</label><input type="text" id="np-title" placeholder="e.g. Q4 video content calendar"></div>' +
+        '<div class="f"><label for="np-owner">Owner</label><input type="text" id="np-owner" placeholder="e.g. Brian Reinhart"></div>' +
+        '<div class="f"><label for="np-status">Status</label><select id="np-status">' +
+          STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
+        '<button class="btn" id="np-add">Add project</button>' +
+      '</div></div>' +
+    '</section>' +
+    pageFooter('L10 Leadership dashboard (Rocks sheet), Aug 20, 2026 meeting column');
+
+  applyDataLabels();
+
+  document.getElementById('np-add').addEventListener('click', function () {
+    var t = document.getElementById('np-title').value.trim();
+    if (!t) { document.getElementById('np-title').focus(); return; }
+    var list = customItems();
+    list.push({
+      title: t,
+      owner: document.getElementById('np-owner').value.trim() || '—',
+      status: document.getElementById('np-status').value,
+      source: 'added here · ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    });
+    saveCustom(list);
+    render();
+  });
+
+  document.querySelectorAll('.statsel').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var list = customItems();
+      list[+this.getAttribute('data-idx')].status = this.value;
+      saveCustom(list);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-del]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var list = customItems();
+      list.splice(+this.getAttribute('data-del'), 1);
+      saveCustom(list);
+      render();
+    });
+  });
+}
+render();
+</script>
+</body></html>

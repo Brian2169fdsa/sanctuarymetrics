@@ -194,6 +194,7 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="index.html"' + (current === 'report' ? ' aria-current="page"' : '') + '>Report</a>' +
       '<a href="compare.html"' + (current === 'compare' ? ' aria-current="page"' : '') + '>Compare</a>' +
       '<a href="twoweeks.html"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
+      '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '>Projects</a>' +
     '</nav><hr class="phoenix">';
 }
 

@@ -132,3 +132,25 @@ section.muted .dot{opacity:.35}
 }
 /* charts render 1:1, so never let one be upscaled past its natural size */
 .chart{max-width:100%}
+
+/* ── project tracker ─────────────────────────────────────────────────── */
+.addform{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end}
+.addform .f{display:flex;flex-direction:column;gap:6px}
+.addform label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.addform input[type=text]{font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;
+ border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.addform input[type=text]:focus{outline:2px solid var(--blue);outline-offset:1px}
+.btn{font-family:inherit;font-size:13px;font-weight:700;color:#fff;background:var(--teal);border:0;
+ border-radius:8px;padding:10px 20px;cursor:pointer;min-height:40px}
+.btn:hover{background:#234353}
+.btn.ghost{background:transparent;color:#C0492B;border:1px solid var(--line);padding:5px 11px;min-height:0;font-size:11px}
+.btn.ghost:hover{background:#fbeae6}
+.statsel{font-size:12px;padding:5px 8px;min-width:0;min-height:0;border-radius:7px}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+.chips .c{font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;background:var(--paper);border:1px solid var(--line);color:var(--muted)}
+@media (max-width:720px), (pointer:coarse){
+ .addform{grid-template-columns:1fr}
+ .addform input[type=text]{min-height:44px;font-size:15px}
+ .btn{min-height:44px}
+ .statsel{min-height:38px}
+}
