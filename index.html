@@ -14,32 +14,50 @@
 function renderWebsite(c) {
   var meta = CHANNEL_META.website;
   if (!c.measured) { return mutedSection('website', c); }
-  return '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
-    kpis(c.kpis) +
-    grid2(
-      card(c.weekly.title, vbar(c.weekly.series, meta.color), c.weekly.note),
-      card(c.sources.title, table(c.sources.head, c.sources.rows))
-    ) +
-    card(c.topPages.title, table(c.topPages.head, c.topPages.rows)) +
-    '<p class="sub">' + c.footnote + '</p>' +
-  '</section>';
+  var s = '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
+    (c.windowNote ? '<div class="warn" style="margin:0 0 16px"><b>Two source windows:</b> ' + esc(c.windowNote) + '</div>' : '') +
+    kpis(c.kpis, c.kpis.length === 3 ? 3 : null);
+
+  if (c.weekly) {
+    s += grid2(
+      card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true)), c.weekly.note),
+      card(c.sources.title, table(c.sources.head, c.sources.rows), c.sources.note)
+    );
+  } else {
+    s += grid2(
+      card(c.sources.title, table(c.sources.head, c.sources.rows), c.sources.note),
+      card(c.seo.title, table(c.seo.head, c.seo.rows))
+    );
+  }
+  if (c.topPages) { s += card(c.topPages.title, table(c.topPages.head, c.topPages.rows)); }
+  if (c.crawlers) { s += card(c.crawlers.title, table(c.crawlers.head, c.crawlers.rows), c.crawlers.note); }
+  if (c.pending) {
+    s += card('Not captured this period',
+      table(['Metric', 'Status'], c.pending.map(function (x) { return [x, 'Pending — available on request']; })),
+      c.pendingNote);
+  }
+  if (c.footnote) { s += '<p class="sub">' + c.footnote + '</p>'; }
+  return s + '</section>';
 }
 
 function renderFacebook(c) {
   var meta = CHANNEL_META.facebook;
   if (!c.measured) { return mutedSection('facebook', c); }
-  return '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
-    kpis(c.kpis) +
-    grid2(
-      card(c.weekly.title, vbar(c.weekly.series, meta.color)),
-      card(c.formats.title, hbar(c.formats.series, { barX: c.formats.barX, color: meta.color }), c.formats.note)
-    ) +
-    grid2(
-      card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows)),
-      card(c.peers.title, table(c.peers.head, c.peers.rows, { numeric: function (i) { return i === 1 || i === 2; } }), c.peers.note)
-    ) +
-    '<div class="warn">' + c.warn + '</div>' +
-  '</section>';
+  var s = '<section>' + sechead(meta.name, meta.color, c.source, c.window) + kpis(c.kpis);
+
+  s += grid2(
+    card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true)), c.weekly.note),
+    c.formats
+      ? card(c.formats.title, hbar(c.formats.series, { barX: c.formats.barX, color: meta.color, W: chartW(true) }), c.formats.note)
+      : card(c.supporting.title, table(c.supporting.head, c.supporting.rows))
+  );
+  s += c.peers
+    ? grid2(card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows)),
+            card(c.peers.title, table(c.peers.head, c.peers.rows), c.peers.note))
+    : card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows));
+  if (c.warn) { s += '<div class="warn">' + c.warn + '</div>'; }
+  if (c.footnote) { s += '<p class="sub" style="margin-top:16px">' + c.footnote + '</p>'; }
+  return s + '</section>';
 }
 
 function renderInstagram(c) {
@@ -48,7 +66,7 @@ function renderInstagram(c) {
   return '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
     kpis(c.kpis) +
     grid2(
-      card(c.weekly.title, vbar(c.weekly.series, meta.color)),
+      card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true))),
       card(c.viewSources.title, table(c.viewSources.head, c.viewSources.rows), c.viewSources.note)
     ) +
   '</section>';
@@ -59,30 +77,26 @@ function renderLinkedIn(c) {
   if (!c.measured) { return mutedSection('linkedin', c); }
   var s = '<section>' + sechead(meta.name, meta.color, c.source, c.window) + kpis(c.kpis);
 
-  if (c.weekly && c.visitors) {
-    s += grid2(
-      card(c.weekly.title, vbar(c.weekly.series, meta.color), c.weekly.note),
-      card(c.visitors.title, table(c.visitors.head, c.visitors.rows))
-    );
+  if (c.weekly) {
+    s += grid2(card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true)), c.weekly.note),
+               card(c.visitors.title, table(c.visitors.head, c.visitors.rows)));
   } else if (c.monthly) {
-    s += grid2(
-      card(c.monthly.title, vbar(c.monthly.series, meta.color), c.monthly.note),
-      card(c.monthlyFollowers.title, vbar(c.monthlyFollowers.series, meta.color), c.monthlyFollowers.note)
-    );
-    s += grid2(
-      card(c.visitors.title, table(c.visitors.head, c.visitors.rows)),
-      card(c.search.title, table(c.search.head, c.search.rows, { numeric: function (i) { return i === 1; } }))
-    );
+    s += grid2(card(c.monthly.title, vbar(c.monthly.series, meta.color, chartW(true)), c.monthly.note),
+               card(c.monthlyFollowers.title, vbar(c.monthlyFollowers.series, meta.color, chartW(true)), c.monthlyFollowers.note));
+    s += grid2(card(c.visitors.title, table(c.visitors.head, c.visitors.rows)),
+               card(c.search.title, table(c.search.head, c.search.rows)));
   }
 
-  s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows,
-        { numeric: function (i) { return i > (c.topPosts.head[1] === 'Posted' ? 1 : 0); } }));
+  s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows));
 
   if (c.industry) {
     s += grid2(card(c.industry.title, table(c.industry.head, c.industry.rows)),
                card(c.location.title, table(c.location.head, c.location.rows)));
   } else {
-    s += card(c.location.title, table(c.location.head, c.location.rows));
+    s += grid2(card(c.location.title, table(c.location.head, c.location.rows)),
+               card(c.jobFunction.title, table(c.jobFunction.head, c.jobFunction.rows)));
+    s += grid2(card(c.visitorFunction.title, table(c.visitorFunction.head, c.visitorFunction.rows)),
+               card(c.searchingCompanies.title, table(c.searchingCompanies.head, c.searchingCompanies.rows)));
   }
   if (c.warn) { s += '<div class="warn">' + c.warn + '</div>'; }
   if (c.footnote) { s += '<p class="sub" style="margin-top:16px">' + c.footnote + '</p>'; }
@@ -93,8 +107,8 @@ function mutedSection(key, c) {
   var meta = CHANNEL_META[key];
   return '<section class="muted">' +
     '<div class="sechead"><span class="dot" style="background:' + meta.color + '"></span><h2>' + meta.name + '</h2></div>' +
-    '<p class="sub">No export available for this reporting period</p>' +
-    noExport(c.lastWindow) +
+    '<p class="sub">' + (c.pending ? 'Verified export pending' : 'No export available for this reporting period') + '</p>' +
+    (c.pending ? pendingExport(c.plannedWindow, c.lastWindow) : noExport(c.lastWindow)) +
   '</section>';
 }
 
@@ -110,7 +124,7 @@ function renderSummary(snap) {
     '<h2 style="font-size:26px;margin:6px 0 0">Growth at a glance</h2>' +
     '<p class="lead">' + s.lead + '</p>' +
     kpis(s.kpis) +
-    '<div class="card"><h3>Reach volume by platform</h3>' + legend + hbar(s.reach, { barX: 150 }) +
+    '<div class="card"><h3>Reach volume by platform</h3>' + legend + hbar(s.reach, { barX: 150, W: chartW(false) }) +
       (s.reachNote ? '<p class="note" style="font-size:11.5px;color:var(--muted);margin:6px 0 0">' + s.reachNote + '</p>' : '') +
     '</div>' +
     table(s.rollup.head, s.rollup.rows, { numeric: function (i) { return i > 0 && i < 5; } }) +
@@ -126,46 +140,33 @@ function renderRecommendations(snap) {
 
 /* ── BizIQ campaign report (vendor report — not period-scoped) ───────── */
 function renderBizIQ() {
+  var B = BIZIQ;
   return '<section>' +
   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap">' +
     '<div>' +
-      '<div class="sechead"><span class="dot" style="background:var(--gold)"></span><h2>BizIQ Campaign Report</h2></div>' +
-      '<p class="sub">source: BizIQ &nbsp;·&nbsp; reporting period: {{FILL IN DATES}}</p>' +
+      '<div class="sechead"><span class="dot" style="background:var(--gold)"></span><h2>' + esc(B.title) + '</h2></div>' +
+      '<p class="sub">' + esc(B.source) + ' &nbsp;·&nbsp; reporting period: <span class="win-chip">' + esc(B.window) + '</span></p>' +
     '</div>' +
     '<!-- paste BizIQ logo here if available -->' +
     '<!-- <img src="" alt="BizIQ" style="height:36px;width:auto;display:block;flex:0 0 auto"> -->' +
     '<div class="placeholder" style="flex:0 0 auto;padding:10px 20px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:.16em">BIZIQ</div>' +
   '</div>' +
-  '<p class="lead">Current campaign standings for review. Next comprehensive campaign call: <b>October 2, 2026 at 2:00 PM</b>' +
-  ' &mdash; this call will cover all business locations together, so please disregard any automated per-location appointment emails.</p>' +
-  card('Listings & visibility',
-    table(['Item', 'Now', 'At start (May)', 'Status'], [
-      ['Total listings managed', '77', '39', { tag: 'hi', text: 'Higher' }],
-      ['GMB posts', 'On schedule', '—', { tag: 'hi', text: 'On track' }]
-    ], { numeric: function (i) { return i === 1 || i === 2; } })) +
+  '<p class="lead">' + B.intro + '</p>' +
+  card(B.listings.title, table(B.listings.head, B.listings.rows)) +
   '<h3 style="font-size:15px;margin:18px 0 0;font-family:Inter,sans-serif;font-weight:700;letter-spacing:0">GMB insights</h3>' +
-  kpis([
-    { lab: 'Website clicks', num: '397', note: 'from Google Business Profile' },
-    { lab: 'Call clicks', num: '206', note: 'tap-to-call actions' },
-    { lab: 'Direction requests', num: '29', note: 'navigation to location' }
-  ], 3) +
+  kpis(B.gmb, 3) +
   grid2(
-    '<div class="card"><h3>Rankings</h3>' +
-      table(['Keyword / area', 'Rank'], [
-        ['Partial Hospitalization Program — ZIP 85020', '<span class="tag hi">#1 organic desktop</span>'],
-        ['Detox Center — ZIP 85020', '<span class="tag hi">#1 local pack</span> <span class="tag eq">#2 organic desktop</span>']
-      ], { numeric: function () { return false; } }) +
-      '<h3 style="margin-top:16px">Keyword distribution</h3>' +
-      table(['Position', 'Keywords'], [['#1', '13'], ['#2', '31'], ['#6 – #10', '17']]) +
+    '<div class="card"><h3>' + esc(B.rankings.title) + '</h3>' +
+      table(B.rankings.head, B.rankings.rows, { numeric: function () { return false; } }) +
+      '<h3 style="margin-top:16px">' + esc(B.distribution.title) + '</h3>' +
+      table(B.distribution.head, B.distribution.rows) +
     '</div>',
-    '<div class="card"><h3>Reputation management</h3>' +
-      table(['Metric', 'Value'], [
-        ['Average rating', '4.56 stars'],
-        ['Review volume', 'Steady — a handful of new reviews monthly']
-      ]) +
-      '<div class="warn"><b>Follow-up:</b> discuss and optimize the client\'s review-request process.</div>' +
+    '<div class="card"><h3>' + esc(B.reputation.title) + '</h3>' +
+      table(B.reputation.head, B.reputation.rows) +
+      '<div class="warn">' + B.followUp + '</div>' +
     '</div>'
   ) +
+  '<div class="warn">' + B.warn + '</div>' +
   '</section>';
 }
 
@@ -188,6 +189,7 @@ function periodBar(currentId) {
 }
 
 function render(id) {
+  _current = id;
   var snap = REPORTS[id];
   var ch = snap.channels;
   document.getElementById('sheet').innerHTML =
@@ -213,6 +215,12 @@ function render(id) {
   document.title = 'Sanctuary Recovery Centers — ' + snap.label;
 }
 
-render(REPORT_ORDER[0]);
+var _current = REPORT_ORDER[0], _w = 0, _t;
+function renderCurrent() { _w = chartW(false); render(_current); }
+window.addEventListener('resize', function () {
+  clearTimeout(_t);
+  _t = setTimeout(function () { if (chartW(false) !== _w) { renderCurrent(); } }, 180);
+});
+renderCurrent();
 </script>
 </body></html>

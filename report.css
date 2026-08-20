@@ -118,3 +118,17 @@ section.muted .dot{opacity:.35}
  .periodbar .meta{margin-left:0;flex-basis:100%}
  .controls{grid-template-columns:1fr}
 }
+
+/* ── touch targets ─────────────────────────────────────────────────────
+   Touch devices and narrow viewports get 44px-minimum hit areas.        */
+@media (max-width:720px), (pointer:coarse) {
+  select{min-height:44px;padding:10px 12px;font-size:15px}  /* 15px avoids iOS zoom-on-focus */
+  .topnav a{min-height:44px;display:inline-flex;align-items:center;padding:0 16px}
+  .pointpick .p{min-height:44px;padding:0 15px;font-size:13.5px}
+  .pointpick .p input{width:19px;height:19px}
+  .periodbar{padding-top:14px;padding-bottom:14px}
+  .periodbar label{flex:0 0 100%}
+  .periodbar select{flex:1 1 auto}
+}
+/* charts render 1:1, so never let one be upscaled past its natural size */
+.chart{max-width:100%}

@@ -76,7 +76,7 @@ function results() {
             fmt(p.value), chg, esc(p.w)];
   });
 
-  var out = card(state.metric + ' — trend', trend(pts, color),
+  var out = card(state.metric + ' — trend', trend(pts, color, chartW(false)),
     mixed ? null : 'Change column is computed from the values shown.');
   out += table(head, rows, { numeric: function (i) { return i === 1; } });
   if (mixed) {
@@ -86,6 +86,49 @@ function results() {
            'Period-over-period change is suppressed for this reason.</div>';
   }
   return out;
+}
+
+function contextSection() {
+  var ctx = contextFor(state.channel);
+  if (!ctx) { return ''; }
+  var color = CHANNEL_META[state.channel].color;
+
+  if (ctx.kind === 'competitors') {
+    return '<section>' +
+      sechead(COMPETITORS.title, color, COMPETITORS.source, COMPETITORS.window) +
+      table(COMPETITORS.head, COMPETITORS.rows, { highlight: COMPETITORS.youIndex }) +
+      '<p class="sub" style="margin-top:12px">' + COMPETITORS.note + '</p>' +
+    '</section>';
+  }
+  if (ctx.kind === 'biziq') {
+    var B = BIZIQ;
+    return '<section>' +
+      sechead(B.title, color, B.source, B.window) +
+      grid2(
+        '<div class="card"><h3>' + esc(B.listings.title) + '</h3>' + table(B.listings.head, B.listings.rows) + '</div>',
+        '<div class="card"><h3>' + esc(B.reputation.title) + '</h3>' + table(B.reputation.head, B.reputation.rows) + '</div>'
+      ) +
+      kpis(B.gmb, 3) +
+      grid2(
+        '<div class="card"><h3>' + esc(B.rankings.title) + '</h3>' +
+          table(B.rankings.head, B.rankings.rows, { numeric: function () { return false; } }) + '</div>',
+        '<div class="card"><h3>' + esc(B.distribution.title) + '</h3>' +
+          table(B.distribution.head, B.distribution.rows) + '</div>'
+      ) +
+      '<div class="warn">' + B.warn + '</div>' +
+    '</section>';
+  }
+  if (ctx.kind === 'table') {
+    return '<section>' +
+      sechead(ctx.title, color, ctx.source, ctx.window) +
+      table(ctx.head, ctx.rows) +
+      (ctx.note ? '<p class="sub" style="margin-top:12px">' + ctx.note + '</p>' : '') +
+    '</section>';
+  }
+  return '<section>' +
+    sechead(ctx.title, color, 'context for the selected channel', '') +
+    '<div class="noexport">' + ctx.body + '</div>' +
+  '</section>';
 }
 
 function render() {
@@ -105,15 +148,8 @@ function render() {
       controls() +
       '<div style="margin-top:18px">' + results() + '</div>' +
     '</section>' +
-    '<section>' +
-      sechead(COMPETITORS.title, CHANNEL_META.linkedin.color, COMPETITORS.source, COMPETITORS.window) +
-      table(COMPETITORS.head, COMPETITORS.rows, {
-        numeric: function (i) { return i > 0; },
-        highlight: COMPETITORS.youIndex
-      }) +
-      '<p class="sub" style="margin-top:12px">' + COMPETITORS.note + '</p>' +
-    '</section>' +
-    pageFooter('LinkedIn 05/21–08/18 · competitor set: last 30 days · Website / Meta social 07/05–08/05');
+    contextSection() +
+    pageFooter(REPORTS[REPORT_ORDER[0]].dataLine);
 
   applyDataLabels();
 
@@ -138,6 +174,12 @@ function render() {
   }
 }
 
+var _w = 0, _t;
+window.addEventListener('resize', function () {
+  clearTimeout(_t);
+  _t = setTimeout(function () { if (chartW(false) !== _w) { _w = chartW(false); render(); } }, 180);
+});
+_w = chartW(false);
 render();
 </script>
 </body></html>
