@@ -648,7 +648,10 @@ var L10 = {
 var TWOWEEK = {
   last: WINDOWS.twLast,
   prior: WINDOWS.twPrior,
-  note: 'Deltas come from each platform\'s native "vs. previous 14 days" comparison, not from arithmetic across snapshots. ' +
+  note: 'Figures on this page are 14-day cuts, so they are intentionally smaller than the Report page\'s totals — ' +
+        'Facebook 23,010 here vs. 29,673 there (28 days), Instagram 245 vs. 691 (28 days), LinkedIn 1,315 vs. 6,582 ' +
+        '(campaign-to-date). Same data, shorter window; the weekly series on the Report page sum to its totals exactly. ' +
+        'Deltas come from each platform\'s native "vs. previous 14 days" comparison, not from arithmetic across snapshots. ' +
         'Facebook two-week figures are from the staged 14-day cut — refresh against incoming platform screenshots if they differ.',
   channels: [
     {

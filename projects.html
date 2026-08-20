@@ -16,11 +16,30 @@
    localStorage — to make an item permanent for everyone, it goes into
    data.js like the seeds.                                                 */
 var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete'];
+var IMPORTANCE = ['Hot', 'Med', 'Cold'];
 var LS_KEY = 'src_projects_v1';
+var META_KEY = 'src_projects_meta_v1';   /* importance/date set on L10 seed rows */
+
+function seedMeta() {
+  try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveSeedMeta(m) { localStorage.setItem(META_KEY, JSON.stringify(m)); }
+function impTag(v) {
+  if (!v) { return '—'; }
+  return '<span class="tag ' + v.toLowerCase() + '">' + esc(v) + '</span>';
+}
+function fmtDate(iso) {
+  if (!iso) { return ''; }
+  var p = iso.split('-');
+  return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : iso;
+}
 
 function seedItems() {
+  var meta = seedMeta();
   return L10.rows.map(function (r) {
+    var m = meta[r[0]] || {};
     return { title: r[0], owner: 'Brian Reinhart', status: r[1].text,
+             importance: m.importance || '', due: m.due || '',
              source: 'L10 dashboard · Aug 20, 2026', seed: true };
   });
 }
@@ -39,7 +58,9 @@ function tagFor(status) {
 function chips(items) {
   var counts = {};
   items.forEach(function (i) { counts[i.status] = (counts[i.status] || 0) + 1; });
-  var s = '<div class="chips"><span class="c">' + items.length + ' items</span>';
+  var hot = items.filter(function (i) { return i.importance === 'Hot'; }).length;
+  var s = '<div class="chips"><span class="c">' + items.length + ' items</span>' +
+          (hot ? '<span class="c" style="color:#C0492B">' + hot + ' Hot</span>' : '');
   STATUSES.forEach(function (st) {
     if (counts[st]) { s += '<span class="c">' + counts[st] + ' ' + esc(st) + '</span>'; }
   });
@@ -48,7 +69,8 @@ function chips(items) {
 
 function rowsHtml(items) {
   var s = '';
-  items.forEach(function (it, idx) {
+  items.forEach(function (it) {
+    var ref = it.seed ? 'seed:' + it.title : 'custom:' + it.customIdx;
     var statusCell;
     if (it.seed) {
       statusCell = '<span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span>';
@@ -59,10 +81,31 @@ function rowsHtml(items) {
       });
       statusCell += '</select> <button class="btn ghost" data-del="' + it.customIdx + '">remove</button>';
     }
+    var impCell = '<select class="statsel impsel" data-ref="' + esc(ref) + '" aria-label="Importance">' +
+      '<option value=""' + (it.importance ? '' : ' selected') + '>—</option>' +
+      IMPORTANCE.map(function (v) {
+        return '<option' + (v === it.importance ? ' selected' : '') + '>' + v + '</option>';
+      }).join('') + '</select>';
+    var dateCell = '<input type="date" class="statsel duesel" data-ref="' + esc(ref) + '" value="' +
+      esc(it.due || '') + '" aria-label="Complete date">';
     s += '<tr><td>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
-         '</td><td>' + esc(it.source) + '</td></tr>';
+         '</td><td>' + impCell + '</td><td>' + dateCell + '</td><td>' + esc(it.source) + '</td></tr>';
   });
   return s;
+}
+
+/* write an importance/date edit back to the right store */
+function applyEdit(ref, field, value) {
+  if (ref.indexOf('seed:') === 0) {
+    var meta = seedMeta(), key = ref.slice(5);
+    meta[key] = meta[key] || {};
+    meta[key][field] = value;
+    saveSeedMeta(meta);
+  } else {
+    var list = customItems();
+    list[+ref.slice(7)][field] = value;
+    saveCustom(list);
+  }
 }
 
 function render() {
@@ -79,7 +122,7 @@ function render() {
       '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
       'added below. L10 rows update when the dashboard is re-imported; rows added here can be edited or removed at any time.</p>' +
       chips(items) +
-      '<div class="tw"><table><thead><tr><th>Item</th><th>Owner</th><th>Status</th><th>Source</th></tr></thead>' +
+      '<div class="tw"><table><thead><tr><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
       '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
     '</section>' +
     '<section>' +
@@ -91,6 +134,10 @@ function render() {
         '<div class="f"><label for="np-owner">Owner</label><input type="text" id="np-owner" placeholder="e.g. Brian Reinhart"></div>' +
         '<div class="f"><label for="np-status">Status</label><select id="np-status">' +
           STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
+        '<div class="f"><label for="np-imp">Importance</label><select id="np-imp">' +
+          '<option value="">—</option>' +
+          IMPORTANCE.map(function (v) { return '<option>' + v + '</option>'; }).join('') + '</select></div>' +
+        '<div class="f"><label for="np-due">Complete date</label><input type="date" id="np-due"></div>' +
         '<button class="btn" id="np-add">Add project</button>' +
       '</div></div>' +
     '</section>' +
@@ -106,17 +153,31 @@ function render() {
       title: t,
       owner: document.getElementById('np-owner').value.trim() || '—',
       status: document.getElementById('np-status').value,
+      importance: document.getElementById('np-imp').value,
+      due: document.getElementById('np-due').value,
       source: 'added here · ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     });
     saveCustom(list);
     render();
   });
 
-  document.querySelectorAll('.statsel').forEach(function (sel) {
+  document.querySelectorAll('select.statsel[data-idx]').forEach(function (sel) {
     sel.addEventListener('change', function () {
       var list = customItems();
       list[+this.getAttribute('data-idx')].status = this.value;
       saveCustom(list);
+      render();
+    });
+  });
+  document.querySelectorAll('.impsel').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      applyEdit(this.getAttribute('data-ref'), 'importance', this.value);
+      render();
+    });
+  });
+  document.querySelectorAll('.duesel').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      applyEdit(this.getAttribute('data-ref'), 'due', this.value);
       render();
     });
   });

@@ -134,7 +134,7 @@ section.muted .dot{opacity:.35}
 .chart{max-width:100%}
 
 /* ── project tracker ─────────────────────────────────────────────────── */
-.addform{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end}
+.addform{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end}
 .addform .f{display:flex;flex-direction:column;gap:6px}
 .addform label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
 .addform input[type=text]{font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;
@@ -154,3 +154,12 @@ section.muted .dot{opacity:.35}
  .btn{min-height:44px}
  .statsel{min-height:38px}
 }
+
+/* importance tags */
+.tag.hot{background:#fbeae6;color:#C0492B}
+.tag.med{background:#fdf3e0;color:#B06F14}
+.tag.cold{background:#e8f4fb;color:#17739E}
+input[type=date].statsel{font-family:inherit;color:var(--ink);background:#fff;border:1px solid var(--line)}
+.addform input[type=date]{font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;
+ border:1px solid var(--line);border-radius:8px;padding:8px 11px;width:100%}
+@media (max-width:720px), (pointer:coarse){.addform input[type=date]{min-height:44px;font-size:15px}}
