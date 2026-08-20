@@ -11,15 +11,31 @@ function esc(s) {
 function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function r1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
 
+/* ── chart sizing ───────────────────────────────────────────────────────
+   Charts render 1:1 — the viewBox width equals the container's real pixel
+   width — so label text renders at its true CSS size on every device
+   instead of being scaled down with the viewBox.                         */
+function chartW(inGrid2) {
+  var vw = document.documentElement.clientWidth;
+  var sheet = Math.min(1000, vw);
+  var pad = vw <= 720 ? 20 : 40;
+  var avail = sheet - pad * 2;
+  if (inGrid2 && vw > 720) { avail = (avail - 20) / 2; }
+  avail -= 40; /* .card horizontal padding */
+  return Math.max(200, Math.round(avail));
+}
+function isCompact(W) { return W < 420; }
+
 /* ── vertical bar chart (weekly / monthly series) ─────────────────────── */
-function vbar(series, color) {
+function vbar(series, color, W) {
   var n = series.length; if (!n) { return ''; }
-  var gap = 18, w = (560 - gap * (n - 1)) / n, base = 176, H = 140;
+  W = W || 560;
+  var gap = isCompact(W) ? 8 : 18, w = (W - gap * (n - 1)) / n, base = 176, H = 140;
   var max = 0;
   series.forEach(function (d) { if (d.value > max) { max = d.value; } });
   if (!max) { max = 1; }
-  var s = '<svg viewBox="0 0 560 200" class="chart" role="img" aria-label="bar chart">' +
-          '<line x1="0" y1="176" x2="560" y2="176" stroke="#E4EBEF"/>';
+  var s = '<svg viewBox="0 0 ' + W + ' 200" class="chart" role="img" aria-label="bar chart">' +
+          '<line x1="0" y1="176" x2="' + W + '" y2="176" stroke="#E4EBEF"/>';
   series.forEach(function (d, i) {
     var h = d.value / max * H, x = i * (w + gap), y = base - h, cx = x + w / 2;
     s += '<rect x="' + r1(x) + '" y="' + r1(y) + '" width="' + r1(w) + '" height="' + r1(h) +
@@ -30,16 +46,36 @@ function vbar(series, color) {
   return s + '</svg>';
 }
 
-/* ── horizontal bar chart (reach volume / content format) ─────────────── */
+/* ── horizontal bar chart ─────────────────────────────────────────────
+   Wide: label column | bar | value.  Narrow: label + value on one line
+   with a full-width bar beneath, so nothing is squeezed.                */
 function hbar(series, opts) {
   opts = opts || {};
   var n = series.length; if (!n) { return ''; }
-  var barX = opts.barX || 150, maxW = 490 - barX, rowH = 34, top = 10, bh = 20;
+  var W = opts.W || 560;
   var max = 0;
   series.forEach(function (d) { if (d.value > max) { max = d.value; } });
   if (!max) { max = 1; }
-  var vh = n * rowH + 8;
-  var s = '<svg viewBox="0 0 560 ' + vh + '" class="chart" role="img" aria-label="bar chart">';
+  var s, vh;
+
+  if (isCompact(W)) {
+    var rowH = 46;
+    vh = n * rowH + 4;
+    s = '<svg viewBox="0 0 ' + W + ' ' + vh + '" class="chart" role="img" aria-label="bar chart">';
+    series.forEach(function (d, i) {
+      var y = i * rowH;
+      s += '<text x="0" y="' + (y + 12) + '" class="hlab">' + esc(d.label) + '</text>' +
+           '<text x="' + W + '" y="' + (y + 12) + '" text-anchor="end" class="hval">' + fmt(d.value) + '</text>' +
+           '<rect x="0" y="' + (y + 20) + '" width="' + r1(d.value / max * W) + '" height="14" rx="3" fill="' +
+           (d.color || opts.color || '#2C5468') + '"/>';
+    });
+    return s + '</svg>';
+  }
+
+  var barX = opts.barX ? Math.round(opts.barX / 560 * W) : Math.min(190, Math.max(110, Math.round(W * 0.27)));
+  var maxW = W - barX - 70, rowH = 34, top = 10, bh = 20;
+  vh = n * rowH + 8;
+  s = '<svg viewBox="0 0 ' + W + ' ' + vh + '" class="chart" role="img" aria-label="bar chart">';
   series.forEach(function (d, i) {
     var y = top + i * rowH, w = d.value / max * maxW, tb = y + 15;
     s += '<text x="0" y="' + tb + '" class="hlab">' + esc(d.label) + '</text>' +
@@ -51,20 +87,20 @@ function hbar(series, opts) {
 }
 
 /* ── trend line chart (compare page) ──────────────────────────────────── */
-function trend(points, color) {
+function trend(points, color, W) {
   var n = points.length; if (n < 2) { return ''; }
-  var padX = 46, base = 176, H = 140, top = 26;
+  W = W || 560;
+  var padX = isCompact(W) ? 26 : 46, base = 176, H = 140, top = 26;
   var max = 0;
   points.forEach(function (d) { if (d.value > max) { max = d.value; } });
   if (!max) { max = 1; }
-  var xs = function (i) { return padX + i * ((560 - padX * 2) / (n - 1)); };
+  var xs = function (i) { return padX + i * ((W - padX * 2) / (n - 1)); };
   var ys = function (v) { return base - (v / max) * H; };
-  var s = '<svg viewBox="0 0 560 200" class="chart" role="img" aria-label="trend chart">' +
-          '<line x1="0" y1="176" x2="560" y2="176" stroke="#E4EBEF"/>';
+  var s = '<svg viewBox="0 0 ' + W + ' 200" class="chart" role="img" aria-label="trend chart">' +
+          '<line x1="0" y1="176" x2="' + W + '" y2="176" stroke="#E4EBEF"/>';
   var d = '';
   points.forEach(function (p, i) { d += (i ? ' L' : 'M') + r1(xs(i)) + ' ' + r1(ys(p.value)); });
-  var area = d + ' L' + r1(xs(n - 1)) + ' 176 L' + r1(xs(0)) + ' 176 Z';
-  s += '<path d="' + area + '" fill="' + color + '" opacity=".10"/>';
+  s += '<path d="' + d + ' L' + r1(xs(n - 1)) + ' 176 L' + r1(xs(0)) + ' 176 Z" fill="' + color + '" opacity=".10"/>';
   s += '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
   points.forEach(function (p, i) {
     var x = xs(i), y = ys(p.value);
@@ -75,12 +111,31 @@ function trend(points, color) {
   return s + '</svg>';
 }
 
-/* ── table (always emits a <thead> so the mobile stacker works) ───────── */
+/* ── table (always emits a <thead> so the mobile stacker works) ─────────
+   Column alignment is detected from the data: a column whose cells are
+   overwhelmingly numeric is right-aligned, everything else stays left.  */
+function autoNumeric(head, rows) {
+  var num = [];
+  for (var c = 0; c < head.length; c++) {
+    if (c === 0) { num.push(false); continue; }
+    var hits = 0, seen = 0;
+    for (var r = 0; r < rows.length; r++) {
+      var cell = rows[r][c];
+      if (cell === undefined || cell === null) { continue; }
+      if (typeof cell === 'object') { seen++; continue; }
+      seen++;
+      if (/^[+\-▲▼\s]*[\d,.]+\s*(%|stars?|K)?$/.test(String(cell).trim())) { hits++; }
+    }
+    num.push(seen > 0 && hits / seen >= 0.8);
+  }
+  return function (i) { return !!num[i]; };
+}
+
 function table(head, rows, opts) {
   opts = opts || {};
-  var numeric = opts.numeric || function (i) { return i > 0; };
+  var numeric = opts.numeric || autoNumeric(head, rows);
   var s = '<div class="tw"><table><thead><tr>';
-  head.forEach(function (h, i) { s += '<th' + (numeric(i) && !opts.plainHead ? ' class="n"' : '') + '>' + esc(h) + '</th>'; });
+  head.forEach(function (h, i) { s += '<th' + (numeric(i) ? ' class="n"' : '') + '>' + esc(h) + '</th>'; });
   s += '</tr></thead><tbody>';
   rows.forEach(function (row, ri) {
     s += '<tr' + (opts.highlight === ri ? ' style="background:#fbf3ec"' : '') + '>';
@@ -138,6 +193,7 @@ function pageHeader(titleText, line1, line2, current) {
     '<nav class="topnav">' +
       '<a href="index.html"' + (current === 'report' ? ' aria-current="page"' : '') + '>Report</a>' +
       '<a href="compare.html"' + (current === 'compare' ? ' aria-current="page"' : '') + '>Compare</a>' +
+      '<a href="twoweeks.html"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
     '</nav><hr class="phoenix">';
 }
 
@@ -167,3 +223,11 @@ function card(title, inner, note) {
          '</div>';
 }
 function grid2(a, b) { return '<div class="grid2">' + a + b + '</div>'; }
+
+/* ── "pending verified export" state — distinct from "no new export" ──── */
+function pendingExport(plannedWindow, lastWindow) {
+  return '<div class="noexport"><b>Pending verified export</b>' +
+         'This channel is being re-pulled. The incoming export will cover <span class="win">' + esc(plannedWindow) + '</span>. ' +
+         'The last verified figures are from <span class="win">' + esc(lastWindow) + '</span> and are deliberately NOT ' +
+         'carried forward into this period — switch the period selector to see them in their own snapshot.</div>';
+}

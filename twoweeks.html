@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Two Weeks at a Glance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script>
+/* headline tiles pulled straight from the two-week table rows */
+function headline() {
+  var fb = TWOWEEK.channels[0], web = TWOWEEK.channels[1];
+  function row(ch, name) {
+    for (var i = 0; i < ch.rows.length; i++) { if (ch.rows[i][0] === name) { return ch.rows[i]; } }
+    return null;
+  }
+  var v = row(fb, 'Views'), e = row(fb, 'Engagement (total)'),
+      l = row(web, 'Total leads'), c = row(web, 'Conversion rate');
+  return kpis([
+    { lab: 'Facebook views',     num: v[1], chg: v[2], dir: 'up',   w: TWOWEEK.last },
+    { lab: 'Facebook engagement',num: e[1], chg: e[2], dir: 'up',   w: TWOWEEK.last },
+    { lab: 'Website leads',      num: l[1], chg: l[2], dir: 'up',   w: TWOWEEK.last },
+    { lab: 'Conversion rate',    num: c[1], chg: c[2], dir: 'up',   w: TWOWEEK.last }
+  ]);
+}
+
+function channelBlock(ch) {
+  var meta = CHANNEL_META[ch.key];
+  var s = '<section' + (ch.pending ? ' class="muted"' : '') + '>' +
+    '<div class="sechead"><span class="dot" style="background:' + meta.color + '"></span><h2>' + esc(meta.name) + '</h2></div>';
+
+  if (ch.pending) {
+    return s + '<p class="sub">Not available for this comparison</p>' +
+      '<div class="noexport"><b>' + (ch.key === 'instagram' ? 'Pending verified export' : 'Not on a 14-day basis') + '</b>' +
+      esc(ch.pending) + '</div></section>';
+  }
+
+  s += '<p class="sub">' + esc(TWOWEEK.last) + ' vs. ' + esc(TWOWEEK.prior) +
+       ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span></p>' +
+       table(ch.head, ch.rows);
+  if (ch.extra) {
+    s += card(ch.extra.title, table(ch.extra.head, ch.extra.rows));
+  }
+  return s + '</section>';
+}
+
+function render() {
+  var blocks = '';
+  TWOWEEK.channels.forEach(function (ch) { blocks += channelBlock(ch); });
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Two Weeks at a Glance',
+      'Last 2 weeks vs. prior 2 weeks &nbsp;·&nbsp; Internal / Confidential',
+      esc(TWOWEEK.last) + ' compared against ' + esc(TWOWEEK.prior), 'twoweeks') +
+    '<section>' +
+      '<div class="eyebrow">Fortnightly view</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">Last two weeks vs. the two before</h2>' +
+      '<p class="lead">A high-level read on the most recent fortnight — <b>' + esc(TWOWEEK.last) + '</b> measured against ' +
+      '<b>' + esc(TWOWEEK.prior) + '</b>. This is a like-for-like 14-day comparison, which the snapshot report deliberately ' +
+      'is not: there the channels run on different export windows. Channels without a 14-day cut are shown blank rather ' +
+      'than estimated.</p>' +
+      headline() +
+      '<div class="warn"><b>Where these deltas come from:</b> ' + esc(TWOWEEK.note) + '</div>' +
+    '</section>' +
+    blocks +
+    pageFooter('Two-week cuts: ' + TWOWEEK.last + ' vs. ' + TWOWEEK.prior);
+
+  applyDataLabels();
+}
+render();
+</script>
+</body></html>
