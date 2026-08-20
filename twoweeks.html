@@ -38,11 +38,15 @@ function channelBlock(ch) {
       esc(ch.pending) + '</div></section>';
   }
 
-  s += '<p class="sub">' + esc(TWOWEEK.last) + ' vs. ' + esc(TWOWEEK.prior) +
-       ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span></p>' +
-       table(ch.head, ch.rows);
+  s += '<p class="sub">' + (ch.windowOverride
+         ? esc(ch.windowOverride) + ' &nbsp;·&nbsp; <span class="win-chip">LinkedIn export cut · 15 days vs. 15 days</span>'
+         : esc(TWOWEEK.last) + ' vs. ' + esc(TWOWEEK.prior) + ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span>') +
+       '</p>' + table(ch.head, ch.rows);
   if (ch.extra) {
     s += card(ch.extra.title, table(ch.extra.head, ch.extra.rows));
+  }
+  if (ch.note) {
+    s += '<p class="sub" style="margin-top:10px">' + ch.note + '</p>';
   }
   return s + '</section>';
 }

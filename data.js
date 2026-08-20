@@ -19,7 +19,7 @@ var WINDOWS = {
   fbAug20:       'Jul 23 – Aug 19, 2026',
   siteAug20_14:  'Aug 6 – 19, 2026',
   siteAug20_7:   'Aug 13 – 19, 2026',
-  igAug20:       'Jul 23 – Aug 19, 2026 (planned)',
+  igAug20:       'Jul 23 – Aug 19, 2026',
   twLast:        'Aug 6 – 19, 2026',
   twPrior:       'Jul 23 – Aug 5, 2026',
   biziq:         '{{CONFIRM REPORTING PERIOD}}'
@@ -276,15 +276,15 @@ var SNAP_AUG20 = {
   id: '2026-08-20',
   label: 'Aug 20 snapshot',
   reportDate: 'Aug 20, 2026',
-  dataLine: 'Facebook 07/23–08/19 · Website 08/06–08/19 (sources 08/13–08/19) · LinkedIn 05/21–08/18 · Instagram pending',
+  dataLine: 'Facebook &amp; Instagram 07/23–08/19 · Website 08/06–08/19 (sources 08/13–08/19) · LinkedIn 05/21–08/18',
   summary: {
     measured: true,
     lead: 'The story of this period is a single post. The <b>Aug 8 twentieth-anniversary post</b> broke out across both ' +
           'Facebook (15,384 views) and LinkedIn (39.2% engagement rate) — brand and story content, not recruitment. ' +
           'Facebook reach grew <b>34.6%</b> to 29,673 views with interactions nearly doubling, but <b>link clicks fell to 22</b>, ' +
           'so click-through remains the leak. The website converted better on less traffic: visits down 14% while ' +
-          'leads rose 39% and conversion rate rose to 5%. <b>Instagram is pending a verified export</b> and is shown blank ' +
-          'rather than carried forward.',
+          'leads rose 39% and conversion rate rose to 5%. <b>Instagram remains supply-starved</b>: 691 views, of which ' +
+          'roughly half are Facebook cross-post spillover, on zero native posting.',
     kpis: [
       { lab: 'Facebook views',    num: '29,673', chg: '▲ 34.6%', dir: 'up',   note: '11.3K unique viewers', w: WINDOWS.fbAug20 },
       { lab: 'FB interactions',   num: '1,072',  chg: '▲ 94.6%', dir: 'up',   note: '409 from non-followers', w: WINDOWS.fbAug20 },
@@ -294,17 +294,18 @@ var SNAP_AUG20 = {
     reach: [
       { label: 'Facebook views (28d)',        value: 29673, color: '#2C5468', w: WINDOWS.fbAug20 },
       { label: 'LinkedIn impressions (3mo)',  value: 6582,  color: '#D98A1F', w: WINDOWS.liAug20 },
-      { label: 'Website visits (14d)',        value: 1003,  color: '#1C9AD6', w: WINDOWS.siteAug20_14 }
+      { label: 'Website visits (14d)',        value: 1003,  color: '#1C9AD6', w: WINDOWS.siteAug20_14 },
+      { label: 'Instagram views (28d)',       value: 691,   color: '#E17F55', w: WINDOWS.igAug20 }
     ],
     reachNote: 'Each bar is labelled with its own window length because they are NOT the same: Facebook is 28 days, ' +
                'LinkedIn is roughly three months, and the website figure is 14 days. Read the bars as per-channel totals ' +
-               'for those windows, not as a like-for-like comparison. Instagram is excluded — export pending.',
+               'for those windows, not as a like-for-like comparison.',
     rollup: {
       head: ['Channel', 'Reach', 'Engagement', 'Leads / contacts', 'Followers', 'Source window'],
       rows: [
         ['Website',   '1,003 visits',      '5% conversion rate',            '50 leads',        '—',       WINDOWS.siteAug20_14],
         ['Facebook',  '29,673 views',      '1,072 interactions',            '22 link clicks',  '2,386',   WINDOWS.fbAug20],
-        ['Instagram', 'Pending export',    '—',                             '—',               '—',       'awaiting re-pull'],
+        ['Instagram', '691 views',         '1 interaction',                 '0 link clicks',   '562',     WINDOWS.igAug20],
         ['LinkedIn',  '6,582 impressions', '810 post clicks · 181 reactions','14 comments',     '1,379',   WINDOWS.liAug20]
       ]
     }
@@ -402,10 +403,47 @@ var SNAP_AUG20 = {
       pendingNote: 'Lean build by choice this period. These are available on request from the 30-day view.'
     },
     instagram: {
-      measured: false,
-      pending: true,
-      plannedWindow: WINDOWS.igAug20,
-      lastWindow: WINDOWS.metaAug6
+      measured: true,
+      source: 'source: Meta Insights · vs. prior 28 days · dashboard + daily CSV exports reconciled',
+      window: WINDOWS.igAug20,
+      kpis: [
+        { lab: 'Views',           num: '691', chg: '▼ 28.8%', dir: 'down', note: '354 IG surface · 337 via Facebook', w: WINDOWS.igAug20 },
+        { lab: 'Reach (unique)',  num: '45',  chg: '▼ 22.4%', dir: 'down', note: 'platform dedup figure', w: WINDOWS.igAug20 },
+        { lab: 'Interactions',    num: '1',   chg: '▼ 50%',   dir: 'down', note: 'a single Reel interaction', w: WINDOWS.igAug20 },
+        { lab: 'Link clicks',     num: '0',   w: WINDOWS.igAug20 },
+        { lab: 'Profile visits',  num: '11',  w: WINDOWS.igAug20 },
+        { lab: 'Follows',         num: '5',   chg: '▼ 44.4%', dir: 'down', note: '3 unfollows · net +2', w: WINDOWS.igAug20 },
+        { lab: 'Followers (lifetime)', num: '562', note: 'essentially flat vs. 561', w: WINDOWS.igAug20 },
+        { lab: 'Conversions / orders', num: '0', w: WINDOWS.igAug20 }
+      ],
+      weekly: {
+        title: 'Weekly views (combined)',
+        note: 'Weeks starting Jul 20 and Aug 17 are partial (window edges). Weekly follows: Jul 27 → 1 · Aug 3 → 3 · Aug 10 → 1.',
+        series: [
+          { label: 'Jul 20*', value: 69 }, { label: 'Jul 27', value: 244 }, { label: 'Aug 3', value: 260 },
+          { label: 'Aug 10', value: 113 }, { label: 'Aug 17*', value: 5 }
+        ]
+      },
+      viewSources: {
+        title: 'Supporting stats',
+        head: ['Metric', 'Value', 'vs. prior 28d'],
+        rows: [
+          ['Views from IG followers', '1.1%', '▼ 96.3%'],
+          ['Views from non-followers', '98.9%', '▲ 41.8%'],
+          ['Reach from followers', '3', '▼ 50%'],
+          ['Reach from non-followers', '42', '▼ 19.2%'],
+          ['IG-surface views (100% organic)', '354', '▼ 29.9%'],
+          ['Conversations started', '1', '▼ 50%'],
+          ['New messaging contacts', '0 · 0% response rate', '▼ 100%']
+        ],
+        note: 'Top posts not available — no named posts surfaced in the export this window; the single in-window ' +
+              'interaction was on a Reel. Reach uses the platform dedup figure (45); the daily export sums to 46 — ' +
+              'the sum is not used.'
+      },
+      footnote: 'Still supply-starved: roughly half of all views (337 of 691) are Facebook cross-post spillover, and ' +
+                '98.9% of views come from non-followers. Views, reach and interactions are all down vs. the prior 28 days ' +
+                'and followers are essentially flat (562 vs. 561) — consistent with no new IG-native content. Reinforces ' +
+                'the standing "reactivate Instagram with native posting" recommendation.'
     },
     linkedin: {
       measured: true,
@@ -509,7 +547,8 @@ var SNAP_AUG20 = {
     'views) and LinkedIn (39.2% ER). Brand and milestone storytelling is beating recruitment content on reach and engagement.',
     '<b>Raise LinkedIn posting cadence.</b> Competitors published 19–21 posts in the last 30 days against Sanctuary\'s 5, ' +
     'on comparable follower counts. Cadence is the constraint, not audience.',
-    '<b>Re-pull Instagram.</b> It is the only channel with no verified export this period, so no cross-channel picture is complete.',
+    '<b>Reactivate Instagram with native posting.</b> The Aug 20 export confirms it: 691 views with roughly half from ' +
+    'Facebook spillover, one interaction, zero link clicks, followers flat at 562. The audience exists; the content does not.',
     '<b>Confirm the BizIQ reporting period.</b> The campaign figures are in but the date range label is still unset.'
   ]
 };
@@ -619,12 +658,35 @@ var TWOWEEK = {
     },
     {
       key: 'instagram',
-      pending: 'Pending — needs the Aug 6 – 19 set with "vs. previous 14 days" showing.'
+      head: ['Metric', 'Last 2 weeks', 'vs. prior 2 weeks'],
+      rows: [
+        ['Views (combined)', '245', '▼ 45%'],
+        ['Follows', '3', '▲ 50%'],
+        ['Profile visits', '5', '▼ 17%'],
+        ['Content interactions', '0', '▼ 100%'],
+        ['Link clicks', '0', '—'],
+        ['Reach (unique)', 'pending platform 14-day figure', '—']
+      ],
+      note: 'Summed from the daily exports for Aug 6 – 19 vs. Jul 23 – Aug 5. Reach is a dedup metric and cannot be ' +
+            'summed from daily data — the platform\'s own 14-day reach figure is pending.'
     },
     {
       key: 'linkedin',
-      pending: 'Not available on a 14-day basis — LinkedIn is exported on a campaign-to-date window (May 21 – Aug 18). ' +
-               'See the Compare page for its monthly trend.'
+      windowOverride: 'Aug 4 – 18, 2026 vs. Jul 20 – Aug 3, 2026',
+      head: ['Metric', 'Aug 4 – 18', 'Jul 20 – Aug 3', 'Change'],
+      rows: [
+        ['Impressions', '1,315', '666', '▲ 97%'],
+        ['Post clicks', '317', '23', '▲ 1,278%'],
+        ['Reactions', '57', '27', '▲ 111%'],
+        ['Comments', '5', '1', '▲ 400%'],
+        ['New followers', '11', '8', '▲ 38%'],
+        ['Posts published', '2', '3', '▼ 1 post'],
+        ['Page views', '107', '107', '— flat']
+      ],
+      note: 'Computed by summing LinkedIn\'s daily exports. LinkedIn\'s export cut runs Aug 4 – 18 vs. Jul 20 – Aug 3 ' +
+            '(15 days each) — offset two days from the Meta/website fortnight above, so read it alongside, not against, ' +
+            'the other channels. The Aug 4 – 18 surge is the Aug 10 anniversary post. Unique visitors are a dedup metric ' +
+            'and are not summable from daily data, so they are omitted here.'
     }
   ]
 };
@@ -660,9 +722,13 @@ var SERIES = {
     ]
   },
   instagram: {
-    'Views':          [{ label: 'Aug 6 snapshot', value: 913, w: WINDOWS.metaAug6 }],
-    'Reach (unique)': [{ label: 'Aug 6 snapshot', value: 68,  w: WINDOWS.metaAug6 }],
-    'Followers':      [{ label: 'Aug 6 snapshot', value: 561, w: WINDOWS.metaAug6 }]
+    'Views':          [{ label: 'Aug 6 snapshot', value: 913, w: WINDOWS.metaAug6 },
+                       { label: 'Aug 20 snapshot', value: 691, w: WINDOWS.igAug20 }],
+    'Reach (unique)': [{ label: 'Aug 6 snapshot', value: 68,  w: WINDOWS.metaAug6 },
+                       { label: 'Aug 20 snapshot', value: 45,  w: WINDOWS.igAug20 }],
+    'Followers':      [{ label: 'Aug 6 snapshot', value: 561, w: WINDOWS.metaAug6 },
+                       { label: 'Aug 20 snapshot', value: 562, w: WINDOWS.igAug20 }],
+    'Profile visits (Aug 20 window)': [{ label: 'Aug 20 snapshot', value: 11, w: WINDOWS.igAug20 }]
   },
   linkedin: {
     'Impressions (monthly)': [
@@ -692,6 +758,18 @@ var SERIES = {
     'New followers (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 15, w: WINDOWS.liAug6 },
       { label: 'Aug 20 snapshot', value: 74, w: WINDOWS.liAug20 }
+    ],
+    'Impressions (2-week cut)': [
+      { label: 'Jul 20 – Aug 3', value: 666,  w: 'Jul 20 – Aug 3, 2026' },
+      { label: 'Aug 4 – 18',     value: 1315, w: 'Aug 4 – 18, 2026' }
+    ],
+    'Post clicks (2-week cut)': [
+      { label: 'Jul 20 – Aug 3', value: 23,  w: 'Jul 20 – Aug 3, 2026' },
+      { label: 'Aug 4 – 18',     value: 317, w: 'Aug 4 – 18, 2026' }
+    ],
+    'New followers (2-week cut)': [
+      { label: 'Jul 20 – Aug 3', value: 8,  w: 'Jul 20 – Aug 3, 2026' },
+      { label: 'Aug 4 – 18',     value: 11, w: 'Aug 4 – 18, 2026' }
     ],
     'Greater Phoenix followers': [
       { label: 'Aug 6 snapshot',  value: 881, w: WINDOWS.liAug6 },
@@ -737,9 +815,10 @@ function contextFor(channel) {
   if (channel === 'instagram') {
     return {
       kind: 'note',
-      title: 'Instagram — export pending',
-      body: 'Instagram has no verified export for the Aug 20 snapshot, so only the Aug 6 window is trendable. ' +
-            'The pending pull will cover Jul 23 – Aug 19, 2026 to line up with Facebook.'
+      title: 'Instagram — reading the trend',
+      body: 'Both snapshots are 28-day windows (Jul 9 – Aug 5 and Jul 23 – Aug 19), but they overlap by two weeks, ' +
+            'so the change between points understates the true decline. Roughly half of Aug 20 views (337 of 691) are ' +
+            'Facebook cross-post spillover rather than IG-native reach, and no native posts were published in either window.'
     };
   }
   return null;
