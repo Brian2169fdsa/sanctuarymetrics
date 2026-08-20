@@ -385,7 +385,7 @@ var SNAP_AUG20 = {
         rows: [['Direct', '55%'], ['Search', '39%'], ['Referral', '3%'], ['Unknown', '3%']]
       },
       crawlers: {
-        title: 'AI crawler activity (bots, not human visits)',
+        title: 'AI crawler activity',
         note: 'Kept deliberately separate from the visit counts above — these are automated crawlers and must never be ' +
               'added to human traffic.',
         head: ['Window', 'Bot visits', 'Top crawlers'],
