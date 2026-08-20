@@ -89,6 +89,12 @@ function renderLinkedIn(c) {
 
   s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows));
 
+  if (c.showCompetitors) {
+    s += card(COMPETITORS.title + ' — ' + COMPETITORS.window,
+      table(COMPETITORS.head, COMPETITORS.rows, { highlight: COMPETITORS.youIndex }),
+      COMPETITORS.note);
+  }
+
   if (c.industry) {
     s += grid2(card(c.industry.title, table(c.industry.head, c.industry.rows)),
                card(c.location.title, table(c.location.head, c.location.rows)));
@@ -147,9 +153,7 @@ function renderBizIQ() {
       '<div class="sechead"><span class="dot" style="background:var(--gold)"></span><h2>' + esc(B.title) + '</h2></div>' +
       '<p class="sub">' + esc(B.source) + ' &nbsp;·&nbsp; reporting period: <span class="win-chip">' + esc(B.window) + '</span></p>' +
     '</div>' +
-    '<!-- paste BizIQ logo here if available -->' +
-    '<!-- <img src="" alt="BizIQ" style="height:36px;width:auto;display:block;flex:0 0 auto"> -->' +
-    '<div class="placeholder" style="flex:0 0 auto;padding:10px 20px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:.16em">BIZIQ</div>' +
+    '<img src="logo.png" alt="BizIQ — smart local marketing" style="height:44px;width:auto;display:block;flex:0 0 auto">' +
   '</div>' +
   '<p class="lead">' + B.intro + '</p>' +
   card(B.listings.title, table(B.listings.head, B.listings.rows)) +
@@ -172,8 +176,10 @@ function renderBizIQ() {
 
 function renderL10() {
   return '<section><div class="eyebrow">L10 meeting</div>' +
-    '<h2 style="font-size:22px;margin:6px 0 14px">Updates &amp; action items</h2>' +
-    '<div class="placeholder">Reserved for L10 meeting content — send it over and it will be added here.</div>' +
+    '<h2 style="font-size:22px;margin:6px 0 4px">Updates &amp; action items</h2>' +
+    '<p class="sub">' + esc(L10.source) + '</p>' +
+    card(L10.owner, table(L10.head, L10.rows, { numeric: function () { return false; } })) +
+    '<div class="placeholder" style="padding:16px">Other owners\' L10 items can be added here from the same dashboard on request.</div>' +
   '</section>';
 }
 

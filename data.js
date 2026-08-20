@@ -448,6 +448,7 @@ var SNAP_AUG20 = {
     linkedin: {
       measured: true,
       source: 'source: LinkedIn Page analytics · vendor start ~May 18, 2026',
+      showCompetitors: true,
       window: WINDOWS.liAug20,
       kpis: [
         { lab: 'Impressions',     num: '6,582', note: 'across the full window',     w: WINDOWS.liAug20 },
@@ -621,6 +622,26 @@ var BIZIQ = {
         'the range before this section goes outside the team.'
 };
 
+/* ── L10 leadership dashboard — Brian Reinhart's rocks ────────────────────
+   Source: L10_Leadership_2026.xlsx (Rocks sheet). Latest status = the
+   2026-08-20 meeting column. "On-tack" in the sheet normalized to On-track. */
+var L10 = {
+  source: 'source: L10 Leadership dashboard · latest status as of the Aug 20, 2026 meeting',
+  owner: 'Brian Reinhart · Director of Marketing',
+  head: ['Rock / item', 'Latest status'],
+  rows: [
+    ['Keep assistor portal maintained (sent new applications yesterday)', { tag: 'hi', text: 'On-track' }],
+    ['Assist with ongoing IT needs', { tag: 'hi', text: 'On-track' }],
+    ['Set up national trade mark', { tag: 'lo', text: 'Off Track' }],
+    ['Working with James on Adovo Project (tablets)', { tag: 'hi', text: 'On-track' }],
+    ['Integrate BizIQ into the marketing reporting process — track website and SEO performance from the BizIQ portal monthly alongside internal metrics', { tag: 'hi', text: 'On-track' }],
+    ['Build the Sanctuary Community Initiative brand, website, and giving platform; establish the donor package process with a one-pager and deck; and integrate the giving system into the website', { tag: 'hi', text: 'On-track' }],
+    ['Increase visibility into marketing metrics by creating weekly performance reports', { tag: 'hi', text: 'On-track' }],
+    ['Increase organizational visibility in the community by 200% by repurposing video content, creating a "Remember When" series from older posts, and using Sanctuary RC to promote Sanctuary CI', { tag: 'hi', text: 'On-track' }],
+    ['Create a plan for LinkedIn upgraded account', { tag: 'eq', text: 'New' }]
+  ]
+};
+
 /* ── two weeks at a glance ────────────────────────────────────────────────
    Last 2 weeks = Aug 6–19 · prior 2 weeks = Jul 23–Aug 5. Deltas are each
    platform's own "vs. previous 14 days" — not computed here.             */
@@ -760,16 +781,16 @@ var SERIES = {
       { label: 'Aug 20 snapshot', value: 74, w: WINDOWS.liAug20 }
     ],
     'Impressions (2-week cut)': [
-      { label: 'Jul 20 – Aug 3', value: 666,  w: 'Jul 20 – Aug 3, 2026' },
-      { label: 'Aug 4 – 18',     value: 1315, w: 'Aug 4 – 18, 2026' }
+      { label: 'Jul 20 – Aug 3', value: 666,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 4 – 18',     value: 1315, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
     ],
     'Post clicks (2-week cut)': [
-      { label: 'Jul 20 – Aug 3', value: 23,  w: 'Jul 20 – Aug 3, 2026' },
-      { label: 'Aug 4 – 18',     value: 317, w: 'Aug 4 – 18, 2026' }
+      { label: 'Jul 20 – Aug 3', value: 23,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 4 – 18',     value: 317, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
     ],
     'New followers (2-week cut)': [
-      { label: 'Jul 20 – Aug 3', value: 8,  w: 'Jul 20 – Aug 3, 2026' },
-      { label: 'Aug 4 – 18',     value: 11, w: 'Aug 4 – 18, 2026' }
+      { label: 'Jul 20 – Aug 3', value: 8,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 4 – 18',     value: 11, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
     ],
     'Greater Phoenix followers': [
       { label: 'Aug 6 snapshot',  value: 881, w: WINDOWS.liAug6 },
