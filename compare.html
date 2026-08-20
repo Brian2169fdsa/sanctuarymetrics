@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Compare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script>
+var state = { channel: 'linkedin', metric: 'Impressions (monthly)', off: {} };
+
+function metricsFor(ch) { return Object.keys(SERIES[ch]); }
+function pointsFor() { return SERIES[state.channel][state.metric] || []; }
+function keyOf(i) { return state.channel + '|' + state.metric + '|' + i; }
+function isOn(i) { return !state.off[keyOf(i)]; }
+function selected() { return pointsFor().filter(function (p, i) { return isOn(i); }); }
+
+function controls() {
+  var s = '<div class="controls">';
+  s += '<div class="f"><label for="chan">Channel</label><select id="chan">';
+  Object.keys(SERIES).forEach(function (c) {
+    s += '<option value="' + c + '"' + (c === state.channel ? ' selected' : '') + '>' + esc(CHANNEL_META[c].name) + '</option>';
+  });
+  s += '</select></div>';
+
+  s += '<div class="f"><label for="met">Metric</label><select id="met">';
+  metricsFor(state.channel).forEach(function (mname) {
+    s += '<option value="' + esc(mname) + '"' + (mname === state.metric ? ' selected' : '') + '>' + esc(mname) + '</option>';
+  });
+  s += '</select></div>';
+
+  var pts = pointsFor();
+  s += '<div class="f"><label>Periods available</label><div style="font-size:13.5px;padding-top:7px;color:var(--muted)">' +
+       pts.length + ' period' + (pts.length === 1 ? '' : 's') + ' of data</div></div>';
+  s += '</div>';
+
+  if (pts.length > 1) {
+    s += '<div class="pointpick" id="pick">';
+    pts.forEach(function (p, i) {
+      s += '<label class="p' + (isOn(i) ? ' on' : '') + '"><input type="checkbox" data-i="' + i + '"' +
+           (isOn(i) ? ' checked' : '') + '>' + esc(p.label) + '</label>';
+    });
+    s += '</div>';
+  }
+  return s;
+}
+
+function results() {
+  var pts = selected(), color = CHANNEL_META[state.channel].color;
+  if (pts.length < 2) {
+    return '<div class="empty">Not enough periods yet — add more exports to trend this.' +
+           (pointsFor().length > 1 ? '<br><span style="font-size:12px">Select at least two periods above.</span>' : '') +
+           '</div>';
+  }
+
+  var windows = {};
+  pts.forEach(function (p) { windows[p.w] = 1; });
+  var mixed = Object.keys(windows).length > 1;
+
+  var head = ['Period', 'Value', 'Change vs. previous', 'Source window'];
+  var rows = pts.map(function (p, i) {
+    var chg = '—';
+    if (i > 0 && !mixed) {
+      var d = p.value - pts[i - 1].value;
+      var pct = pts[i - 1].value ? Math.round(Math.abs(d) / pts[i - 1].value * 1000) / 10 : 0;
+      var t = d > 0 ? 'hi' : (d < 0 ? 'lo' : 'eq');
+      chg = '<span class="tag ' + t + '">' + (d > 0 ? '▲ +' : (d < 0 ? '▼ −' : '')) + fmt(Math.abs(d)) +
+            (pts[i - 1].value ? ' · ' + pct + '%' : '') + '</span>';
+    } else if (i > 0 && mixed) {
+      chg = '<span class="tag eq">n/a — windows differ</span>';
+    }
+    return [esc(p.label) + (p.partial ? ' <span class="win-chip">' + esc(p.partial) + '</span>' : ''),
+            fmt(p.value), chg, esc(p.w)];
+  });
+
+  var out = card(state.metric + ' — trend', trend(pts, color),
+    mixed ? null : 'Change column is computed from the values shown.');
+  out += table(head, rows, { numeric: function (i) { return i === 1; } });
+  if (mixed) {
+    out += '<div class="warn"><b>Windows do not match:</b> the selected periods come from different export windows (' +
+           Object.keys(windows).map(esc).join(' · ') + '). ' +
+           'These values are not directly comparable — a longer window will show a larger total simply because it covers more time. ' +
+           'Period-over-period change is suppressed for this reason.</div>';
+  }
+  return out;
+}
+
+function render() {
+  var pts = pointsFor();
+  if (!pts.length) { state.metric = metricsFor(state.channel)[0]; }
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Compare',
+      'Multi-period comparison tool &nbsp;·&nbsp; Internal / Confidential',
+      'Every value is shown with the export window it came from', 'compare') +
+    '<section>' +
+      '<div class="eyebrow">Comparison tool</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">Trend a metric across periods</h2>' +
+      '<p class="lead">Pick a channel and metric, then choose which periods to compare. Values are only ever shown for ' +
+      'periods that were actually exported — nothing is estimated or carried forward. Where the underlying export windows ' +
+      'differ, the comparison is flagged rather than silently averaged.</p>' +
+      controls() +
+      '<div style="margin-top:18px">' + results() + '</div>' +
+    '</section>' +
+    '<section>' +
+      sechead(COMPETITORS.title, CHANNEL_META.linkedin.color, COMPETITORS.source, COMPETITORS.window) +
+      table(COMPETITORS.head, COMPETITORS.rows, {
+        numeric: function (i) { return i > 0; },
+        highlight: COMPETITORS.youIndex
+      }) +
+      '<p class="sub" style="margin-top:12px">' + COMPETITORS.note + '</p>' +
+    '</section>' +
+    pageFooter('LinkedIn 05/21–08/18 · competitor set: last 30 days · Website / Meta social 07/05–08/05');
+
+  applyDataLabels();
+
+  document.getElementById('chan').addEventListener('change', function () {
+    state.channel = this.value;
+    state.metric = metricsFor(state.channel)[0];
+    state.off = {};
+    render();
+  });
+  document.getElementById('met').addEventListener('change', function () {
+    state.metric = this.value;
+    render();
+  });
+  var pick = document.getElementById('pick');
+  if (pick) {
+    pick.addEventListener('change', function (e) {
+      var i = e.target.getAttribute('data-i');
+      if (i === null) { return; }
+      state.off[keyOf(+i)] = !e.target.checked;
+      render();
+    });
+  }
+}
+
+render();
+</script>
+</body></html>
