@@ -17,13 +17,16 @@ function headline() {
     for (var i = 0; i < ch.rows.length; i++) { if (ch.rows[i][0] === name) { return ch.rows[i]; } }
     return null;
   }
-  var v = row(fb, 'Views'), e = row(fb, 'Engagement (total)'),
+  var v = row(fb, 'Views'), e = row(fb, 'Content interactions') || row(fb, 'Engagement (total)'),
       l = row(web, 'Total leads'), c = row(web, 'Conversion rate');
+  /* the change column is the last cell; direction is read from its arrow */
+  function tile(lab, r) {
+    var chg = r[r.length - 1];
+    return { lab: lab, num: r[1], chg: chg, dir: chg.indexOf('▼') === 0 ? 'down' : (chg.indexOf('▲') === 0 ? 'up' : 'flat'), w: TWOWEEK.last };
+  }
   return kpis([
-    { lab: 'Facebook views',     num: v[1], chg: v[2], dir: 'up',   w: TWOWEEK.last },
-    { lab: 'Facebook engagement',num: e[1], chg: e[2], dir: 'up',   w: TWOWEEK.last },
-    { lab: 'Website leads',      num: l[1], chg: l[2], dir: 'up',   w: TWOWEEK.last },
-    { lab: 'Conversion rate',    num: c[1], chg: c[2], dir: 'up',   w: TWOWEEK.last }
+    tile('Facebook views', v), tile('Facebook interactions', e),
+    tile('Website leads', l), tile('Conversion rate', c)
   ]);
 }
 
@@ -39,7 +42,7 @@ function channelBlock(ch) {
   }
 
   s += '<p class="sub">' + (ch.windowOverride
-         ? esc(ch.windowOverride) + ' &nbsp;·&nbsp; <span class="win-chip">LinkedIn export cut · 15 days vs. 15 days</span>'
+         ? esc(ch.windowOverride) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(ch.windowChip || 'LinkedIn export cut · 15 days vs. 15 days') + '</span>'
          : esc(TWOWEEK.last) + ' vs. ' + esc(TWOWEEK.prior) + ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span>') +
        '</p>' + table(ch.head, ch.rows);
   if (ch.extra) {

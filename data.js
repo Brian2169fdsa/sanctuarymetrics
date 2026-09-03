@@ -20,8 +20,15 @@ var WINDOWS = {
   siteAug20_14:  'Aug 6 – 19, 2026',
   siteAug20_7:   'Aug 13 – 19, 2026',
   igAug20:       'Jul 23 – Aug 19, 2026',
-  twLast:        'Aug 6 – 19, 2026',
-  twPrior:       'Jul 23 – Aug 5, 2026',
+  metaSep3:      'Aug 6 – Sep 2, 2026',
+  siteSep3_30:   'Aug 4 – Sep 2, 2026',
+  siteSep3_14:   'Aug 20 – Sep 2, 2026',
+  siteSep3_7:    'Aug 27 – Sep 2, 2026',
+  liSep3:        'Aug 3 – Sep 1, 2026',
+  liSep3Meta:    'Aug 6 – Sep 1, 2026',
+  liSep3_2wk:    '13/14-day export cuts, Aug 6 – Sep 1, 2026',
+  twLast:        'Aug 20 – Sep 2, 2026',
+  twPrior:       'Aug 6 – 19, 2026',
   biziq:         '{{CONFIRM REPORTING PERIOD}}'
 };
 
@@ -554,29 +561,416 @@ var SNAP_AUG20 = {
   ]
 };
 
+/* ── snapshot: Sep 3, 2026 ────────────────────────────────────────────────
+   Meta (Facebook & Instagram) 28-day window Aug 6 – Sep 2 vs. Jul 9 – Aug 5
+   — exactly the Aug 6 report's window, so every Meta delta is a clean
+   period-over-period. Website is Duda's 30-day preset (Aug 4 – Sep 2) and
+   is labelled as its own window, never equated to the Meta window. LinkedIn
+   is Aug 3 – Sep 1 (export lags up to 2 days; Sep 2 not yet in).           */
+var SNAP_SEP3 = {
+  id: '2026-09-03',
+  label: 'Sep 3 snapshot',
+  reportDate: 'Sep 3, 2026',
+  dataLine: 'Facebook &amp; Instagram 08/06–09/02 · Website 08/04–09/02 (14d 08/20–09/02 · 7d 08/27–09/02) · LinkedIn 08/03–09/01',
+  summary: {
+    measured: true,
+    lead: 'The best month on record for Facebook and LinkedIn. <b>Facebook views rose 163% to 39,807</b> with interactions ' +
+          'up 273% and interactions running about 2.7x the category typical; the Aug 8 anniversary post carried week one and the ' +
+          '<b>Second Chance</b> content built a real second wave. <b>LinkedIn impressions nearly tripled</b> to 3,342 and August ' +
+          'was its strongest month since the vendor start — Sanctuary out-grew every peer on followers and reactions while ' +
+          'posting the least. The website converted better on less traffic again: <b>visits down 15%, leads up 13% to 112, ' +
+          'conversion rate up 32% to 4.9%</b>. <b>Instagram is the only channel moving the wrong way</b> — 393 views, half of ' +
+          'them Facebook spillover, on zero native posting.',
+    kpis: [
+      { lab: 'Facebook views',    num: '39,807', chg: '▲ 163.4%', dir: 'up', note: '12,833 unique viewers', w: WINDOWS.metaSep3 },
+      { lab: 'FB interactions',   num: '1,292',  chg: '▲ 273.4%', dir: 'up', note: '498 from non-followers', w: WINDOWS.metaSep3 },
+      { lab: 'Website leads',     num: '112',    chg: '▲ 13%',    dir: 'up', note: '4.9% conversion rate (▲ 32%)', w: WINDOWS.siteSep3_30 },
+      { lab: 'LinkedIn impr.',    num: '3,342',  chg: '▲ 183.9%', dir: 'up', note: '476 post clicks · 184 reactions', w: WINDOWS.liSep3 }
+    ],
+    reach: [
+      { label: 'Facebook views (28d)',        value: 39807, color: '#2C5468', w: WINDOWS.metaSep3 },
+      { label: 'LinkedIn impressions (30d)',  value: 3342,  color: '#D98A1F', w: WINDOWS.liSep3 },
+      { label: 'Website visits (30d)',        value: 2304,  color: '#1C9AD6', w: WINDOWS.siteSep3_30 },
+      { label: 'Instagram views (28d)',       value: 393,   color: '#E17F55', w: WINDOWS.metaSep3 }
+    ],
+    reachNote: 'Windows are close but not identical this period: Facebook and Instagram are 28 days (Aug 6 – Sep 2), ' +
+               'LinkedIn is 30 days (Aug 3 – Sep 1) and the website is Duda\'s 30-day preset (Aug 4 – Sep 2). Read the bars ' +
+               'as per-channel totals for those windows, not as a like-for-like comparison.',
+    rollup: {
+      head: ['Channel', 'Reach', 'Engagement', 'Leads / contacts', 'Followers', 'Source window'],
+      rows: [
+        ['Website',   '2,304 visits',      '4.9% conversion rate',            '112 leads (63 calls · 43 forms)', '—',     WINDOWS.siteSep3_30],
+        ['Facebook',  '39,807 views',      '1,292 interactions',              '51 link clicks',                  '2,406', WINDOWS.metaSep3],
+        ['Instagram', '393 views',         '2 interactions',                  '1 messaging contact',             '562',   WINDOWS.metaSep3],
+        ['LinkedIn',  '3,342 impressions', '476 post clicks · 184 reactions', '7 comments · 2 reposts',          '1,400', WINDOWS.liSep3]
+      ]
+    }
+  },
+  channels: {
+    facebook: {
+      measured: true,
+      source: 'source: Meta Business Suite · vs. prior 28 days (Jul 9 – Aug 5) · dashboard + daily CSV + post-level exports reconciled',
+      window: WINDOWS.metaSep3,
+      kpis: [
+        { lab: 'Views',            num: '39,807', chg: '▲ 163.4%', dir: 'up',   note: '100% organic · 15,115 prior', w: WINDOWS.metaSep3 },
+        { lab: 'Unique viewers',   num: '12.8K',  chg: '▲ 261%',   dir: 'up',   note: '12,833 deduplicated', w: WINDOWS.metaSep3 },
+        { lab: 'Interactions',     num: '1,292',  chg: '▲ 273.4%', dir: 'up',   note: '346 prior', w: WINDOWS.metaSep3 },
+        { lab: 'Link clicks',      num: '51',     chg: '▲ 143%',   dir: 'up',   note: '21 prior · computed', w: WINDOWS.metaSep3 },
+        { lab: 'Profile visits',   num: '1,028',  chg: '▲ 15.9%',  dir: 'up',   w: WINDOWS.metaSep3 },
+        { lab: 'Total followers',  num: '2,406',  note: '2,356 at Aug 6', w: WINDOWS.metaSep3 },
+        { lab: 'Net follows',      num: '+48',    chg: '▲ 54.8%',  dir: 'up',   note: '56 gained · 8 lost', w: WINDOWS.metaSep3 },
+        { lab: 'Leads / appts / orders', num: '0 / 0 / 0', note: 'none recorded', w: WINDOWS.metaSep3 }
+      ],
+      weekly: {
+        title: 'Weekly views',
+        note: 'Four full weeks — the series sums to the 39,807 total exactly. Week 1 is 49% of period views (Aug 8 anniversary ' +
+              'post; peak days Aug 9 at 6,484 and Aug 8 at 5,773). Week 4 is the second-strongest week and the strongest for ' +
+              'link clicks (21) and profile visits (344).',
+        series: [
+          { label: 'Aug 6', value: 19520 }, { label: 'Aug 13', value: 3490 },
+          { label: 'Aug 20', value: 6624 }, { label: 'Aug 27', value: 10173 }
+        ]
+      },
+      supporting: {
+        title: 'Supporting stats',
+        head: ['Metric', 'Value', 'vs. prior 28d'],
+        rows: [
+          ['Views from non-followers', '72.8%', '▲ 7.3%'],
+          ['Interactions from non-followers', '498', '▲ 1.1K%'],
+          ['Interactions from followers', '794', '▲ 162%'],
+          ['3-second video views', '650', '▼ 29.7%'],
+          ['Reels views', '1.8K', '▼ 22.1%'],
+          ['Watch time', '3h 40m', '▼ 31.2%'],
+          ['Conversations started', '0', '▼ 100%'],
+          ['Unique engaged users', '1,592', 'daily export'],
+          ['Negative feedback', '0', '—'],
+          ['Posts published', '15 (all photo)', '▲ 15.4%']
+        ]
+      },
+      peers: {
+        title: 'vs. Professional Services peers (Meta benchmark)',
+        note: 'Interactions run ~2.7x the category typical while follower count is merely "similar" — the audience is unusually engaged for its size.',
+        head: ['Metric', 'Sanctuary', 'Typical', 'Standing'],
+        rows: [
+          ['Followers', '2,406', '1,665', { tag: 'eq', text: 'Similar' }],
+          ['Follows (28d)', '56', '29', { tag: 'eq', text: 'Similar' }],
+          ['Content interactions', '1,292', '472', { tag: 'hi', text: 'Higher' }],
+          ['Posts published', '15', '—', { tag: 'eq', text: 'Similar' }]
+        ]
+      },
+      topPosts: {
+        title: 'Top posts by views (published in window)',
+        head: ['Post', 'Date', 'Views', 'Reactions', 'Comments', 'Shares', 'Link clicks'],
+        rows: [
+          ['"Twenty years ago, a door was left open…"', 'Aug 8', '15,617', '374', '60', '14', '11'],
+          ['"The second chance movement moves faster…"', 'Aug 26', '3,746', '99', '21', '33', '9'],
+          ['"What a powerful day in Phoenix. 💙" (Second Chance event)', 'Sep 2', '3,051', '52', '4', '16', '—'],
+          ['"The second chance movement moves faster…"', 'Aug 19', '2,816', '31', '1', '20', '2'],
+          ['Angelo &amp; Ben represented Sanctuary…', 'Aug 6', '1,836', '51', '9', '1', '—'],
+          ['"Gratitude from all of us. 💙" (Cholla thank-you)', 'Aug 31', '1,312', '26', '4', '3', '3'],
+          ['"Seven years later. Director level…"', 'Aug 24', '1,153', '5', '0', '13', '1'],
+          ['WE\'RE HIRING: Utilization Review Coordinator', 'Aug 25', '928', '3', '1', '2', '5'],
+          ['WE\'RE HIRING: Medical Assistant (MA) w/ CHW', 'Aug 19', '656', '9', '0', '3', '4'],
+          ['"TOMORROW, Phoenix. 🎉"', 'Sep 1', '494', '8', '0', '3', '2']
+        ]
+      },
+      warn: '<b>Unique viewers:</b> 12,833 is the platform\'s deduplicated figure — the daily-Viewers sum (19,546) double-counts ' +
+            'returning people and is not used. <b>Still active from a prior period:</b> the Jun 24 "Now Hiring: Peer Support ' +
+            'Specialist" post drew 11.6K views and 91 shares this window (not in the post-level export above). The anniversary ' +
+            'post shows 374 reactions / 60 comments in the post-level export vs. 151 / 28 on the dashboard card — a ' +
+            'metric-definition gap, not an error; export figures kept for consistency with Aug 20.',
+      footnote: 'Story content is the growth engine: the anniversary post carried Week 1 and the Second Chance movement content ' +
+                'built a second wave in Weeks 3–4. Reach is converting to action late in the period — link clicks doubled and ' +
+                'profile visits rose 44% in the back two weeks even as views fell. Video is the one format going backward ' +
+                '(every video metric down 22–31%) while photo-led views nearly tripled. Zero inbound conversations this window.'
+    },
+    website: {
+      measured: true,
+      source: 'sanctuaryrecoverycenters.com · source: Duda analytics · vs. prior 30 days',
+      window: WINDOWS.siteSep3_30,
+      windowNote: 'The 30-day preset (Aug 4 – Sep 2) is Duda\'s closest match to the Meta window and is labelled as its own ' +
+                  'window — it is not the Aug 6 – Sep 2 Meta window. 14-day (Aug 20 – Sep 2) and 7-day (Aug 27 – Sep 2) ' +
+                  'cuts are shown where noted and never blended with the 30-day figures.',
+      kpis: [
+        { lab: 'User visits',     num: '2,304', chg: '▼ 15%', dir: 'down', note: '2,185 unique users', w: WINDOWS.siteSep3_30 },
+        { lab: 'Page views',      num: '4,039', note: '3,568 unique · 1:28 avg time', w: WINDOWS.siteSep3_30 },
+        { lab: 'Total leads',     num: '112',   chg: '▲ 13%', dir: 'up',   note: 'Duda total incl. all tracked lead actions', w: WINDOWS.siteSep3_30 },
+        { lab: 'Conversion rate', num: '4.9%',  chg: '▲ 32%', dir: 'up',   w: WINDOWS.siteSep3_30 },
+        { lab: 'Click-to-call',   num: '63',    chg: '▲ 5%',  dir: 'up',   note: '11 in the last 7 days (▼ 31%)', w: WINDOWS.siteSep3_30 },
+        { lab: 'Form submissions',num: '43',    chg: '▼ 4%',  dir: 'down', note: '38 via "Contact Us – For Providers"', w: WINDOWS.siteSep3_30 },
+        { lab: 'Bounce / exit',   num: '68.6% / 53.1%', w: WINDOWS.siteSep3_30 },
+        { lab: 'Mobile / desktop',num: '45% / 46%', note: 'iOS + Android vs. Windows + Mac + Linux · ~5% cloud/bot', w: WINDOWS.siteSep3_30 }
+      ],
+      weekly: {
+        title: 'Weekly visits (approximate chart read)',
+        note: 'Approximate values read from Duda\'s chart, not an export — treat as directional. Visits climbed steadily ' +
+              'through August; the Sep 1 week is partial (2 days). Daily 14-day bars ran 50–120 visits/day, peaking around Aug 25.',
+        series: [
+          { label: 'Aug 4', value: 430 }, { label: 'Aug 11', value: 510 }, { label: 'Aug 18', value: 550 },
+          { label: 'Aug 25', value: 555 }, { label: 'Sep 1*', value: 240 }
+        ]
+      },
+      sources: {
+        title: 'Traffic sources by window',
+        note: 'Three separate Duda windows shown side by side — 30-day Aug 4 – Sep 2 · 14-day Aug 20 – Sep 2 · 7-day Aug 27 – Sep 2. ' +
+              'Direct is the majority and rising in the most recent cuts; AI-assistant referrals are measurable but negligible.',
+        head: ['Source', '30d', '14d', '7d'],
+        rows: [
+          ['Direct', '57%', '62%', '61%'], ['Search', '38%', '34%', '35%'], ['Referral', '2%', '2%', '2%'],
+          ['Unknown', '3%', '3%', '2%'], ['AI Assistants', '0.04%', '0.09%', '—']
+        ]
+      },
+      topPages: {
+        title: 'Top pages — 30 days',
+        head: ['Page', 'Views', 'Unique', 'Avg time', 'Bounce', 'Exit'],
+        rows: [
+          ['/ (home)', '1,696', '1,523', '1:35', '66.05%', '63.86%'],
+          ['the-power-of-lived-experience-in-adolescent-recovery… (blog)', '345', '316', '1:39', '85.48%', '77.10%'],
+          ['contact', '285', '236', '1:20', '67.92%', '53.68%'],
+          ['our-team', '142', '115', '1:29', '70.00%', '52.11%'],
+          ['the-roadrunner-home', '141', '112', '1:22', '73.68%', '30.50%'],
+          ['inpatient-recovery-programs', '134', '109', '1:36', '61.90%', '32.84%'],
+          ['about', '122', '97', '0:53', '48.65%', '34.43%'],
+          ['blossom-house', '91', '81', '0:41', '78.57%', '21.98%'],
+          ['intensive-outpatient-programs', '85', '75', '1:39', '71.43%', '55.29%'],
+          ['rose-garden', '82', '71', '1:16', '69.23%', '28.05%']
+        ]
+      },
+      crawlers: {
+        title: 'AI crawler activity',
+        note: 'Kept deliberately separate from the visit counts above — these are automated crawlers and must never be ' +
+              'added to human traffic. Crawlers now exceed human visits in volume: a signal that AI systems are indexing ' +
+              'the site (LLMs.txt is in place), not traffic.',
+        head: ['Window', 'Bot visits', 'vs. prior', 'Top crawlers'],
+        rows: [
+          ['Aug 4 – Sep 2 (30d)', '3,293', '▼ 35%', 'Applebot 18% · ChatGPT 17% · facebookexternalhit 17% · Amazonbot 15% · Bytespider 9% · Perplexity 7% · GoogleOther +'],
+          ['Aug 20 – Sep 2 (14d)', '1,661', '▲ 11%', '—'],
+          ['Aug 27 – Sep 2 (7d)',  '689',   '▼ 29%', '—']
+        ]
+      },
+      seo: {
+        title: 'Site health (Duda Optimization Center)',
+        head: ['Issue', 'Priority / count'],
+        rows: [
+          ['Images missing alt text', 'High · 1 issue (Highlights panel counts 4 images)'],
+          ['Internal links / external links', 'High · 2 / 2'],
+          ['Blog posts missing meta tags', 'High · 25'],
+          ['Pages with meta tags too long', 'High · 29'],
+          ['Page meta tags · blog content freshness', 'Medium · 1 · posts 3–10 months old'],
+          ['Google Business Profile', 'Not connected to Duda (integration only — GBP itself is managed via BizIQ)'],
+          ['Optimized', 'Favicon · Google Search Console · local business schema · LLMs.txt · Open Graph image']
+        ]
+      },
+      pending: ['Click-to-email / click-to-map (0 / 0 recorded)', 'Form contents (form.csv is PII/PHI — lead counts only)'],
+      pendingNote: 'Program pages of note: reentry-program 28 views at 2:18 avg (highest dwell of any program page) · ' +
+                   'partial-hospitalization-programs 32 views at 2:03 · luxury-rehab-centers 56 views at 3:01. Residence pages ' +
+                   '(Roadrunner, Blossom House, Rose Garden, Friess, Rosemonte, Mercer, Charter Oak) drew ~570 views combined. ' +
+                   'Geography: US 88.7% · China 4.75% (0:00 avg — crawler-like).',
+      footnote: 'Fewer visitors, more of them acting: visits down 15%, leads up 13%, conversion rate up a third to 4.9%. The lead ' +
+                'mix is stable and phone-first (63 calls / 43 forms vs. 61 / 45 in the Aug 6 report). The adolescent-recovery ' +
+                'blog post is the #2 page at 345 views with an 85% bounce — the same "high traffic, no pathway" pattern the memes ' +
+                'page showed last period (that page is now out of the top pages). Emerging in the last 7 days: a new post, ' +
+                '"how-do-you-help-someone-who-doesnt…", was #2 for the week at 76 views.'
+    },
+    instagram: {
+      measured: true,
+      source: 'source: Meta Business Suite · vs. prior 28 days (Jul 9 – Aug 5) · dashboard + daily CSV exports reconciled',
+      window: WINDOWS.metaSep3,
+      kpis: [
+        { lab: 'Views',           num: '393', chg: '▼ 57%',   dir: 'down', note: '191 IG surface · 202 via Facebook', w: WINDOWS.metaSep3 },
+        { lab: 'Reach (unique)',  num: '32',  chg: '▼ 52.9%', dir: 'down', note: 'platform dedup figure', w: WINDOWS.metaSep3 },
+        { lab: 'Interactions',    num: '2',   chg: '0%',      dir: 'flat', note: 'both on Reels', w: WINDOWS.metaSep3 },
+        { lab: 'Link clicks',     num: '—',   note: 'not captured this batch (prior: 0)', w: WINDOWS.metaSep3 },
+        { lab: 'Profile visits',  num: '16',  w: WINDOWS.metaSep3 },
+        { lab: 'Follows',         num: '6',   chg: '▲ 20%',   dir: 'up',   note: '5 unfollows · net +1', w: WINDOWS.metaSep3 },
+        { lab: 'Followers (lifetime)', num: '562', note: 'flat', w: WINDOWS.metaSep3 },
+        { lab: 'Messaging contacts', num: '1', chg: '0%', dir: 'flat', w: WINDOWS.metaSep3 }
+      ],
+      weekly: {
+        title: 'Weekly views (combined)',
+        note: 'Four full weeks; steady decline every week with no new IG-native content entering the feed. Follows landed ' +
+              'one each on Aug 7, 9, 10, 25, 31 and Sep 1.',
+        series: [
+          { label: 'Aug 6', value: 156 }, { label: 'Aug 13', value: 89 },
+          { label: 'Aug 20', value: 78 }, { label: 'Aug 27', value: 70 }
+        ]
+      },
+      viewSources: {
+        title: 'Supporting stats',
+        head: ['Metric', 'Value', 'vs. prior 28d'],
+        rows: [
+          ['IG-surface views (100% organic)', '191', '▼ 63%'],
+          ['Views via Facebook cross-post', '202', '—'],
+          ['Unfollows', '5', '▲ 66.7%'],
+          ['Audience: US', '97.4%', 'lifetime'],
+          ['Audience: 35–54', '62.4%', 'lifetime · slightly women-skewed'],
+          ['Audience: Phoenix', '37.2%', 'lifetime · Mesa 7.1% · Glendale 3%']
+        ],
+        note: 'Top posts not available — no named posts surfaced in the export; the two in-window interactions were on Reels. ' +
+              'Reach uses the platform dedup figure (32); the daily export also sums to 32 this period.'
+      },
+      footnote: 'Instagram is the only channel moving the wrong direction while Facebook and LinkedIn had their best month on ' +
+                'record. It is a supply problem, not a demand problem: over half of all views (202 of 393) are Facebook ' +
+                'cross-post spillover and there is no IG-native content. The audience exists and mirrors Facebook\'s almost ' +
+                'exactly (Phoenix, 35–54). Profile visits doubled in the back two weeks (5 → 11) — people are looking; ' +
+                'there is nothing there when they arrive.'
+    },
+    linkedin: {
+      measured: true,
+      source: 'source: LinkedIn Page analytics exports (Content, Followers, Visitors) + dashboard · vs. prior 30 days · 100% organic',
+      showCompetitors: true,
+      window: WINDOWS.liSep3,
+      kpis: [
+        { lab: 'Impressions',     num: '3,342', chg: '▲ 183.9%', dir: 'up', note: '1,801 unique',                w: WINDOWS.liSep3 },
+        { lab: 'Post clicks',     num: '476',   note: '184 reactions (▲ 240.7%) · 7 comments · 2 reposts',        w: WINDOWS.liSep3 },
+        { lab: 'New followers',   num: '+27',   chg: '▲ 80%',    dir: 'up', note: '26 organic + 1 auto-invited', w: WINDOWS.liSep3 },
+        { lab: 'Page followers',  num: '1,400', note: '+21 since Aug 20 (1,379)',                                w: WINDOWS.liSep3 }
+      ],
+      monthly: {
+        title: 'Monthly impressions',
+        note: 'August (Aug 3 – 31) is the strongest month on record — ▲ 139% vs. July and ▲ 41% above the June peak. ' +
+              'May is partial (vendor start; window opens May 21). May – July carried from the Aug 20 export (unchanged history); ' +
+              'Aug 1 – 2 are not in this export.',
+        series: [
+          { label: 'May', value: 1728 }, { label: 'Jun', value: 2149 },
+          { label: 'Jul', value: 1263 }, { label: 'Aug', value: 3021 }
+        ]
+      },
+      monthlyFollowers: {
+        title: 'New followers by month',
+        note: 'May is partial. Follower growth is back at the June pace.',
+        series: [
+          { label: 'May', value: 14 }, { label: 'Jun', value: 29 },
+          { label: 'Jul', value: 18 }, { label: 'Aug', value: 27 }
+        ]
+      },
+      visitors: {
+        title: 'Page visitors & discovery (30d)',
+        head: ['Metric', 'Value'],
+        rows: [
+          ['Page views', '213 (desktop 112 · mobile 101)'], ['Unique visitors', '89'], ['Jobs page views', '50 (33 unique)'],
+          ['Reactions', '184'], ['Comments', '7'], ['Reposts', '2'], ['Posts published', '9 (▲ 125% · 5 last period)']
+        ]
+      },
+      search: {
+        title: 'Search & Meta-aligned cut',
+        head: ['Metric', 'Value', 'Window'],
+        rows: [
+          ['Top search keywords', '"Recovery" · "Center" · "Desert" · "Sanctuary"', WINDOWS.liSep3],
+          ['Impressions (Meta-aligned)', '3,204', WINDOWS.liSep3Meta],
+          ['Post clicks (Meta-aligned)', '469', WINDOWS.liSep3Meta],
+          ['Reactions / comments / reposts (Meta-aligned)', '183 / 6 / 2', WINDOWS.liSep3Meta]
+        ]
+      },
+      topPosts: {
+        title: 'Top posts by impressions (30d)',
+        head: ['Post', 'Posted', 'Impr.', 'Clicks', 'Likes', 'Eng. rate'],
+        rows: [
+          ['"Twenty years ago, a door was left open…"', 'Aug 10', '1,090', '388', '52', '40.6%'],
+          ['"The second chance movement moves faster…"', 'Aug 20', '446', '18', '12', '7.2%'],
+          ['"Gratitude from all of us. 💙" (Cholla thank-you)', 'Aug 31', '379', '22', '7', '7.9%'],
+          ['WE\'RE HIRING: Utilization Review Coordinator', 'Aug 25', '329', '12', '3', '4.6%'],
+          ['WE\'RE HIRING: Medical Assistant (MA) w/ CHW', 'Aug 20', '214', '13', '3', '7.5%'],
+          ['"The second chance movement moves faster…"', 'Aug 27', '211', '11', '4', '9.5%'],
+          ['"TOMORROW, Phoenix…" (Second Chance event)', 'Sep 1', '207', '9', '5', '6.8%'],
+          ['National Wellness Month', 'Aug 4', '117', '1', '0', '0.9%'],
+          ['WE\'RE HIRING: Licensed Therapist', 'Aug 25', '101', '2', '0', '2.0%']
+        ]
+      },
+      location: {
+        title: 'Follower location (lifetime)',
+        head: ['Location', 'Followers'],
+        rows: [
+          ['Greater Phoenix Area', '906'], ['Los Angeles Metro', '34'], ['Greater Tucson Area', '31'],
+          ['San Francisco Bay Area', '17'], ['New York City Metro', '17']
+        ]
+      },
+      jobFunction: {
+        title: 'Followers by job function (lifetime)',
+        head: ['Function', 'Followers'],
+        rows: [
+          ['Business Development', '258'], ['Healthcare Services', '215'], ['Community &amp; Social Services', '200'],
+          ['Operations', '87'], ['Sales', '69']
+        ]
+      },
+      visitorFunction: {
+        title: 'Page visitors by industry (30d)',
+        head: ['Industry', 'Visitors'],
+        rows: [['Hospitals &amp; Health Care', '45'], ['Mental Health Care', '32'], ['Non-profit', '28'], ['Higher Education', '11'], ['IT Services', '10']]
+      },
+      searchingCompanies: {
+        title: 'Companies searching the page',
+        head: ['Company', 'Source'],
+        rows: [
+          ['SJHMC Physician Services c/o Dignity Health', 'page search'], ['NetSuite', 'page search'],
+          ['Phoenix Creative Works', 'page search'], ['Mercy Care', 'page search'],
+          ['Norfolk County Council', 'page search']
+        ]
+      },
+      warn: '<b>Read engagement rate with care:</b> the period rate computes to ~20% ((clicks + reactions + comments + reposts) ÷ ' +
+            'impressions) but is heavily inflated by the anniversary post\'s 388 clicks. Do not quote it as a typical rate without ' +
+            'that caveat; typical content sits in the 4–10% band. <b>Inbound worth answering:</b> a peer-support graduate ' +
+            '(New Freedom, graduating Sep 27) commented twice on the Second Chance post asking about getting connected / ' +
+            'employment — route to intake/HR and respond. LinkedIn data is delayed up to 2 days; Sep 2 is not yet in the export.',
+      footnote: 'Best LinkedIn month on record — impressions nearly tripled, reactions up 3.4x. Sanctuary out-grew every peer on ' +
+                'new followers (+80%) and reactions (+240.7%) while posting the least (9 vs. 17–23). Momentum built rather than ' +
+                'faded: the back two weeks beat the front two on impressions and reactions. Amplification this month: Cholla ' +
+                'Behavioral Health and Scottsdale Recovery Center both mentioned Sanctuary; Staff Zone reposted the Second Chance ' +
+                'post; Sanctuary was named as a sponsor of the AzCA Annual Fall Conference (Oct 3, Desert Willow Conference Center). ' +
+                'The audience is the referral network: Mental Health Care is the #1 follower industry, hospital systems lead ' +
+                'page visitors, and a payer (Mercy Care) is searching for the page.'
+    }
+  },
+  recommendations: [
+    '<b>Cross-post every Facebook story post to Instagram, natively.</b> The cheapest, highest-leverage move across all ' +
+    'channels — the content already exists and already works. Repurpose the anniversary and Second Chance posts as carousels ' +
+    'and a Reel cut, and set a floor of 2 posts per week. At zero posts, every IG metric decays 40–60% per period.',
+    '<b>Double down on story and partnership content; use hiring posts as the undercard.</b> Two brand/story posts drove the ' +
+    'vast majority of Facebook reach, and the Second Chance content is the only content that grew reach <i>and</i> clicks late ' +
+    'in the period while pulling in peer organizations. Plan one story post + one community-partnership post + one hiring post per week.',
+    '<b>Get LinkedIn to 3 posts per week.</b> At 9 posts Sanctuary out-grew peers posting 17–23. Closing even half the cadence gap ' +
+    'is the single highest-leverage LinkedIn move. Retire generic awareness posts (National Wellness Month: 0.9% engagement).',
+    '<b>Fix the blog-to-program pathway.</b> The adolescent-recovery post is the #2 page at 345 views with an 85% bounce — the same ' +
+    'leak the memes page had. Add in-post CTAs and program/contact links as a blog template change, not a one-off, before the new ' +
+    '"how do you help someone…" post grows.',
+    '<b>Put a call-to-action on high-reach Facebook posts.</b> 39.8K views produced 51 link clicks (0.13%). The audience is there; ' +
+    'the pathway to the site isn\'t. Rebalance away from video for now — photo posts out-performed Reels on every measure.',
+    '<b>Protect the phone path and add a Providers pathway.</b> ~60% of website leads call — make click-to-call prominent on mobile ' +
+    'on every program and residence page. 38 of 43 forms came through the Provider contact form and LinkedIn\'s audience is the ' +
+    'referral network: build a provider landing page and promote it on LinkedIn.',
+    '<b>Answer comments within one business day.</b> Respond to the peer-support graduate on the Second Chance LinkedIn post today; ' +
+    'route IG and Facebook DMs into intake coverage. Comments are where the leads are showing up.',
+    '<b>Amplify the AzCA Fall Conference (Oct 3) sponsorship</b> — post about it and tag co-sponsors (Cholla, Crossroads, Southwest ' +
+    'Network, Hushabye) to extend the partner-mention pattern that worked this month. Feature the Reentry program on the homepage ' +
+    '(highest dwell of any program page) and clear the high-priority Duda SEO items (alt text, links, 25 blog meta tags).'
+  ]
+};
+
 var REPORTS = {};
+REPORTS[SNAP_SEP3.id]  = SNAP_SEP3;
 REPORTS[SNAP_AUG20.id] = SNAP_AUG20;
 REPORTS[SNAP_AUG6.id]  = SNAP_AUG6;
 
 /* newest first — the selector defaults to REPORT_ORDER[0] */
-var REPORT_ORDER = ['2026-08-20', '2026-08-06'];
+var REPORT_ORDER = ['2026-09-03', '2026-08-20', '2026-08-06'];
 
 /* ── LinkedIn competitor comparison (separate export) ─────────────────── */
 var COMPETITORS = {
   title: 'LinkedIn competitor comparison',
-  source: 'source: LinkedIn competitor analytics',
+  source: 'source: LinkedIn Compare growth · as of the Sep 3, 2026 export',
   window: WINDOWS.competitor30,
   head: ['Page', 'Followers', 'New followers', 'Posts', 'Comments', 'Reactions'],
   rows: [
-    ['Cornerstone Healing Center',       '1,522', '+34 ▲ 47.8%', '19', '7',  '39'],
-    ['Scottsdale Recovery Center',       '1,408', '+20 ▼ 23.1%', '21', '10', '280'],
-    ['Sanctuary Recovery Centers (You)', '1,379', '+19 ▼ 9.5%',  '5',  '6',  '84'],
-    ['Calvary Healing Center',           '1,299', '+27 ▼ 10%',   '19', '6',  '354']
+    ['Cornerstone Healing Center',       '1,534', '+29 ▲ 26.1%', '23 ▲ 187.5%', '4 ▼ 33.3%',  '26 ▼ 40.9%'],
+    ['Scottsdale Recovery Center',       '1,416', '+16 ▲ 14.3%', '21 ▲ 10.5%',  '11 ▲ 175%',  '—'],
+    ['Sanctuary Recovery Centers (You)', '1,400', '+27 ▲ 80%',   '9 ▲ 125%',    '7 ▲ 133.3%', '184 ▲ 240.7%'],
+    ['Calvary Healing Center',           '1,325', '+40 ▲ 29%',   '17 ▼ 10.5%',  '25 ▲ 257.1%','566 ▲ 40.4%']
   ],
   youIndex: 2,
-  note: 'Sanctuary is competitive on audience size while publishing roughly four times less — 5 posts against 19–21. ' +
-        'Cadence is the constraint, not the audience. This is a last-30-days window and does not line up with the ' +
-        'May 21 – Aug 18 page-analytics window.'
+  note: 'Sanctuary posted the fastest growth in the peer set on both new followers (+80%) and reactions (+240.7%) — on the ' +
+        'fewest posts (9 vs. 17–23). Cornerstone posted 23 times and lost reactions. Sanctuary is #3 in followers, 16 behind ' +
+        'Scottsdale and 134 behind Cornerstone. Cadence nearly doubled from last period (5 → 9) and remains the primary lever. ' +
+        'This is LinkedIn\'s last-30-days window and does not line up exactly with the Aug 3 – Sep 1 page-analytics window.'
 };
 
 /* ── BizIQ local SEO / listings ───────────────────────────────────────── */
@@ -643,74 +1037,80 @@ var L10 = {
 };
 
 /* ── two weeks at a glance ────────────────────────────────────────────────
-   Last 2 weeks = Aug 6–19 · prior 2 weeks = Jul 23–Aug 5. Deltas are each
-   platform's own "vs. previous 14 days" — not computed here.             */
+   Last 2 weeks = Aug 20 – Sep 2 · prior 2 weeks = Aug 6 – 19. Both ends are
+   real exports; the Aug 6 – 19 figures match the Aug 20 report exactly.     */
 var TWOWEEK = {
   last: WINDOWS.twLast,
   prior: WINDOWS.twPrior,
   note: 'Figures on this page are 14-day cuts, so they are intentionally smaller than the Report page\'s totals — ' +
-        'Facebook 23,010 here vs. 29,673 there (28 days), Instagram 245 vs. 691 (28 days), LinkedIn 1,315 vs. 6,582 ' +
-        '(campaign-to-date). Same data, shorter window; the weekly series on the Report page sum to its totals exactly. ' +
-        'Deltas come from each platform\'s native "vs. previous 14 days" comparison, not from arithmetic across snapshots. ' +
-        'Facebook two-week figures are from the staged 14-day cut — refresh against incoming platform screenshots if they differ.',
+        'Facebook 16,797 here vs. 39,807 there (28 days), Instagram 148 vs. 393 (28 days), LinkedIn 1,965 vs. 3,342 (30 days), ' +
+        'website 1,130 vs. 2,304 (30 days). The prior fortnight (Aug 6 – 19) matches the Aug 20 report exactly at every ' +
+        'channel, so this comparison is clean at both ends. Deltas are computed from the two real export cuts.',
   channels: [
     {
       key: 'facebook',
-      head: ['Metric', 'Last 2 weeks', 'vs. prior 2 weeks'],
+      head: ['Metric', 'Aug 20 – Sep 2', 'Aug 6 – 19', 'Change'],
       rows: [
-        ['Views', '23,010', '▲ 245%'],
-        ['Engagement (total)', '2,015', '▲ 366%'],
-        ['— reactions / comments / shares', '787 / 76 / 47', '—'],
-        ['Reels views', '1,370', '▼ 26%'],
-        ['Watch time', '2h 55m', '▼ 33%'],
-        ['Views from non-followers', '76.4%', '—']
+        ['Views', '16,797', '23,010', '▼ 27%'],
+        ['Content interactions', '382', '910', '▼ 58%'],
+        ['Follows', '24', '32', '▼ 25%'],
+        ['Profile visits', '606', '422', '▲ 44%'],
+        ['Link clicks', '34', '17', '▲ 100%']
       ],
-      extra: {
-        title: 'Views by content type (last 2 weeks)',
-        head: ['Content type', 'Share of views'],
-        rows: [['Multi-photo', '68.2%'], ['Photo', '24.5%'], ['Reel', '6%']]
-      }
+      note: 'Reach cooled off the anniversary spike, but clicks and profile visits rose sharply — the later Second Chance ' +
+            'content is converting attention into action. Week of Aug 27 – Sep 2 had the most link clicks (21) of any week.'
     },
     {
       key: 'website',
-      head: ['Metric', 'Last 2 weeks', 'vs. prior 2 weeks'],
+      head: ['Metric', 'Aug 20 – Sep 2', 'Aug 6 – 19', 'Change'],
       rows: [
-        ['User visits', '1,003', '▼ 14%'],
-        ['Total leads', '50', '▲ 39%'],
-        ['Conversion rate', '5%', '▲ 61%']
-      ]
+        ['User visits', '1,130', '1,003', '▲ 13%'],
+        ['Unique users', '1,072', '—', '▲ 13%'],
+        ['Total leads', '55', '50', '▲ 10%'],
+        ['Conversion rate', '4.9%', '5%', '▼ 2%'],
+        ['Page views', '2,045', '—', '—'],
+        ['AI-bot visits (kept separate)', '1,661', '—', '▲ 11%']
+      ],
+      extra: {
+        title: 'Top pages & sources (Aug 20 – Sep 2)',
+        head: ['Item', 'Value'],
+        rows: [
+          ['Sources', 'Direct 62% · Search 34% · Referral 2% · Unknown 3%'],
+          ['/ (home)', '819'], ['lived-experience blog', '165'], ['contact', '157'],
+          ['inpatient-recovery-programs', '84'], ['the-roadrunner-home', '72']
+        ]
+      },
+      note: 'Duda 14-day preset at both ends. Visits and leads both grew over the two weeks.'
     },
     {
       key: 'instagram',
-      head: ['Metric', 'Last 2 weeks', 'vs. prior 2 weeks'],
+      head: ['Metric', 'Aug 20 – Sep 2', 'Aug 6 – 19', 'Change'],
       rows: [
-        ['Views (combined)', '245', '▼ 45%'],
-        ['Follows', '3', '▲ 50%'],
-        ['Profile visits', '5', '▼ 17%'],
-        ['Content interactions', '0', '▼ 100%'],
-        ['Link clicks', '0', '—'],
-        ['Reach (unique)', 'pending platform 14-day figure', '—']
+        ['Views (combined)', '148', '245', '▼ 40%'],
+        ['Content interactions', '2', '0', '—'],
+        ['Follows', '3', '3', 'flat'],
+        ['Profile visits', '11', '5', '▲ 120%'],
+        ['Reach (unique)', 'pending platform 14-day figure', '—', '—']
       ],
-      note: 'Summed from the daily exports for Aug 6 – 19 vs. Jul 23 – Aug 5. Reach is a dedup metric and cannot be ' +
-            'summed from daily data — the platform\'s own 14-day reach figure is pending.'
+      note: 'Summed from the daily exports. Reach is a dedup metric and cannot be summed from daily data — the platform\'s ' +
+            'own 14-day reach figure is pending. Profile visits doubling is the only IG metric that improved.'
     },
     {
       key: 'linkedin',
-      windowOverride: 'Aug 4 – 18, 2026 vs. Jul 20 – Aug 3, 2026',
-      head: ['Metric', 'Aug 4 – 18', 'Jul 20 – Aug 3', 'Change'],
+      windowOverride: 'Aug 20 – Sep 1, 2026 vs. Aug 6 – 19, 2026',
+      windowChip: 'LinkedIn export cut · 13 days vs. 14 days',
+      head: ['Metric', 'Aug 20 – Sep 1', 'Aug 6 – 19', 'Change'],
       rows: [
-        ['Impressions', '1,315', '666', '▲ 97%'],
-        ['Post clicks', '317', '23', '▲ 1,278%'],
-        ['Reactions', '57', '27', '▲ 111%'],
-        ['Comments', '5', '1', '▲ 400%'],
-        ['New followers', '11', '8', '▲ 38%'],
-        ['Posts published', '2', '3', '▼ 1 post'],
-        ['Page views', '107', '107', '— flat']
+        ['Impressions', '1,965', '1,239', '▲ 59%'],
+        ['Post clicks', '149', '320', '▼ 53%'],
+        ['Reactions', '126', '57', '▲ 121%'],
+        ['Comments', '2', '4', '▼ 50%'],
+        ['Reposts', '2', '0', '—'],
+        ['New followers', '15', '12', '▲ 25%']
       ],
-      note: 'Computed by summing LinkedIn\'s daily exports. LinkedIn\'s export cut runs Aug 4 – 18 vs. Jul 20 – Aug 3 ' +
-            '(15 days each) — offset two days from the Meta/website fortnight above, so read it alongside, not against, ' +
-            'the other channels. The Aug 4 – 18 surge is the Aug 10 anniversary post. Unique visitors are a dedup metric ' +
-            'and are not summable from daily data, so they are omitted here.'
+      note: 'Computed by summing LinkedIn\'s daily Content export. The last window is 13 days — LinkedIn data lags up to 2 days ' +
+            'and Sep 2 is not yet in the export. Clicks fell because the anniversary post\'s 388 clicks sit in the prior window; ' +
+            'impressions and reactions grew on Second Chance content — LinkedIn built momentum in the back half while Facebook cooled.'
     }
   ]
 };
@@ -721,83 +1121,120 @@ var TWOWEEK = {
 var SERIES = {
   website: {
     'Visits':           [{ label: 'Aug 6 snapshot', value: 2870, w: WINDOWS.siteAug6 },
-                         { label: 'Aug 20 snapshot', value: 1003, w: WINDOWS.siteAug20_14 }],
+                         { label: 'Aug 20 snapshot', value: 1003, w: WINDOWS.siteAug20_14 },
+                         { label: 'Sep 3 snapshot', value: 2304, w: WINDOWS.siteSep3_30 }],
     'Leads':            [{ label: 'Aug 6 snapshot', value: 106,  w: WINDOWS.siteAug6 },
-                         { label: 'Aug 20 snapshot', value: 50,   w: WINDOWS.siteAug20_14 }],
-    'Page views':       [{ label: 'Aug 6 snapshot', value: 5043, w: WINDOWS.siteAug6 }],
-    'Click-to-call':    [{ label: 'Aug 6 snapshot', value: 61,   w: WINDOWS.siteAug6 }],
-    'Form submissions': [{ label: 'Aug 6 snapshot', value: 45,   w: WINDOWS.siteAug6 }]
+                         { label: 'Aug 20 snapshot', value: 50,   w: WINDOWS.siteAug20_14 },
+                         { label: 'Sep 3 snapshot', value: 112,  w: WINDOWS.siteSep3_30 }],
+    'Page views':       [{ label: 'Aug 6 snapshot', value: 5043, w: WINDOWS.siteAug6 },
+                         { label: 'Sep 3 snapshot', value: 4039, w: WINDOWS.siteSep3_30 }],
+    'Click-to-call':    [{ label: 'Aug 6 snapshot', value: 61,   w: WINDOWS.siteAug6 },
+                         { label: 'Sep 3 snapshot', value: 63,   w: WINDOWS.siteSep3_30 }],
+    'Form submissions': [{ label: 'Aug 6 snapshot', value: 45,   w: WINDOWS.siteAug6 },
+                         { label: 'Sep 3 snapshot', value: 43,   w: WINDOWS.siteSep3_30 }]
   },
   facebook: {
     'Views':              [{ label: 'Aug 6 snapshot', value: 15115, w: WINDOWS.metaAug6 },
-                           { label: 'Aug 20 snapshot', value: 29673, w: WINDOWS.fbAug20 }],
+                           { label: 'Aug 20 snapshot', value: 29673, w: WINDOWS.fbAug20 },
+                           { label: 'Sep 3 snapshot',  value: 39807, w: WINDOWS.metaSep3 }],
     'Interactions':       [{ label: 'Aug 6 snapshot', value: 346,   w: WINDOWS.metaAug6 },
-                           { label: 'Aug 20 snapshot', value: 1072,  w: WINDOWS.fbAug20 }],
+                           { label: 'Aug 20 snapshot', value: 1072,  w: WINDOWS.fbAug20 },
+                           { label: 'Sep 3 snapshot',  value: 1292,  w: WINDOWS.metaSep3 }],
     'Net new follows':    [{ label: 'Aug 6 snapshot', value: 31,    w: WINDOWS.metaAug6 },
-                           { label: 'Aug 20 snapshot', value: 45,    w: WINDOWS.fbAug20 }],
+                           { label: 'Aug 20 snapshot', value: 45,    w: WINDOWS.fbAug20 },
+                           { label: 'Sep 3 snapshot',  value: 48,    w: WINDOWS.metaSep3 }],
     'Total followers':    [{ label: 'Aug 6 snapshot', value: 2356,  w: WINDOWS.metaAug6 },
-                           { label: 'Aug 20 snapshot', value: 2386,  w: WINDOWS.fbAug20 }],
+                           { label: 'Aug 20 snapshot', value: 2386,  w: WINDOWS.fbAug20 },
+                           { label: 'Sep 3 snapshot',  value: 2406,  w: WINDOWS.metaSep3 }],
     'Weekly views (Aug 20 window)': [
       { label: 'Jul 20*', value: 1009,  w: WINDOWS.fbAug20, partial: 'partial week' },
       { label: 'Jul 27',  value: 3733,  w: WINDOWS.fbAug20 },
       { label: 'Aug 3',   value: 17393, w: WINDOWS.fbAug20 },
       { label: 'Aug 10',  value: 5902,  w: WINDOWS.fbAug20 },
       { label: 'Aug 17*', value: 1636,  w: WINDOWS.fbAug20, partial: 'partial week' }
-    ]
+    ],
+    'Weekly views (Sep 3 window)': [
+      { label: 'Aug 6',  value: 19520, w: WINDOWS.metaSep3 },
+      { label: 'Aug 13', value: 3490,  w: WINDOWS.metaSep3 },
+      { label: 'Aug 20', value: 6624,  w: WINDOWS.metaSep3 },
+      { label: 'Aug 27', value: 10173, w: WINDOWS.metaSep3 }
+    ],
+    'Link clicks':        [{ label: 'Aug 6 snapshot', value: 21,    w: WINDOWS.metaAug6 },
+                           { label: 'Aug 20 snapshot', value: 22,    w: WINDOWS.fbAug20 },
+                           { label: 'Sep 3 snapshot',  value: 51,    w: WINDOWS.metaSep3 }]
   },
   instagram: {
     'Views':          [{ label: 'Aug 6 snapshot', value: 913, w: WINDOWS.metaAug6 },
-                       { label: 'Aug 20 snapshot', value: 691, w: WINDOWS.igAug20 }],
+                       { label: 'Aug 20 snapshot', value: 691, w: WINDOWS.igAug20 },
+                       { label: 'Sep 3 snapshot',  value: 393, w: WINDOWS.metaSep3 }],
     'Reach (unique)': [{ label: 'Aug 6 snapshot', value: 68,  w: WINDOWS.metaAug6 },
-                       { label: 'Aug 20 snapshot', value: 45,  w: WINDOWS.igAug20 }],
+                       { label: 'Aug 20 snapshot', value: 45,  w: WINDOWS.igAug20 },
+                       { label: 'Sep 3 snapshot',  value: 32,  w: WINDOWS.metaSep3 }],
     'Followers':      [{ label: 'Aug 6 snapshot', value: 561, w: WINDOWS.metaAug6 },
-                       { label: 'Aug 20 snapshot', value: 562, w: WINDOWS.igAug20 }],
-    'Profile visits (Aug 20 window)': [{ label: 'Aug 20 snapshot', value: 11, w: WINDOWS.igAug20 }]
+                       { label: 'Aug 20 snapshot', value: 562, w: WINDOWS.igAug20 },
+                       { label: 'Sep 3 snapshot',  value: 562, w: WINDOWS.metaSep3 }],
+    'Profile visits': [{ label: 'Aug 20 snapshot', value: 11, w: WINDOWS.igAug20 },
+                       { label: 'Sep 3 snapshot',  value: 16, w: WINDOWS.metaSep3 }]
   },
   linkedin: {
     'Impressions (monthly)': [
       { label: 'May 2026', value: 1728, w: WINDOWS.liAug20, partial: 'from May 21' },
       { label: 'Jun 2026', value: 2149, w: WINDOWS.liAug20 },
       { label: 'Jul 2026', value: 1263, w: WINDOWS.liAug20 },
-      { label: 'Aug 2026', value: 1442, w: WINDOWS.liAug20, partial: 'through Aug 18' }
+      { label: 'Aug 2026', value: 3021, w: WINDOWS.liSep3, partial: 'Aug 3 – 31 (Sep 3 export)' }
     ],
     'New followers (monthly)': [
       { label: 'May 2026', value: 14, w: WINDOWS.liAug20, partial: 'from May 21' },
       { label: 'Jun 2026', value: 29, w: WINDOWS.liAug20 },
       { label: 'Jul 2026', value: 18, w: WINDOWS.liAug20 },
-      { label: 'Aug 2026', value: 13, w: WINDOWS.liAug20, partial: 'through Aug 18' }
+      { label: 'Aug 2026', value: 27, w: WINDOWS.liSep3, partial: 'Aug 3 – 31 (Sep 3 export)' }
     ],
     'Impressions (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 1268, w: WINDOWS.liAug6 },
-      { label: 'Aug 20 snapshot', value: 6582, w: WINDOWS.liAug20 }
+      { label: 'Aug 20 snapshot', value: 6582, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 3342, w: WINDOWS.liSep3 }
     ],
     'Post clicks (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 46,  w: WINDOWS.liAug6 },
-      { label: 'Aug 20 snapshot', value: 810, w: WINDOWS.liAug20 }
+      { label: 'Aug 20 snapshot', value: 810, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 476, w: WINDOWS.liSep3 }
     ],
     'Reactions (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 53,  w: WINDOWS.liAug6 },
-      { label: 'Aug 20 snapshot', value: 181, w: WINDOWS.liAug20 }
+      { label: 'Aug 20 snapshot', value: 181, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 184, w: WINDOWS.liSep3 }
     ],
     'New followers (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 15, w: WINDOWS.liAug6 },
-      { label: 'Aug 20 snapshot', value: 74, w: WINDOWS.liAug20 }
+      { label: 'Aug 20 snapshot', value: 74, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 27, w: WINDOWS.liSep3 }
     ],
     'Impressions (2-week cut)': [
       { label: 'Jul 20 – Aug 3', value: 666,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
-      { label: 'Aug 4 – 18',     value: 1315, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
+      { label: 'Aug 4 – 18',     value: 1315, w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 6 – 19',     value: 1239, w: WINDOWS.liSep3_2wk },
+      { label: 'Aug 20 – Sep 1', value: 1965, w: WINDOWS.liSep3_2wk }
     ],
     'Post clicks (2-week cut)': [
       { label: 'Jul 20 – Aug 3', value: 23,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
-      { label: 'Aug 4 – 18',     value: 317, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
+      { label: 'Aug 4 – 18',     value: 317, w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 6 – 19',     value: 320, w: WINDOWS.liSep3_2wk },
+      { label: 'Aug 20 – Sep 1', value: 149, w: WINDOWS.liSep3_2wk }
     ],
     'New followers (2-week cut)': [
       { label: 'Jul 20 – Aug 3', value: 8,  w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
-      { label: 'Aug 4 – 18',     value: 11, w: '15-day export cuts, Jul 20 – Aug 18, 2026' }
+      { label: 'Aug 4 – 18',     value: 11, w: '15-day export cuts, Jul 20 – Aug 18, 2026' },
+      { label: 'Aug 6 – 19',     value: 12, w: WINDOWS.liSep3_2wk },
+      { label: 'Aug 20 – Sep 1', value: 15, w: WINDOWS.liSep3_2wk }
     ],
     'Greater Phoenix followers': [
       { label: 'Aug 6 snapshot',  value: 881, w: WINDOWS.liAug6 },
-      { label: 'Aug 20 snapshot', value: 893, w: WINDOWS.liAug20 }
+      { label: 'Aug 20 snapshot', value: 893, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 906, w: WINDOWS.liSep3 }
+    ],
+    'Page followers (per snapshot)': [
+      { label: 'Aug 20 snapshot', value: 1379, w: WINDOWS.liAug20 },
+      { label: 'Sep 3 snapshot',  value: 1400, w: WINDOWS.liSep3 }
     ]
   },
   biziq: {
