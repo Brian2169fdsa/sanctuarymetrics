@@ -158,7 +158,7 @@ function kpis(list, cols) {
   list.forEach(function (k) {
     s += '<div class="kpi"><div class="lab">' + esc(k.lab) + '</div><div class="num">' + esc(k.num) + '</div>';
     if (k.chg) {
-      s += '<span class="chg" style="color:' + (k.dir === 'up' ? '#2E8B6F' : '#C0492B') + '">' + esc(k.chg) + '</span> ';
+      s += '<span class="chg" style="color:' + (k.dir === 'up' ? '#2E8B6F' : (k.dir === 'down' ? '#C0492B' : 'var(--muted)')) + '">' + esc(k.chg) + '</span> ';
     }
     if (k.note) { s += '<div class="note">' + esc(k.note) + '</div>'; }
     if (k.w) { s += '<div class="note" style="margin-top:4px;opacity:.85">' + esc(k.w) + '</div>'; }
