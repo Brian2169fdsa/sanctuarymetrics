@@ -69,14 +69,35 @@ Already have a clone? Just `cd` into it and `git pull`.
 
 ### 1. Register the app (once per tenant, needs admin)
 
+Only two Graph sub-modules are needed — the full `Microsoft.Graph` meta-module
+is ~40 modules and takes far longer:
+
 ```powershell
-Install-Module Microsoft.Graph -Scope CurrentUser   # large; takes a few minutes
-./tools/register-app.ps1 -Tenants @{ "Sanctuary Recovery" = "sanctuary.onmicrosoft.com" } -Enrich
+Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
+Install-Module Microsoft.Graph.Applications -Scope CurrentUser
 ```
+
+Then run it with **your own verified tenant domain**:
+
+```powershell
+./tools/register-app.ps1 -Tenants @{ "Sanctuary Recovery" = "sanctuaryrecoverycenters.com" } -Enrich
+```
+
+Any verified domain in the tenant works — the `.onmicrosoft.com` one is not
+required. Find it under M365 admin centre → Settings → Domains. Get this wrong
+and you will be sent to sign in to *somebody else's* directory: plausible
+domains like `sanctuary.onmicrosoft.com` belong to unrelated companies, and the
+error is `Selected user account does not exist in tenant '<someone else>'`.
 
 It opens a browser to sign you in, creates the app, grants the permissions
 above, and writes `config.json` with a client secret in plaintext. **That file
 is gitignored — keep it that way.**
+
+**Run Graph in its own PowerShell session.** `ExchangeOnlineManagement` bundles
+an older `Microsoft.Identity.Client` (MSAL); once that is loaded in a process,
+Graph sign-in fails with `Method not found: ...WithLogging(IIdentityLogger,
+Boolean)`. Assemblies cannot be unloaded, so the fix is a fresh `pwsh` — never
+`Get-Mailbox` and Graph in the same window.
 
 ### 2. Turn off name concealment
 
