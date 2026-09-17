@@ -1588,6 +1588,47 @@ var L10 = {
   ]
 };
 
+/* ── SharePoint usage review — placeholder, no data yet ───────────────────
+   The tab is reserved so the section has a home in the site. Nothing here
+   is a metric: every figure stays out until a real SharePoint / Microsoft
+   365 usage export is in hand, same rule as every other channel.          */
+var SHAREPOINT = {
+  title: 'SharePoint Usage Review',
+  status: 'Coming soon',
+  source: 'source: Microsoft 365 admin centre · SharePoint usage reports',
+  window: 'no reporting window set yet',
+  lead: 'This tab is reserved for a SharePoint usage review. <b>No data has been pulled yet</b> — nothing is shown here ' +
+        'rather than estimated, the same rule every other channel on this site follows. Once a usage export is in hand it ' +
+        'will render here with its own source window, exactly like the Report page channels.',
+  note: 'Reserved and intentionally empty. No SharePoint export has been received.',
+  planned: {
+    title: 'Planned for this tab',
+    head: ['Item', 'Status'],
+    rows: [
+      ['Active users &amp; unique visitors by site', 'Pending first export'],
+      ['Page views and files viewed / edited', 'Pending first export'],
+      ['Storage used vs. allocated, by site', 'Pending first export'],
+      ['Top sites and most-used document libraries', 'Pending first export'],
+      ['Sharing activity — internal vs. external links', 'Pending first export'],
+      ['Stale / unused sites and libraries', 'Pending first export']
+    ],
+    note: 'A working list of what the review is expected to cover, not a commitment to any particular metric — the final ' +
+          'set depends on what the Microsoft 365 admin centre actually exports for this tenant.'
+  },
+  needed: {
+    title: 'What is needed to populate it',
+    head: ['Requirement', 'Detail'],
+    rows: [
+      ['Access', 'Microsoft 365 admin centre → Reports → Usage → SharePoint (site usage + activity)'],
+      ['Export', 'CSV export for a defined period — 30-day and 90-day views are both available'],
+      ['Reporting window', 'To be agreed, so this tab can be labelled with its own window like every other channel'],
+      ['Privacy check', 'Confirm whether report anonymisation is on in the tenant — it replaces user and site names with IDs']
+    ],
+    note: 'No client or user-level detail will be published here; the review stays at site and aggregate level unless ' +
+          'explicitly scoped otherwise.'
+  }
+};
+
 /* ── two weeks at a glance ────────────────────────────────────────────────
    One 14-day set per report date, newest first. Nothing is ever replaced:
    each fortnight keeps its own real export at both ends, and the page has a

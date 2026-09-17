@@ -73,6 +73,7 @@ client's exports. **Do not leave any Sanctuary rows behind.**
 | `BIZIQ` | Vendor/SEO campaign section — rename/repurpose per the client's vendor |
 | `TWOWEEK_SETS` + `TWOWEEK_ORDER` | One 14-day comparison set per report date, newest first (the fortnight selector defaults to `TWOWEEK_ORDER[0]`). `TWOWEEK` is a back-compat alias for the newest set |
 | `L10` | Leadership-dashboard rocks shown in the L10 section and seeded into the Projects tab |
+| `SHAREPOINT` | Copy for the SharePoint usage-review tab — a reserved "coming soon" placeholder until a real Microsoft 365 usage export exists |
 
 Minimal snapshot skeleton:
 ```js
