@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — SharePoint Usage Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script>
+/* ── SharePoint usage review — reserved tab ───────────────────────────────
+   Deliberately empty of numbers. The page renders the placeholder state
+   until a real usage export exists, matching how every other channel on
+   this site handles "no export yet".                                     */
+function render() {
+  var S = SHAREPOINT;
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader(S.title,
+      'Microsoft 365 / SharePoint &nbsp;·&nbsp; Internal / Confidential',
+      'No usage export received yet — this tab is reserved, not populated', 'sharepoint') +
+    '<section>' +
+      '<div class="eyebrow">' + esc(S.status) + '</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">' + esc(S.title) + '</h2>' +
+      '<p class="sub">' + esc(S.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(S.window) + '</span></p>' +
+      '<p class="lead">' + S.lead + '</p>' +
+      '<div class="placeholder" style="padding:34px">' +
+        '<div style="font-family:Fraunces,serif;font-size:24px;color:var(--teal);margin-bottom:6px">Coming soon</div>' +
+        esc(S.note) +
+      '</div>' +
+    '</section>' +
+    '<section>' +
+      grid2(
+        card(S.planned.title, table(S.planned.head, S.planned.rows, { numeric: function () { return false; } }), S.planned.note),
+        card(S.needed.title, table(S.needed.head, S.needed.rows, { numeric: function () { return false; } }), S.needed.note)
+      ) +
+      '<div class="warn"><b>No figures until there is an export.</b> This tab stays empty rather than showing placeholder ' +
+      'or estimated numbers. When the first SharePoint usage export lands it will be labelled with its own reporting ' +
+      'window, like every other channel on this site — SharePoint windows will not be assumed to match the social or ' +
+      'website windows.</div>' +
+    '</section>' +
+    pageFooter('SharePoint usage review — no export received; tab reserved');
+
+  applyDataLabels();
+  document.title = 'Sanctuary Recovery Centers — ' + S.title;
+}
+render();
+</script>
+</body></html>
