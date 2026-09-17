@@ -1594,38 +1594,41 @@ var L10 = {
    365 usage export is in hand, same rule as every other channel.          */
 var SHAREPOINT = {
   title: 'SharePoint Usage Review',
-  status: 'Coming soon',
-  source: 'source: Microsoft 365 admin centre · SharePoint usage reports',
-  window: 'no reporting window set yet',
-  lead: 'This tab is reserved for a SharePoint usage review. <b>No data has been pulled yet</b> — nothing is shown here ' +
-        'rather than estimated, the same rule every other channel on this site follows. Once a usage export is in hand it ' +
-        'will render here with its own source window, exactly like the Report page channels.',
-  note: 'Reserved and intentionally empty. No SharePoint export has been received.',
-  planned: {
-    title: 'Planned for this tab',
-    head: ['Item', 'Status'],
+  status: 'Awaiting first pull',
+  source: 'source: Microsoft Graph reports API · SharePoint site usage + M365 Groups + Teams activity',
+  window: 'no export received yet',
+  lead: 'This tab reads a single static file — <code>sharepoint-usage.json</code> — from the site root, and renders ' +
+        'whatever sites and Teams channels it finds. <b>That file does not exist yet</b>, so nothing is shown rather ' +
+        'than estimated. The framework below is live and waiting: drop a real pull in and the page fills itself in. ' +
+        'Usage metrics only — the reporting permission behind it cannot open a file, a page, or a Teams message.',
+  note: 'Framework is in place. Waiting on the first Microsoft Graph pull.',
+  pipeline: {
+    title: 'How data gets here',
+    head: ['Step', 'What happens'],
     rows: [
-      ['Active users &amp; unique visitors by site', 'Pending first export'],
-      ['Page views and files viewed / edited', 'Pending first export'],
-      ['Storage used vs. allocated, by site', 'Pending first export'],
-      ['Top sites and most-used document libraries', 'Pending first export'],
-      ['Sharing activity — internal vs. external links', 'Pending first export'],
-      ['Stale / unused sites and libraries', 'Pending first export']
+      ['1 · Register', '<code>register-app.ps1</code> creates a read-only app per tenant and writes <code>config.json</code>'],
+      ['2 · Unconceal', 'M365 admin centre → Settings → Org settings → Reports → uncheck "Display concealed user, group, and site names"'],
+      ['3 · Pull', '<code>scan.py --config config.json --enrich</code> calls the Graph reports API and writes one JSON per tenant'],
+      ['4 · Build', '<code>tools/build-sharepoint-payload.py</code> merges those into <code>sharepoint-usage.json</code>'],
+      ['5 · Publish', 'Commit that file — Vercel redeploys and this page renders it automatically']
     ],
-    note: 'A working list of what the review is expected to cover, not a commitment to any particular metric — the final ' +
-          'set depends on what the Microsoft 365 admin centre actually exports for this tenant.'
+    note: 'Full runbook, including the permission set and the redaction switch, is in SHAREPOINT.md in the repo.'
   },
-  needed: {
-    title: 'What is needed to populate it',
-    head: ['Requirement', 'Detail'],
+  contract: {
+    title: 'What the page expects',
+    head: ['Field', 'Meaning'],
     rows: [
-      ['Access', 'Microsoft 365 admin centre → Reports → Usage → SharePoint (site usage + activity)'],
-      ['Export', 'CSV export for a defined period — 30-day and 90-day views are both available'],
-      ['Reporting window', 'To be agreed, so this tab can be labelled with its own window like every other channel'],
-      ['Privacy check', 'Confirm whether report anonymisation is on in the tenant — it replaces user and site names with IDs']
+      ['tenant · refresh_date · period_days', 'Which tenant, Microsoft\'s data-refresh date, and the window length'],
+      ['sites[]', 'One row per SharePoint site — including one per Teams private / shared channel'],
+      ['title · team_name · url · owner', 'Identity of the site or channel'],
+      ['days_idle · last_activity', 'How long since anything happened'],
+      ['file_count · active_files · page_views', 'Usage counts in the window'],
+      ['storage_used · storage_quota', 'Size in bytes'],
+      ['is_group_site · is_channel_site', 'How the row is classified on this page'],
+      ['verdict · score · reasons', 'scan.py\'s own sprawl scoring — optional, rendered when present']
     ],
-    note: 'No client or user-level detail will be published here; the review stays at site and aggregate level unless ' +
-          'explicitly scoped otherwise.'
+    note: 'This is scan.py\'s output shape unchanged, so its files drop straight in. A single tenant object, an array ' +
+          'of them, or a { tenants: [...] } wrapper are all accepted.'
   }
 };
 

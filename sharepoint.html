@@ -10,42 +10,395 @@
 <script src="data.js"></script>
 <script src="ui.js"></script>
 <script>
-/* ── SharePoint usage review — reserved tab ───────────────────────────────
-   Deliberately empty of numbers. The page renders the placeholder state
-   until a real usage export exists, matching how every other channel on
-   this site handles "no export yet".                                     */
-function render() {
+/* ═════════════════════════════════════════════════════════════════════════
+   SharePoint / Teams usage review
+
+   Reads ONE static file — sharepoint-usage.json — served from the site root.
+   That file is the output of scan.py (see SHAREPOINT.md). Until it exists the
+   page renders the awaiting-data state; it never invents or estimates a
+   figure, same rule as every other channel on this site.
+
+   Usage metrics only. The payload carries counts, dates and sizes. It never
+   carries a file, a page, a message body, or a mailbox — the Graph
+   permission behind it (Reports.Read.All) cannot read any of those.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+var DATA_URL = 'sharepoint-usage.json';
+
+var STATE = {
+  loaded: false,     /* fetch finished (success or not) */
+  payload: null,     /* normalized payload, or null when absent */
+  error: '',         /* fetch/parse failure detail, shown verbatim */
+  demo: /[?&]demo=1/.test(location.search),
+  tenant: 'all', type: 'all', verdict: 'all', sort: 'storage', q: ''
+};
+
+/* ── formatting ──────────────────────────────────────────────────────── */
+function humanBytes(n) {
+  n = Number(n || 0);
+  if (n < 1024) { return n + ' B'; }
+  var units = ['KB', 'MB', 'GB', 'TB', 'PB'], i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+  return (n >= 100 ? Math.round(n) : Math.round(n * 10) / 10) + ' ' + units[i];
+}
+function idleText(s) {
+  if (s.days_idle === null || s.days_idle === undefined) { return 'none in window'; }
+  if (s.days_idle === 0) { return 'today'; }
+  return s.days_idle + 'd ago';
+}
+function typeOf(s) {
+  if (s.is_channel_site) { return 'Teams channel'; }
+  if (s.team_name) { return 'Teams team'; }
+  if (s.is_group_site) { return 'M365 group'; }
+  return 'SharePoint';
+}
+function verdictTag(v) {
+  var map = { Keep: 'hi', Review: 'eq', Archive: 'eq', Delete: 'lo' };
+  return '<span class="tag ' + (map[v] || 'eq') + '">' + esc(v || '—') + '</span>';
+}
+
+/* ── payload normalizing ─────────────────────────────────────────────────
+   Accepts what scan.py actually emits, in any of the shapes it can land in:
+     · one tenant object            { tenant, refresh_date, period_days, sites }
+     · an array of tenant objects   [ {...}, {...} ]
+     · the bridge-script wrapper    { generated, tenants: [ {...} ] }
+   Anything else is reported as a contract mismatch rather than guessed at. */
+function normalize(raw) {
+  if (!raw) { return null; }
+  var list = null;
+  if (Object.prototype.toString.call(raw) === '[object Array]') { list = raw; }
+  else if (raw.tenants) { list = raw.tenants; }
+  else if (raw.sites) { list = [raw]; }
+  if (!list || !list.length) { return null; }
+
+  var sites = [], tenants = [], refresh = '', period = null, concealed = false;
+  list.forEach(function (t) {
+    if (!t || !t.sites) { return; }
+    if (t.tenant && tenants.indexOf(t.tenant) === -1) { tenants.push(t.tenant); }
+    if (t.refresh_date && (!refresh || t.refresh_date < refresh)) { refresh = t.refresh_date; }
+    if (t.period_days) { period = Math.max(period || 0, t.period_days); }
+    if (t.concealed) { concealed = true; }
+    t.sites.forEach(function (s) {
+      var c = {};
+      for (var k in s) { if (Object.prototype.hasOwnProperty.call(s, k)) { c[k] = s[k]; } }
+      if (!c.tenant) { c.tenant = t.tenant || ''; }
+      sites.push(c);
+    });
+  });
+  if (!sites.length) { return null; }
+  return {
+    tenants: tenants, sites: sites, refresh: refresh, period: period,
+    concealed: concealed, generated: raw.generated || '', redacted: !!raw.owners_redacted
+  };
+}
+
+/* ── filtering & sorting ─────────────────────────────────────────────── */
+function visibleSites() {
+  var p = STATE.payload; if (!p) { return []; }
+  var q = STATE.q.toLowerCase();
+  var out = p.sites.filter(function (s) {
+    if (STATE.tenant !== 'all' && s.tenant !== STATE.tenant) { return false; }
+    if (STATE.type !== 'all' && typeOf(s) !== STATE.type) { return false; }
+    if (STATE.verdict !== 'all' && s.verdict !== STATE.verdict) { return false; }
+    if (q) {
+      var hay = ((s.title || '') + ' ' + (s.team_name || '') + ' ' + (s.url || '')).toLowerCase();
+      if (hay.indexOf(q) === -1) { return false; }
+    }
+    return true;
+  });
+  var key = STATE.sort;
+  out.sort(function (a, b) {
+    if (key === 'idle') {
+      var ai = a.days_idle === null || a.days_idle === undefined ? 1e9 : a.days_idle;
+      var bi = b.days_idle === null || b.days_idle === undefined ? 1e9 : b.days_idle;
+      return bi - ai;
+    }
+    if (key === 'name') { return String(a.title || '').localeCompare(String(b.title || '')); }
+    var map = { storage: 'storage_used', views: 'page_views', files: 'file_count', score: 'score' };
+    return (Number(b[map[key]]) || 0) - (Number(a[map[key]]) || 0);
+  });
+  return out;
+}
+
+/* ── page chrome ─────────────────────────────────────────────────────── */
+function windowChip() {
+  var p = STATE.payload;
+  if (!p) { return 'no export received'; }
+  if (p.period && p.refresh) { return 'last ' + p.period + ' days · to ' + p.refresh; }
+  if (p.refresh) { return 'as at ' + p.refresh; }
+  return 'window not stated in payload';
+}
+
+function controls() {
+  var p = STATE.payload;
+  var types = ['all', 'Teams team', 'Teams channel', 'M365 group', 'SharePoint'];
+  var verdicts = ['all'];
+  p.sites.forEach(function (s) { if (s.verdict && verdicts.indexOf(s.verdict) === -1) { verdicts.push(s.verdict); } });
+  var sorts = [['storage', 'Storage used'], ['views', 'Page views'], ['files', 'File count'],
+               ['idle', 'Days idle'], ['score', 'Sprawl score'], ['name', 'Name']];
+
+  function sel(id, label, opts, cur) {
+    var s = '<div class="f"><label for="' + id + '">' + esc(label) + '</label><select id="' + id + '">';
+    opts.forEach(function (o) {
+      var pair = Object.prototype.toString.call(o) === '[object Array]';
+      var val = pair ? o[0] : o;
+      var txt = pair ? o[1] : (o === 'all' ? 'All' : o);
+      s += '<option value="' + esc(val) + '"' + (String(val) === String(cur) ? ' selected' : '') + '>' + esc(txt) + '</option>';
+    });
+    return s + '</select></div>';
+  }
+
+  var out = '<div class="controls">';
+  if (p.tenants.length > 1) { out += sel('f-tenant', 'Tenant', ['all'].concat(p.tenants), STATE.tenant); }
+  out += sel('f-type', 'Site type', types, STATE.type);
+  out += sel('f-verdict', 'Verdict', verdicts, STATE.verdict);
+  out += sel('f-sort', 'Sort by', sorts, STATE.sort);
+  out += '<div class="f"><label for="f-q">Search</label>' +
+         '<input id="f-q" type="search" placeholder="site or team name" value="' + esc(STATE.q) + '" ' +
+         'style="font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;border:1px solid var(--line);' +
+         'border-radius:8px;padding:8px 11px;min-width:150px;max-width:100%"></div>';
+  return out + '</div>';
+}
+
+/* ── summary ─────────────────────────────────────────────────────────── */
+function summarySection(rows) {
+  var p = STATE.payload;
+  var tot = function (k) { return rows.reduce(function (a, s) { return a + (Number(s[k]) || 0); }, 0); };
+  var channels = rows.filter(function (s) { return s.is_channel_site; }).length;
+  var teams = rows.filter(function (s) { return s.team_name && !s.is_channel_site; }).length;
+  var idle90 = rows.filter(function (s) {
+    return s.days_idle === null || s.days_idle === undefined || s.days_idle >= 90;
+  }).length;
+  var noOwner = rows.filter(function (s) { return !s.owner; }).length;
+
+  var byType = {};
+  rows.forEach(function (s) { var t = typeOf(s); byType[t] = (byType[t] || 0) + (Number(s.storage_used) || 0); });
+  var typeSeries = Object.keys(byType).map(function (t) {
+    return { label: t, value: Math.round(byType[t] / 1048576) };
+  }).sort(function (a, b) { return b.value - a.value; });
+
+  var verdicts = {};
+  rows.forEach(function (s) { if (s.verdict) { verdicts[s.verdict] = (verdicts[s.verdict] || 0) + 1; } });
+  var vRows = Object.keys(verdicts).sort().map(function (v) {
+    return [verdictTag(v), String(verdicts[v]),
+            Math.round(verdicts[v] / (rows.length || 1) * 100) + '%'];
+  });
+
+  return '<section>' +
+    '<div class="eyebrow">Usage summary</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Sites &amp; Teams channels at a glance</h2>' +
+    '<p class="sub">' + esc(SHAREPOINT.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(windowChip()) + '</span></p>' +
+    kpis([
+      { lab: 'Sites tracked',   num: fmt(rows.length), note: p.tenants.length + ' tenant' + (p.tenants.length === 1 ? '' : 's'), w: windowChip() },
+      { lab: 'Teams channels',  num: fmt(channels),    note: 'private / shared channel sites', w: windowChip() },
+      { lab: 'Teams team sites', num: fmt(teams),      note: 'standard channels roll up here', w: windowChip() },
+      { lab: 'Storage used',    num: humanBytes(tot('storage_used')), note: fmt(tot('file_count')) + ' files', w: windowChip() },
+      { lab: 'Page views',      num: fmt(tot('page_views')), note: 'in the reporting window', w: windowChip() },
+      { lab: 'Active files',    num: fmt(tot('active_files')), note: 'viewed or edited in window', w: windowChip() },
+      { lab: 'Idle 90d+',       num: fmt(idle90), note: 'no activity, or last activity 90d+ ago', w: windowChip() },
+      { lab: 'No owner',        num: fmt(noOwner), note: 'orphaned — no owner on record', w: windowChip() }
+    ]) +
+    grid2(
+      card('Storage by site type (MB)', hbar(typeSeries, { barX: 150, color: '#1C9AD6', W: chartW(true) }),
+        'Every Teams private and shared channel has its own SharePoint site, so it appears as its own row. Standard ' +
+        'channels share the parent team site and cannot be split out — see the scope note at the foot of this page.'),
+      card('Verdict distribution', table(['Verdict', 'Sites', 'Share'], vRows, { numeric: function (i) { return i > 0; } }),
+        'Verdicts come from scan.py\'s thresholds, not from Microsoft. They are a recommendation to review, never an ' +
+        'action taken — nothing on this page changes anything in the tenant.')
+    ) +
+  '</section>';
+}
+
+/* ── site table ──────────────────────────────────────────────────────── */
+var ROW_CAP = 150;
+function sitesSection(rows) {
+  var shown = rows.slice(0, ROW_CAP);
+  var head = ['Site / team', 'Type', 'Owner', 'Last activity', 'Files', 'Active', 'Views', 'Storage', 'Verdict'];
+  var body = shown.map(function (s) {
+    var name = esc(s.team_name || s.title || s.site_id || '—');
+    if (s.url) { name = '<span title="' + esc(s.url) + '">' + name + '</span>'; }
+    if (s.orphaned) { name += ' <span class="tag lo">orphaned</span>'; }
+    if (s.external_sharing) { name += ' <span class="tag eq">external</span>'; }
+    return [name, esc(typeOf(s)), esc(s.owner || '—'), esc(idleText(s)),
+            fmt(Number(s.file_count) || 0), fmt(Number(s.active_files) || 0),
+            fmt(Number(s.page_views) || 0), humanBytes(s.storage_used), verdictTag(s.verdict)];
+  });
+
+  var note = 'Showing ' + fmt(shown.length) + ' of ' + fmt(rows.length) + ' matching site' +
+             (rows.length === 1 ? '' : 's') +
+             (rows.length > ROW_CAP ? ' — narrow the filters above to see the rest.' : '.');
+
+  return '<section>' +
+    '<div class="eyebrow">Detail</div>' +
+    '<h2 style="font-size:22px;margin:6px 0 4px">Every site and channel in the pull</h2>' +
+    '<p class="sub">' + esc(note) + '</p>' +
+    (shown.length
+      ? table(head, body, { numeric: function (i) { return i >= 4 && i <= 7; } })
+      : '<div class="placeholder">No sites match the current filters.</div>') +
+  '</section>';
+}
+
+/* ── scope / provenance — always rendered ────────────────────────────── */
+function scopeSection() {
+  var p = STATE.payload;
+  var rows = [
+    ['Source', 'Microsoft Graph reports API — getSharePointSiteUsageDetail, getOffice365GroupsActivityDetail, getTeamsTeamActivityDetail'],
+    ['Permission', 'Reports.Read.All (aggregate counts and dates only) · Sites.Read.All + Group.Read.All when Teams names are joined'],
+    ['Collected', 'Site and channel names, owner, template, last-activity date, file counts, page views, storage, sharing flags, member and guest counts'],
+    ['Never collected', 'File contents · page contents · chat or channel message text · mailboxes · anything a person typed'],
+    ['Channel messages', 'A count only, from the Teams activity report — the number of messages, never a message'],
+    ['Refresh date', p && p.refresh ? p.refresh : 'not stated in payload'],
+    ['Reporting period', p && p.period ? 'last ' + p.period + ' days' : 'not stated in payload'],
+    ['Payload generated', p && p.generated ? p.generated : 'not stamped']
+  ];
+  return '<section>' +
+    '<div class="eyebrow">Scope</div>' +
+    '<h2 style="font-size:22px;margin:6px 0 4px">Where this data comes from, and what it is not</h2>' +
+    table(['Item', 'Detail'], rows, { numeric: function () { return false; } }) +
+    '<div class="warn"><b>Usage only — no content, ever.</b> The reporting permission behind this page cannot open a ' +
+    'file, read a page, or read a Teams message. "Channel messages" is a count produced by Microsoft\'s own activity ' +
+    'report. Nothing on this page is derived from anything anyone wrote.</div>' +
+    '<div class="warn"><b>Teams channel coverage has a hard limit set by Microsoft.</b> Private and shared channels ' +
+    'each get their own SharePoint site, so they appear here as their own row with their own usage. <b>Standard ' +
+    'channels do not</b> — they share the parent team\'s single site, and their usage is included in that team\'s row ' +
+    'and cannot be separated out. There is no per-channel usage report in Graph. Any "usage by every channel" read has ' +
+    'to be understood that way.</div>' +
+  '</section>';
+}
+
+/* ── states ──────────────────────────────────────────────────────────── */
+function awaitingSection() {
   var S = SHAREPOINT;
+  return '<section>' +
+    '<div class="eyebrow">' + esc(S.status) + '</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">' + esc(S.title) + '</h2>' +
+    '<p class="sub">' + esc(S.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(S.window) + '</span></p>' +
+    '<p class="lead">' + S.lead + '</p>' +
+    '<div class="placeholder" style="padding:34px">' +
+      '<div style="font-family:Fraunces,serif;font-size:24px;color:var(--teal);margin-bottom:6px">Coming soon</div>' +
+      esc(S.note) +
+      (STATE.error ? '<div style="margin-top:10px;font-size:12px">Loader said: ' + esc(STATE.error) + '</div>' : '') +
+      '<div style="margin-top:14px;font-size:12.5px">Preview the layout with sample data: ' +
+      '<a href="?demo=1" style="color:var(--blue);font-weight:700">?demo=1</a></div>' +
+    '</div>' +
+  '</section>' +
+  '<section>' +
+    grid2(
+      card(S.pipeline.title, table(S.pipeline.head, S.pipeline.rows, { numeric: function () { return false; } }), S.pipeline.note),
+      card(S.contract.title, table(S.contract.head, S.contract.rows, { numeric: function () { return false; } }), S.contract.note)
+    ) +
+  '</section>';
+}
+
+function demoBanner() {
+  return '<div class="warn" style="margin:0;border-radius:0;border-left:0;border-right:0">' +
+    '<b>⚠ SAMPLE DATA — NOT REAL.</b> Every figure below is randomly generated to show the layout while the Microsoft ' +
+    'connection is being set up. Nothing here came from any tenant. Remove <code>?demo=1</code> from the URL to return ' +
+    'to the live page.</div>';
+}
+
+/* ── demo payload — only ever reachable via ?demo=1 ──────────────────── */
+function demoPayload() {
+  var rnd = 1;
+  function r() { rnd = (rnd * 1103515245 + 12345) % 2147483648; return rnd / 2147483648; }
+  function pick(a) { return a[Math.floor(r() * a.length)]; }
+  var teams = ['Clinical Ops', 'Intake', 'Billing', 'Compliance', 'Marketing', 'Facilities', 'Credentialing'];
+  var chans = ['general', 'referrals', 'audit-2026', 'leadership', 'incidents'];
+  var sites = [];
+  for (var i = 0; i < 28; i++) {
+    var isChannel = r() < 0.4, team = pick(teams);
+    var idle = r() < 0.3 ? null : Math.floor(r() * 300);
+    var files = Math.floor(r() * 900), storage = Math.floor(files * (2e5 + r() * 9e6));
+    var s = {
+      tenant: i % 3 === 0 ? 'Cholla Behavioral Health' : 'Sanctuary Recovery',
+      site_id: 'demo' + i, url: 'https://demo.sharepoint.com/sites/' + team.toLowerCase().replace(/ /g, '-'),
+      title: team, owner: r() < 0.2 ? '' : 'owner' + i + '@example.invalid',
+      template: isChannel ? 'TEAMCHANNEL' : 'GROUP',
+      days_idle: idle, last_activity: '', file_count: files,
+      active_files: idle === null ? 0 : Math.floor(r() * 60),
+      page_views: idle === null ? 0 : Math.floor(r() * 400),
+      storage_used: storage, storage_quota: 0,
+      external_sharing: r() < 0.25, anon_links: 0,
+      is_group_site: true, is_channel_site: isChannel,
+      members: Math.floor(r() * 30), guests: r() < 0.2 ? 2 : 0,
+      team_name: isChannel ? team + ' › ' + pick(chans) : team,
+      channel_messages: idle === null ? 0 : Math.floor(r() * 800), orphaned: false
+    };
+    s.orphaned = !s.owner;
+    s.score = Math.floor(r() * 100);
+    s.verdict = s.score > 70 ? 'Delete' : (s.score > 45 ? 'Archive' : (s.score > 25 ? 'Review' : 'Keep'));
+    sites.push(s);
+  }
+  return [{ tenant: 'Sanctuary Recovery', refresh_date: 'SAMPLE', period_days: 180, concealed: false, sites: sites }];
+}
+
+/* ── render ──────────────────────────────────────────────────────────── */
+function render() {
+  var p = STATE.payload, body;
+
+  if (!STATE.loaded) {
+    body = '<section><div class="placeholder" style="padding:34px">Loading usage data…</div></section>';
+  } else if (!p) {
+    body = awaitingSection() + scopeSection();
+  } else {
+    var rows = visibleSites();
+    body = (STATE.demo ? demoBanner() : '') +
+      (p.concealed
+        ? '<div class="warn" style="margin:0;border-radius:0"><b>Names are concealed in this tenant.</b> Site and team ' +
+          'names are coming back as hashes. In the M365 admin centre turn off Settings → Org settings → Reports → ' +
+          '"Display concealed user, group, and site names in all reports", then re-run the pull.</div>'
+        : '') +
+      controls() + summarySection(rows) + sitesSection(rows) + scopeSection();
+  }
 
   document.getElementById('sheet').innerHTML =
-    pageHeader(S.title,
-      'Microsoft 365 / SharePoint &nbsp;·&nbsp; Internal / Confidential',
-      'No usage export received yet — this tab is reserved, not populated', 'sharepoint') +
-    '<section>' +
-      '<div class="eyebrow">' + esc(S.status) + '</div>' +
-      '<h2 style="font-size:26px;margin:6px 0 0">' + esc(S.title) + '</h2>' +
-      '<p class="sub">' + esc(S.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(S.window) + '</span></p>' +
-      '<p class="lead">' + S.lead + '</p>' +
-      '<div class="placeholder" style="padding:34px">' +
-        '<div style="font-family:Fraunces,serif;font-size:24px;color:var(--teal);margin-bottom:6px">Coming soon</div>' +
-        esc(S.note) +
-      '</div>' +
-    '</section>' +
-    '<section>' +
-      grid2(
-        card(S.planned.title, table(S.planned.head, S.planned.rows, { numeric: function () { return false; } }), S.planned.note),
-        card(S.needed.title, table(S.needed.head, S.needed.rows, { numeric: function () { return false; } }), S.needed.note)
-      ) +
-      '<div class="warn"><b>No figures until there is an export.</b> This tab stays empty rather than showing placeholder ' +
-      'or estimated numbers. When the first SharePoint usage export lands it will be labelled with its own reporting ' +
-      'window, like every other channel on this site — SharePoint windows will not be assumed to match the social or ' +
-      'website windows.</div>' +
-    '</section>' +
-    pageFooter('SharePoint usage review — no export received; tab reserved');
+    pageHeader('SharePoint Usage Review',
+      'Microsoft 365 · SharePoint &amp; Teams usage &nbsp;·&nbsp; Internal / Confidential',
+      (p ? 'Usage metrics only — no file, page or message content' : 'No usage export received yet — tab reserved'),
+      'sharepoint') +
+    body +
+    pageFooter(p ? 'SharePoint usage — ' + windowChip() : 'SharePoint usage review — no export received; tab reserved');
 
   applyDataLabels();
-  document.title = 'Sanctuary Recovery Centers — ' + S.title;
+  wire();
+  document.title = 'Sanctuary Recovery Centers — SharePoint Usage Review';
 }
+
+function wire() {
+  function on(id, key, ev) {
+    var el = document.getElementById(id);
+    if (!el) { return; }
+    el.addEventListener(ev || 'change', function () { STATE[key] = this.value; render(); });
+  }
+  on('f-tenant', 'tenant'); on('f-type', 'type'); on('f-verdict', 'verdict'); on('f-sort', 'sort');
+  var q = document.getElementById('f-q');
+  if (q) {
+    q.addEventListener('input', function () {
+      STATE.q = this.value;
+      var pos = this.selectionStart;
+      render();
+      var again = document.getElementById('f-q');
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+  }
+}
+
+/* ── boot ────────────────────────────────────────────────────────────── */
 render();
+if (STATE.demo) {
+  STATE.payload = normalize(demoPayload());
+  STATE.loaded = true;
+  render();
+} else {
+  fetch(DATA_URL, { cache: 'no-store' })
+    .then(function (r) {
+      if (r.status === 404) { return null; }
+      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+      return r.json();
+    })
+    .then(function (json) { STATE.payload = normalize(json); })
+    .catch(function (e) { STATE.error = String(e && e.message ? e.message : e); })
+    .then(function () { STATE.loaded = true; render(); });
+}
 </script>
 </body></html>
