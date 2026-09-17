@@ -1597,39 +1597,8 @@ var SHAREPOINT = {
   status: 'Awaiting first pull',
   source: 'source: Microsoft Graph reports API · SharePoint site usage + M365 Groups + Teams activity',
   window: 'no export received yet',
-  lead: 'This tab reads a single static file — <code>sharepoint-usage.json</code> — from the site root, and renders ' +
-        'whatever sites and Teams channels it finds. <b>That file does not exist yet</b>, so nothing is shown rather ' +
-        'than estimated. The framework below is live and waiting: drop a real pull in and the page fills itself in. ' +
-        'Usage metrics only — the reporting permission behind it cannot open a file, a page, or a Teams message.',
-  note: 'Framework is in place. Waiting on the first Microsoft Graph pull.',
-  pipeline: {
-    title: 'How data gets here',
-    head: ['Step', 'What happens'],
-    rows: [
-      ['1 · Register', '<code>register-app.ps1</code> creates a read-only app per tenant and writes <code>config.json</code>'],
-      ['2 · Unconceal', 'M365 admin centre → Settings → Org settings → Reports → uncheck "Display concealed user, group, and site names"'],
-      ['3 · Pull', '<code>scan.py --config config.json --enrich</code> calls the Graph reports API and writes one JSON per tenant'],
-      ['4 · Build', '<code>tools/build-sharepoint-payload.py</code> merges those into <code>sharepoint-usage.json</code>'],
-      ['5 · Publish', 'Commit that file — Vercel redeploys and this page renders it automatically']
-    ],
-    note: 'Full runbook, including the permission set and the redaction switch, is in SHAREPOINT.md in the repo.'
-  },
-  contract: {
-    title: 'What the page expects',
-    head: ['Field', 'Meaning'],
-    rows: [
-      ['tenant · refresh_date · period_days', 'Which tenant, Microsoft\'s data-refresh date, and the window length'],
-      ['sites[]', 'One row per SharePoint site — including one per Teams private / shared channel'],
-      ['title · team_name · url · owner', 'Identity of the site or channel'],
-      ['days_idle · last_activity', 'How long since anything happened'],
-      ['file_count · active_files · page_views', 'Usage counts in the window'],
-      ['storage_used · storage_quota', 'Size in bytes'],
-      ['is_group_site · is_channel_site', 'How the row is classified on this page'],
-      ['verdict · score · reasons', 'scan.py\'s own sprawl scoring — optional, rendered when present']
-    ],
-    note: 'This is scan.py\'s output shape unchanged, so its files drop straight in. A single tenant object, an array ' +
-          'of them, or a { tenants: [...] } wrapper are all accepted.'
-  }
+  note: 'The page reads sharepoint-usage.json from the site root; that file does not exist yet.',
+  lead: ''
 };
 
 /* ── two weeks at a glance ────────────────────────────────────────────────

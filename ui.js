@@ -17,7 +17,11 @@ function r1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
    instead of being scaled down with the viewBox.                         */
 function chartW(inGrid2) {
   var vw = document.documentElement.clientWidth;
-  var sheet = Math.min(1000, vw);
+  /* the sheet is full-bleed, so the chart budget is the viewport itself
+     (capped by --sheet-max when that dial is set to a length) */
+  var cap = getComputedStyle(document.documentElement).getPropertyValue('--sheet-max').trim();
+  var capPx = /^\d+px$/.test(cap) ? parseInt(cap, 10) : Infinity;
+  var sheet = Math.min(capPx, vw);
   var pad = vw <= 720 ? 20 : 40;
   var avail = sheet - pad * 2;
   if (inGrid2 && vw > 720) { avail = (avail - 20) / 2; }

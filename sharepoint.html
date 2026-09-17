@@ -131,14 +131,18 @@ function windowChip() {
 
 function controls() {
   var p = STATE.payload;
+  var live = !!p;
   var types = ['all', 'Teams team', 'Teams channel', 'M365 group', 'SharePoint'];
   var verdicts = ['all'];
-  p.sites.forEach(function (s) { if (s.verdict && verdicts.indexOf(s.verdict) === -1) { verdicts.push(s.verdict); } });
+  if (live) {
+    p.sites.forEach(function (s) { if (s.verdict && verdicts.indexOf(s.verdict) === -1) { verdicts.push(s.verdict); } });
+  }
   var sorts = [['storage', 'Storage used'], ['views', 'Page views'], ['files', 'File count'],
                ['idle', 'Days idle'], ['score', 'Sprawl score'], ['name', 'Name']];
 
   function sel(id, label, opts, cur) {
-    var s = '<div class="f"><label for="' + id + '">' + esc(label) + '</label><select id="' + id + '">';
+    var s = '<div class="f"><label for="' + id + '">' + esc(label) + '</label>' +
+            '<select id="' + id + '"' + (live ? '' : ' disabled') + '>';
     opts.forEach(function (o) {
       var pair = Object.prototype.toString.call(o) === '[object Array]';
       var val = pair ? o[0] : o;
@@ -149,20 +153,23 @@ function controls() {
   }
 
   var out = '<div class="controls">';
-  if (p.tenants.length > 1) { out += sel('f-tenant', 'Tenant', ['all'].concat(p.tenants), STATE.tenant); }
+  if (live && p.tenants.length > 1) { out += sel('f-tenant', 'Tenant', ['all'].concat(p.tenants), STATE.tenant); }
   out += sel('f-type', 'Site type', types, STATE.type);
   out += sel('f-verdict', 'Verdict', verdicts, STATE.verdict);
   out += sel('f-sort', 'Sort by', sorts, STATE.sort);
   out += '<div class="f"><label for="f-q">Search</label>' +
-         '<input id="f-q" type="search" placeholder="site or team name" value="' + esc(STATE.q) + '" ' +
+         '<input id="f-q" type="search"' + (live ? '' : ' disabled') + ' placeholder="site or team name" value="' + esc(STATE.q) + '" ' +
          'style="font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;border:1px solid var(--line);' +
          'border-radius:8px;padding:8px 11px;min-width:150px;max-width:100%"></div>';
-  return out + '</div>';
+  return '<div class="filterbar">' + out + '</div></div>';
 }
 
 /* ── summary ─────────────────────────────────────────────────────────── */
 function summarySection(rows) {
-  var p = STATE.payload;
+  var p = STATE.payload, live = !!p;
+  /* Before the first pull every tile reads "—". Never 0 — nothing has been
+     measured, and a zero would claim it had. */
+  var v = function (x) { return live ? x : '—'; };
   var tot = function (k) { return rows.reduce(function (a, s) { return a + (Number(s[k]) || 0); }, 0); };
   var channels = rows.filter(function (s) { return s.is_channel_site; }).length;
   var teams = rows.filter(function (s) { return s.team_name && !s.is_channel_site; }).length;
@@ -189,14 +196,14 @@ function summarySection(rows) {
     '<h2 style="font-size:26px;margin:6px 0 0">Sites &amp; Teams channels at a glance</h2>' +
     '<p class="sub">' + esc(SHAREPOINT.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(windowChip()) + '</span></p>' +
     kpis([
-      { lab: 'Sites tracked',   num: fmt(rows.length), note: p.tenants.length + ' tenant' + (p.tenants.length === 1 ? '' : 's'), w: windowChip() },
-      { lab: 'Teams channels',  num: fmt(channels),    note: 'private / shared channel sites', w: windowChip() },
-      { lab: 'Teams team sites', num: fmt(teams),      note: 'standard channels roll up here', w: windowChip() },
-      { lab: 'Storage used',    num: humanBytes(tot('storage_used')), note: fmt(tot('file_count')) + ' files', w: windowChip() },
-      { lab: 'Page views',      num: fmt(tot('page_views')), note: 'in the reporting window', w: windowChip() },
-      { lab: 'Active files',    num: fmt(tot('active_files')), note: 'viewed or edited in window', w: windowChip() },
-      { lab: 'Idle 90d+',       num: fmt(idle90), note: 'no activity, or last activity 90d+ ago', w: windowChip() },
-      { lab: 'No owner',        num: fmt(noOwner), note: 'orphaned — no owner on record', w: windowChip() }
+      { lab: 'Sites tracked',   num: v(fmt(rows.length)), note: live ? p.tenants.length + ' tenant' + (p.tenants.length === 1 ? '' : 's') : 'awaiting first pull', w: windowChip() },
+      { lab: 'Teams channels',  num: v(fmt(channels)),    note: 'private / shared channel sites', w: windowChip() },
+      { lab: 'Teams team sites', num: v(fmt(teams)),      note: 'standard channels roll up here', w: windowChip() },
+      { lab: 'Storage used',    num: v(humanBytes(tot('storage_used'))), note: live ? fmt(tot('file_count')) + ' files' : 'files, sites and libraries', w: windowChip() },
+      { lab: 'Page views',      num: v(fmt(tot('page_views'))), note: 'in the reporting window', w: windowChip() },
+      { lab: 'Active files',    num: v(fmt(tot('active_files'))), note: 'viewed or edited in window', w: windowChip() },
+      { lab: 'Idle 90d+',       num: v(fmt(idle90)), note: 'no activity, or last activity 90d+ ago', w: windowChip() },
+      { lab: 'No owner',        num: v(fmt(noOwner)), note: 'orphaned — no owner on record', w: windowChip() }
     ]) +
     grid2(
       card('Storage by site type (MB)', hbar(typeSeries, { barX: 150, color: '#1C9AD6', W: chartW(true) }),
@@ -224,9 +231,11 @@ function sitesSection(rows) {
             fmt(Number(s.page_views) || 0), humanBytes(s.storage_used), verdictTag(s.verdict)];
   });
 
-  var note = 'Showing ' + fmt(shown.length) + ' of ' + fmt(rows.length) + ' matching site' +
-             (rows.length === 1 ? '' : 's') +
-             (rows.length > ROW_CAP ? ' — narrow the filters above to see the rest.' : '.');
+  var note = STATE.payload
+    ? 'Showing ' + fmt(shown.length) + ' of ' + fmt(rows.length) + ' matching site' +
+      (rows.length === 1 ? '' : 's') +
+      (rows.length > ROW_CAP ? ' — narrow the filters above to see the rest.' : '.')
+    : 'One row per SharePoint site, including one per Teams private or shared channel.';
 
   return '<section>' +
     '<div class="eyebrow">Detail</div>' +
@@ -234,7 +243,14 @@ function sitesSection(rows) {
     '<p class="sub">' + esc(note) + '</p>' +
     (shown.length
       ? table(head, body, { numeric: function (i) { return i >= 4 && i <= 7; } })
-      : '<div class="placeholder">No sites match the current filters.</div>') +
+      : '<div class="placeholder" style="padding:30px">' +
+        (STATE.payload
+          ? 'No sites match the current filters.'
+          : '<b style="color:var(--teal)">Nothing to show until the first Microsoft pull.</b><br>' +
+            'Run <code>scan.py</code>, build <code>sharepoint-usage.json</code> and commit it — this table fills itself in. ' +
+            'Steps are in SHAREPOINT.md.<br><br>' +
+            '<a href="?demo=1" style="color:var(--blue);font-weight:700">See it with sample data →</a>') +
+        '</div>') +
   '</section>';
 }
 
@@ -266,28 +282,14 @@ function scopeSection() {
   '</section>';
 }
 
-/* ── states ──────────────────────────────────────────────────────────── */
-function awaitingSection() {
-  var S = SHAREPOINT;
-  return '<section>' +
-    '<div class="eyebrow">' + esc(S.status) + '</div>' +
-    '<h2 style="font-size:26px;margin:6px 0 0">' + esc(S.title) + '</h2>' +
-    '<p class="sub">' + esc(S.source) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(S.window) + '</span></p>' +
-    '<p class="lead">' + S.lead + '</p>' +
-    '<div class="placeholder" style="padding:34px">' +
-      '<div style="font-family:Fraunces,serif;font-size:24px;color:var(--teal);margin-bottom:6px">Coming soon</div>' +
-      esc(S.note) +
-      (STATE.error ? '<div style="margin-top:10px;font-size:12px">Loader said: ' + esc(STATE.error) + '</div>' : '') +
-      '<div style="margin-top:14px;font-size:12.5px">Preview the layout with sample data: ' +
-      '<a href="?demo=1" style="color:var(--blue);font-weight:700">?demo=1</a></div>' +
-    '</div>' +
-  '</section>' +
-  '<section>' +
-    grid2(
-      card(S.pipeline.title, table(S.pipeline.head, S.pipeline.rows, { numeric: function () { return false; } }), S.pipeline.note),
-      card(S.contract.title, table(S.contract.head, S.contract.rows, { numeric: function () { return false; } }), S.contract.note)
-    ) +
-  '</section>';
+/* ── states ────────────────────────────────────────────────────────────── */
+function notConnectedBanner() {
+  return '<div class="warn" style="margin:0;border-radius:0;border-left:0;border-right:0">' +
+    '<b>Not connected to Microsoft yet.</b> ' + esc(SHAREPOINT.note) + ' Every figure below reads "—" rather than 0, ' +
+    'because nothing has been measured. Run the pull (SHAREPOINT.md) and the page fills itself in — or ' +
+    '<a href="?demo=1" style="color:var(--blue);font-weight:700">preview it with sample data</a>.' +
+    (STATE.error ? ' <span style="font-size:12px">Loader said: ' + esc(STATE.error) + '</span>' : '') +
+    '</div>';
 }
 
 function demoBanner() {
@@ -338,12 +340,10 @@ function render() {
 
   if (!STATE.loaded) {
     body = '<section><div class="placeholder" style="padding:34px">Loading usage data…</div></section>';
-  } else if (!p) {
-    body = awaitingSection() + scopeSection();
   } else {
     var rows = visibleSites();
-    body = (STATE.demo ? demoBanner() : '') +
-      (p.concealed
+    body = (STATE.demo ? demoBanner() : (p ? '' : notConnectedBanner())) +
+      (p && p.concealed
         ? '<div class="warn" style="margin:0;border-radius:0"><b>Names are concealed in this tenant.</b> Site and team ' +
           'names are coming back as hashes. In the M365 admin centre turn off Settings → Org settings → Reports → ' +
           '"Display concealed user, group, and site names in all reports", then re-run the pull.</div>'
@@ -354,10 +354,10 @@ function render() {
   document.getElementById('sheet').innerHTML =
     pageHeader('SharePoint Usage Review',
       'Microsoft 365 · SharePoint &amp; Teams usage &nbsp;·&nbsp; Internal / Confidential',
-      (p ? 'Usage metrics only — no file, page or message content' : 'No usage export received yet — tab reserved'),
+      'Usage metrics only — no file, page or message content',
       'sharepoint') +
     body +
-    pageFooter(p ? 'SharePoint usage — ' + windowChip() : 'SharePoint usage review — no export received; tab reserved');
+    pageFooter('SharePoint usage — ' + windowChip());
 
   applyDataLabels();
   wire();
