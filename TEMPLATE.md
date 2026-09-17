@@ -71,7 +71,7 @@ client's exports. **Do not leave any Sanctuary rows behind.**
 | `SERIES` | Trendable metric series for the Compare page — each point `{ label, value, w }` |
 | `COMPETITORS` | Competitor table (rendered on the Report page's LinkedIn section and the Compare page) |
 | `BIZIQ` | Vendor/SEO campaign section — rename/repurpose per the client's vendor |
-| `TWOWEEK` | The two-weeks-at-a-glance tables |
+| `TWOWEEK_SETS` + `TWOWEEK_ORDER` | One 14-day comparison set per report date, newest first (the fortnight selector defaults to `TWOWEEK_ORDER[0]`). `TWOWEEK` is a back-compat alias for the newest set |
 | `L10` | Leadership-dashboard rocks shown in the L10 section and seeded into the Projects tab |
 
 Minimal snapshot skeleton:
@@ -87,6 +87,10 @@ var SNAP_X = {
     // or:     { measured: false, pending: true, plannedWindow: WINDOWS.x, lastWindow: WINDOWS.y }
     linkedin:  { measured: true, showCompetitors: true, /* … */ }
   },
+  // any channel may add `extra: [{ title, head, rows, note }, …]` — optional
+  // table-cards rendered two per row after the named blocks, for audience
+  // tables, two-week cuts, messaging, per-channel "pending this pull" lists
+  // without needing a new named slot in the renderer.
   recommendations: ['…']
 };
 ```

@@ -225,6 +225,23 @@ function card(title, inner, note) {
 }
 function grid2(a, b) { return '<div class="grid2">' + a + b + '</div>'; }
 
+/* ── a list of table-cards laid out two per row ─────────────────────────
+   Used for the optional per-channel `extra` blocks (audience tables,
+   two-week cuts, messaging, pending lists) so a snapshot can add cards
+   without every renderer needing a new named slot.                      */
+function cardGrid(list) {
+  if (!list || !list.length) { return ''; }
+  var s = '';
+  for (var i = 0; i < list.length; i += 2) {
+    var a = cardOf(list[i]), b = list[i + 1] ? cardOf(list[i + 1]) : '';
+    s += b ? grid2(a, b) : a;
+  }
+  return s;
+}
+function cardOf(x) {
+  return card(x.title, table(x.head, x.rows, x.numeric ? { numeric: x.numeric } : undefined), x.note);
+}
+
 /* ── "pending verified export" state — distinct from "no new export" ──── */
 function pendingExport(plannedWindow, lastWindow) {
   return '<div class="noexport"><b>Pending verified export</b>' +

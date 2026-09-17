@@ -10,27 +10,39 @@
 <script src="data.js"></script>
 <script src="ui.js"></script>
 <script>
-/* headline tiles pulled straight from the two-week table rows */
-function headline() {
-  var fb = TWOWEEK.channels[0], web = TWOWEEK.channels[1];
-  function row(ch, name) {
-    for (var i = 0; i < ch.rows.length; i++) { if (ch.rows[i][0] === name) { return ch.rows[i]; } }
-    return null;
-  }
-  var v = row(fb, 'Views'), e = row(fb, 'Content interactions') || row(fb, 'Engagement (total)'),
-      l = row(web, 'Total leads'), c = row(web, 'Conversion rate');
-  /* the change column is the last cell; direction is read from its arrow */
-  function tile(lab, r) {
-    var chg = r[r.length - 1];
-    return { lab: lab, num: r[1], chg: chg, dir: chg.indexOf('▼') === 0 ? 'down' : (chg.indexOf('▲') === 0 ? 'up' : 'flat'), w: TWOWEEK.last };
-  }
-  return kpis([
-    tile('Facebook views', v), tile('Facebook interactions', e),
-    tile('Website leads', l), tile('Conversion rate', c)
-  ]);
+/* headline tiles pulled straight from the two-week table rows ──────────
+   A set may name its own tiles via `headline`; otherwise the first four
+   obvious Facebook/website rows are used, and any row that is missing or
+   not yet exported is skipped rather than shown as a blank tile.        */
+function rowOf(ch, name) {
+  if (!ch) { return null; }
+  for (var i = 0; i < ch.rows.length; i++) { if (ch.rows[i][0] === name) { return ch.rows[i]; } }
+  return null;
 }
 
-function channelBlock(ch) {
+function headline(set) {
+  var want = set.headline || [
+    { ch: 0, row: 'Views', lab: 'Facebook views' },
+    { ch: 0, row: 'Content interactions', lab: 'Facebook interactions' },
+    { ch: 1, row: 'Total leads', lab: 'Website leads' },
+    { ch: 1, row: 'Conversion rate', lab: 'Conversion rate' }
+  ];
+  var tiles = [];
+  want.forEach(function (t) {
+    var r = rowOf(set.channels[t.ch], t.row);
+    if (!r) { return; }
+    if (/pending|^—$|not in this export/i.test(String(r[1]))) { return; }
+    var chg = String(r[r.length - 1]);
+    tiles.push({
+      lab: t.lab, num: r[1], chg: chg,
+      dir: chg.indexOf('▼') === 0 ? 'down' : (chg.indexOf('▲') === 0 ? 'up' : 'flat'),
+      w: set.last
+    });
+  });
+  return tiles.length ? kpis(tiles, tiles.length < 4 ? tiles.length : null) : '';
+}
+
+function channelBlock(ch, set) {
   var meta = CHANNEL_META[ch.key];
   var s = '<section' + (ch.pending ? ' class="muted"' : '') + '>' +
     '<div class="sechead"><span class="dot" style="background:' + meta.color + '"></span><h2>' + esc(meta.name) + '</h2></div>';
@@ -43,7 +55,7 @@ function channelBlock(ch) {
 
   s += '<p class="sub">' + (ch.windowOverride
          ? esc(ch.windowOverride) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(ch.windowChip || 'LinkedIn export cut · 15 days vs. 15 days') + '</span>'
-         : esc(TWOWEEK.last) + ' vs. ' + esc(TWOWEEK.prior) + ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span>') +
+         : esc(set.last) + ' vs. ' + esc(set.prior) + ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span>') +
        '</p>' + table(ch.head, ch.rows);
   if (ch.extra) {
     s += card(ch.extra.title, table(ch.extra.head, ch.extra.rows));
@@ -54,28 +66,51 @@ function channelBlock(ch) {
   return s + '</section>';
 }
 
-function render() {
+/* ── fortnight selector — every past fortnight stays available ───────── */
+function fortnightBar(currentId) {
+  var s = '<div class="periodbar"><label for="fortnight">Fortnight</label>' +
+          '<select id="fortnight" aria-label="Fortnight">';
+  TWOWEEK_ORDER.forEach(function (id) {
+    s += '<option value="' + id + '"' + (id === currentId ? ' selected' : '') + '>' +
+         esc(TWOWEEK_SETS[id].label) + '</option>';
+  });
+  s += '</select><span class="meta">Earlier fortnights are kept, not overwritten — each one is a real export at both ends.</span></div>';
+  return s;
+}
+
+function render(id) {
+  _current = id;
+  var set = TWOWEEK_SETS[id];
   var blocks = '';
-  TWOWEEK.channels.forEach(function (ch) { blocks += channelBlock(ch); });
+  set.channels.forEach(function (ch) { blocks += channelBlock(ch, set); });
 
   document.getElementById('sheet').innerHTML =
     pageHeader('Two Weeks at a Glance',
       'Last 2 weeks vs. prior 2 weeks &nbsp;·&nbsp; Internal / Confidential',
-      esc(TWOWEEK.last) + ' compared against ' + esc(TWOWEEK.prior), 'twoweeks') +
+      esc(set.last) + ' compared against ' + esc(set.prior), 'twoweeks') +
+    fortnightBar(id) +
     '<section>' +
       '<div class="eyebrow">Fortnightly view</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">Last two weeks vs. the two before</h2>' +
-      '<p class="lead">A high-level read on the most recent fortnight — <b>' + esc(TWOWEEK.last) + '</b> measured against ' +
-      '<b>' + esc(TWOWEEK.prior) + '</b>. This is a like-for-like 14-day comparison, which the snapshot report deliberately ' +
+      '<p class="lead">A high-level read on the fortnight — <b>' + esc(set.last) + '</b> measured against ' +
+      '<b>' + esc(set.prior) + '</b>. This is a like-for-like 14-day comparison, which the snapshot report deliberately ' +
       'is not: there the channels run on different export windows. Channels without a 14-day cut are shown blank rather ' +
       'than estimated.</p>' +
-      headline() +
+      headline(set) +
+      '<p class="note" style="font-size:11.5px;color:var(--muted);margin:10px 0 0">' + set.note + '</p>' +
     '</section>' +
     blocks +
-    pageFooter('Two-week cuts: ' + TWOWEEK.last + ' vs. ' + TWOWEEK.prior);
+    pageFooter('Two-week cuts: ' + set.last + ' vs. ' + set.prior);
 
   applyDataLabels();
+  document.getElementById('fortnight').addEventListener('change', function () {
+    render(this.value);
+    document.getElementById('fortnight').focus();
+  });
+  document.title = 'Sanctuary Recovery Centers — Two Weeks at a Glance (' + set.last + ')';
 }
-render();
+
+var _current = TWOWEEK_ORDER[0];
+render(_current);
 </script>
 </body></html>

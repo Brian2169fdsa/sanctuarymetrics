@@ -29,9 +29,10 @@ function renderWebsite(c) {
       card(c.seo.title, table(c.seo.head, c.seo.rows))
     );
   }
-  if (c.topPages) { s += card(c.topPages.title, table(c.topPages.head, c.topPages.rows)); }
+  if (c.topPages) { s += card(c.topPages.title, table(c.topPages.head, c.topPages.rows), c.topPages.note); }
   if (c.weekly && c.seo) { s += card(c.seo.title, table(c.seo.head, c.seo.rows, { numeric: function () { return false; } })); }
   if (c.crawlers) { s += card(c.crawlers.title, table(c.crawlers.head, c.crawlers.rows), c.crawlers.note); }
+  if (c.extra) { s += cardGrid(c.extra); }
   if (c.pending) {
     s += card('Not captured this period',
       table(['Metric', 'Status'], c.pending.map(function (x) { return [x, 'Pending — available on request']; })),
@@ -52,8 +53,14 @@ function renderFacebook(c) {
       ? card(c.formats.title, hbar(c.formats.series, { barX: c.formats.barX, color: meta.color, W: chartW(true) }), c.formats.note)
       : card(c.supporting.title, table(c.supporting.head, c.supporting.rows))
   );
-  s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows));
+  /* when a period has both, the formats chart takes the grid slot and the
+     supporting table gets its own full-width card rather than being dropped */
+  if (c.formats && c.supporting) {
+    s += card(c.supporting.title, table(c.supporting.head, c.supporting.rows));
+  }
+  s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows), c.topPosts.note);
   if (c.peers) { s += card(c.peers.title, table(c.peers.head, c.peers.rows), c.peers.note); }
+  if (c.extra) { s += cardGrid(c.extra); }
   if (c.warn) { s += '<div class="warn">' + c.warn + '</div>'; }
   if (c.footnote) { s += '<p class="sub" style="margin-top:16px">' + c.footnote + '</p>'; }
   return s + '</section>';
@@ -62,13 +69,16 @@ function renderFacebook(c) {
 function renderInstagram(c) {
   var meta = CHANNEL_META.instagram;
   if (!c.measured) { return mutedSection('instagram', c); }
-  return '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
+  var s = '<section>' + sechead(meta.name, meta.color, c.source, c.window) +
     kpis(c.kpis) +
     grid2(
-      card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true))),
+      card(c.weekly.title, vbar(c.weekly.series, meta.color, chartW(true)), c.weekly.note),
       card(c.viewSources.title, table(c.viewSources.head, c.viewSources.rows), c.viewSources.note)
-    ) +
-  '</section>';
+    );
+  if (c.extra) { s += cardGrid(c.extra); }
+  if (c.warn) { s += '<div class="warn">' + c.warn + '</div>'; }
+  if (c.footnote) { s += '<p class="sub" style="margin-top:16px">' + c.footnote + '</p>'; }
+  return s + '</section>';
 }
 
 function renderLinkedIn(c) {
@@ -97,12 +107,13 @@ function renderLinkedIn(c) {
   if (c.industry) {
     s += grid2(card(c.industry.title, table(c.industry.head, c.industry.rows)),
                card(c.location.title, table(c.location.head, c.location.rows)));
-  } else {
+  } else if (c.location) {
     s += grid2(card(c.location.title, table(c.location.head, c.location.rows)),
                card(c.jobFunction.title, table(c.jobFunction.head, c.jobFunction.rows)));
     s += grid2(card(c.visitorFunction.title, table(c.visitorFunction.head, c.visitorFunction.rows)),
                card(c.searchingCompanies.title, table(c.searchingCompanies.head, c.searchingCompanies.rows)));
   }
+  if (c.extra) { s += cardGrid(c.extra); }
   if (c.warn) { s += '<div class="warn">' + c.warn + '</div>'; }
   if (c.footnote) { s += '<p class="sub" style="margin-top:16px">' + c.footnote + '</p>'; }
   return s + '</section>';
