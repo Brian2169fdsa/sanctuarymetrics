@@ -1,0 +1,13 @@
+{
+  "name": "sanctuarymetrics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sanctuary Recovery Centers performance report. Static pages plus one serverless function for the ask-the-data chat.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0"
+  }
+}
