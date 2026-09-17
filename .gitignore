@@ -1,0 +1,10 @@
+# Microsoft Graph app credentials written by register-app.ps1 — plaintext
+# client secrets. Never commit.
+config.json
+
+# Raw scan.py output. The published payload is built from this with
+# tools/build-sharepoint-payload.py; the raw files hold unredacted owner
+# email addresses, so they stay local.
+out/
+
+.DS_Store
