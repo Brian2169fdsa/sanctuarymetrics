@@ -426,20 +426,30 @@ def main():
         with open(os.path.join(args.out, f"{r['tenant'].replace(' ', '_')}.json"), "w") as f:
             json.dump(r, f, indent=2)
 
+    # The standalone dashboard is optional. Its template is not part of this
+    # repo — the report site renders the same data instead — so a missing
+    # template must not lose a pull that already succeeded.
     here = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(here, "dashboard_template.html")) as f:
-        tpl = f.read()
-    html = tpl.replace("/*__DATA__*/null", json.dumps(results))
-    path = os.path.join(args.out, "dashboard.html")
-    with open(path, "w") as f:
-        f.write(html)
+    path = None
+    try:
+        with open(os.path.join(here, "dashboard_template.html")) as f:
+            tpl = f.read()
+        html = tpl.replace("/*__DATA__*/null", json.dumps(results))
+        path = os.path.join(args.out, "dashboard.html")
+        with open(path, "w") as f:
+            f.write(html)
+    except FileNotFoundError:
+        pass
 
     total = sum(len(r["sites"]) for r in results)
     kill = sum(1 for r in results for s in r["sites"] if s["verdict"] in ("Delete", "Archive"))
     freed = sum(s["storage_used"] for r in results for s in r["sites"]
                 if s["verdict"] in ("Delete", "Archive"))
     print(f"\n{total} sites scanned · {kill} flagged · {human_bytes(freed)} reclaimable")
-    print(f"Dashboard: {path}")
+    if path:
+        print(f"Dashboard: {path}")
+    print(f"Wrote {len(results)} tenant file(s) to {args.out}/")
+    print(f"Next: python3 tools/build-sharepoint-payload.py --in {args.out}/ --out sharepoint-usage.json")
 
 
 if __name__ == "__main__":
