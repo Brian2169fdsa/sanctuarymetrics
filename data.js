@@ -27,6 +27,7 @@ var WINDOWS = {
   liSep3:        'Aug 3 – Sep 1, 2026',
   liSep3Meta:    'Aug 6 – Sep 1, 2026',
   liSep3_2wk:    '13/14-day export cuts, Aug 6 – Sep 1, 2026',
+  liMonthly:     'monthly, May 21 – Aug 31, 2026 (May–Jul from the Aug 20 export · Aug from the Sep 3 export)',
   twLast:        'Aug 20 – Sep 2, 2026',
   twPrior:       'Aug 6 – 19, 2026',
   metaSep17:     'Aug 20 – Sep 16, 2026',
@@ -648,6 +649,7 @@ var SNAP_SEP3 = {
           ['Interactions from followers', '794', '▲ 162%'],
           ['3-second video views', '650', '▼ 29.7%'],
           ['Reels views', '1.8K', '▼ 22.1%'],
+          ['Reels interactions', '102', '▼ 8.1%'],
           ['Watch time', '3h 40m', '▼ 31.2%'],
           ['Conversations started', '0', '▼ 100%'],
           ['Unique engaged users', '1,592', 'daily export'],
@@ -917,7 +919,7 @@ var SNAP_SEP3 = {
       },
       warn: '<b>Read engagement rate with care:</b> the period rate computes to ~20% ((clicks + reactions + comments + reposts) ÷ ' +
             'impressions) but is heavily inflated by the anniversary post\'s 388 clicks. Do not quote it as a typical rate without ' +
-            'that caveat; typical content sits in the 4–10% band. <b>Inbound worth answering:</b> a peer-support graduate ' +
+            'that caveat; the anniversary post\'s 40.6% is 4–10x any hiring post, and every other post this period sits between 0.9% and 9.5%. <b>Inbound worth answering:</b> a peer-support graduate ' +
             '(New Freedom, graduating Sep 27) commented twice on the Second Chance post asking about getting connected / ' +
             'employment — route to intake/HR and respond. LinkedIn data is delayed up to 2 days; Sep 2 is not yet in the export.',
       footnote: 'Best LinkedIn month on record — impressions nearly tripled, reactions up 3.4x. Sanctuary out-grew every peer on ' +
@@ -1737,8 +1739,9 @@ TWOWEEK_SETS['2026-09-03'] = {
   prior: WINDOWS.twPrior,
   note: 'Figures on this page are 14-day cuts, so they are intentionally smaller than the Report page\'s totals — ' +
         'Facebook 16,797 here vs. 39,807 there (28 days), Instagram 148 vs. 393 (28 days), LinkedIn 1,965 vs. 3,342 (30 days), ' +
-        'website 1,130 vs. 2,304 (30 days). The prior fortnight (Aug 6 – 19) matches the Aug 20 report exactly at every ' +
-        'channel, so this comparison is clean at both ends. Deltas are computed from the two real export cuts.',
+        'website 1,130 vs. 2,304 (30 days). The prior fortnight (Aug 6 – 19) matches the Aug 20 report exactly for Facebook ' +
+        'and the website, so those comparisons are clean at both ends; LinkedIn\'s Aug 20 cut ran Aug 4 – 18, so its prior ' +
+        'column here is re-cut from the daily export. Deltas are computed from the two real export cuts.',
   channels: [
     {
       key: 'facebook',
@@ -1897,16 +1900,16 @@ var SERIES = {
   },
   linkedin: {
     'Impressions (monthly)': [
-      { label: 'May 2026', value: 1728, w: WINDOWS.liAug20, partial: 'from May 21' },
-      { label: 'Jun 2026', value: 2149, w: WINDOWS.liAug20 },
-      { label: 'Jul 2026', value: 1263, w: WINDOWS.liAug20 },
-      { label: 'Aug 2026', value: 3021, w: WINDOWS.liSep3, partial: 'Aug 3 – 31 (Sep 3 export)' }
+      { label: 'May 2026', value: 1728, w: WINDOWS.liMonthly, partial: 'from May 21' },
+      { label: 'Jun 2026', value: 2149, w: WINDOWS.liMonthly },
+      { label: 'Jul 2026', value: 1263, w: WINDOWS.liMonthly },
+      { label: 'Aug 2026', value: 3021, w: WINDOWS.liMonthly, partial: 'Aug 3 – 31' }
     ],
     'New followers (monthly)': [
-      { label: 'May 2026', value: 14, w: WINDOWS.liAug20, partial: 'from May 21' },
-      { label: 'Jun 2026', value: 29, w: WINDOWS.liAug20 },
-      { label: 'Jul 2026', value: 18, w: WINDOWS.liAug20 },
-      { label: 'Aug 2026', value: 27, w: WINDOWS.liSep3, partial: 'Aug 3 – 31 (Sep 3 export)' }
+      { label: 'May 2026', value: 14, w: WINDOWS.liMonthly, partial: 'from May 21' },
+      { label: 'Jun 2026', value: 29, w: WINDOWS.liMonthly },
+      { label: 'Jul 2026', value: 18, w: WINDOWS.liMonthly },
+      { label: 'Aug 2026', value: 27, w: WINDOWS.liMonthly, partial: 'Aug 3 – 31' }
     ],
     'Impressions (per snapshot)': [
       { label: 'Aug 6 snapshot',  value: 1268, w: WINDOWS.liAug6 },
