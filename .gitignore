@@ -11,3 +11,7 @@ out/
 
 # npm
 node_modules/
+
+# python venv for the SharePoint pull scripts
+.venv/
+__pycache__/

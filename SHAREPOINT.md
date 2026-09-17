@@ -9,71 +9,116 @@ loudly watermarked as sample data, and unreachable unless you type it.
 
 ---
 
-## The pipeline
+## Start here: Microsoft permissions
 
-```
-register-app.ps1        → config.json        (one read-only app per tenant)
-scan.py --enrich        → out/<tenant>.json  (Graph reports API)
-build-sharepoint-payload.py → sharepoint-usage.json
-git commit              → Vercel redeploys   → the tab renders it
-```
+**Nothing works until an app registration exists with admin consent.** These
+are *application* permissions (app-only, client-credentials) — a regular user
+account cannot grant them. You need **Global Administrator**, or Application
+Administrator + Privileged Role Administrator.
 
-`scan.py` and `register-app.ps1` are **not** in this repo — they live wherever
-you keep them. Only the last two steps touch this site.
-
-### 1. Register the app (once per tenant)
-
-```powershell
-Install-Module Microsoft.Graph -Scope CurrentUser
-.\register-app.ps1 -Tenants @{ "Sanctuary Recovery" = "sanctuary.onmicrosoft.com" } -Enrich
-```
-
-Writes `config.json` with plaintext client secrets. **That file is gitignored —
-keep it that way.**
-
-Permissions granted:
-
-| Permission | Why | What it cannot do |
+| Permission | Needed for | What it cannot do |
 |---|---|---|
 | `Reports.Read.All` | the usage numbers themselves | open a file, a page, a message or a mailbox |
 | `Sites.Read.All` | site id + URL, to attach Teams activity to the right site | read site content |
 | `Group.Read.All` | group/team names and member counts | read group conversations |
 
-The last two are only needed for `--enrich`. Without them you still get every
-site's usage, just without team names joined on.
+The last two are only needed for `--enrich` (team names joined to sites).
+Without them you still get every site's usage.
+
+There is also a **tenant setting** to change, which also needs an admin:
+M365 admin centre → **Settings → Org settings → Reports** → uncheck
+**"Display concealed user, group, and site names in all reports"**. Leave it on
+and every site and team name comes back as a hash.
+
+`tools/register-app.ps1` does the app registration for you.
+
+---
+
+## The pipeline
+
+```
+tools/register-app.ps1        → config.json           (once per tenant, admin)
+tools/scan.py                 → out/<tenant>.json     (Graph reports API)
+tools/build-sharepoint-payload.py → sharepoint-usage.json
+git commit                    → Vercel redeploys      → the tab renders it
+```
+
+All three scripts are in `tools/` in this repo, so a clone has everything.
+
+---
+
+## Step by step
+
+Commands are shown for **PowerShell on macOS** (`pwsh`), since that is what
+this project is run from. On Windows PowerShell use `py` in place of `python3`,
+and note `&&` only works in PowerShell 7+ — the steps below use separate lines
+so they work everywhere.
+
+### 0. Get a clone (once)
+
+The scripts live in the repo, so work from inside it — not from your home
+directory.
+
+```powershell
+cd ~
+git clone https://github.com/Brian2169fdsa/sanctuarymetrics.git
+cd sanctuarymetrics
+```
+
+Already have a clone? Just `cd` into it and `git pull`.
+
+### 1. Register the app (once per tenant, needs admin)
+
+```powershell
+Install-Module Microsoft.Graph -Scope CurrentUser   # large; takes a few minutes
+./tools/register-app.ps1 -Tenants @{ "Sanctuary Recovery" = "sanctuary.onmicrosoft.com" } -Enrich
+```
+
+It opens a browser to sign you in, creates the app, grants the permissions
+above, and writes `config.json` with a client secret in plaintext. **That file
+is gitignored — keep it that way.**
 
 ### 2. Turn off name concealment
 
-M365 admin centre → **Settings → Org settings → Reports** → uncheck
-**"Display concealed user, group, and site names in all reports"**.
+M365 admin centre → Settings → Org settings → Reports → uncheck *"Display
+concealed user, group, and site names in all reports"*. See above.
 
-Leave it on and every site and team name comes back as a hash. The page detects
-this and shows a warning banner rather than pretending the hashes are names.
+### 3. Set up Python (once)
 
-### 3. Pull
+macOS has no `python` command — it is `python3`. Check, then install the one
+dependency in a virtual environment (newer macOS refuses a bare `pip install`):
 
-```bash
-python scan.py --config config.json --enrich --out out/
+```powershell
+python3 --version
+python3 -m venv .venv
+./.venv/bin/python -m pip install requests
 ```
 
-### 4. Build the payload
+### 4. Pull
 
-```bash
-python tools/build-sharepoint-payload.py --in out/ --out sharepoint-usage.json
+```powershell
+./.venv/bin/python tools/scan.py --config config.json --enrich --out out/
 ```
 
-This keeps only the fields the page reads, and **redacts owner email addresses
-by default** (`alice@x.org` → `a•••@x.org`). That is deliberate — see Privacy
-below. Use `--include-owners` to publish them in full, once you have confirmed
-the deployment is protected.
+### 5. Build the payload
 
-### 5. Publish
-
-```bash
-git add sharepoint-usage.json && git commit -m "SharePoint usage pull <date>" && git push
+```powershell
+./.venv/bin/python tools/build-sharepoint-payload.py --in out/ --out sharepoint-usage.json
 ```
 
-Vercel redeploys and the tab fills in. Re-run steps 3–5 for each new pull.
+Keeps only the fields the page reads, and **redacts owner email addresses by
+default** (`alice@x.org` → `a•••@x.org`). Use `--include-owners` to publish
+them in full, once you have confirmed the deployment is protected.
+
+### 6. Publish
+
+```powershell
+git add sharepoint-usage.json
+git commit -m "SharePoint usage pull"
+git push
+```
+
+Vercel redeploys and the tab fills in. Repeat steps 4–6 for each new pull.
 
 ---
 
