@@ -47,6 +47,21 @@ function idleText(s) {
   if (s.days_idle === 0) { return 'today'; }
   return s.days_idle + 'd ago';
 }
+/* A count that was never measured is not zero. members and channel_messages
+   are null on any site whose group was not resolved, and on sites that are not
+   group-backed at all — those read '—', never '0'. */
+function countOrDash(v) {
+  return (v === null || v === undefined || v === '') ? '—' : fmt(Number(v) || 0);
+}
+/* Members, with guests called out separately when there are any — an external
+   guest in a site is the thing a reviewer wants to spot. */
+function peopleText(s) {
+  if (s.members === null || s.members === undefined || s.members === '') { return '—'; }
+  var out = fmt(Number(s.members) || 0);
+  var g = Number(s.guests) || 0;
+  if (g > 0) { out += ' <span class="tag eq">+' + fmt(g) + ' guest' + (g === 1 ? '' : 's') + '</span>'; }
+  return out;
+}
 function typeOf(s) {
   if (s.is_channel_site) { return 'Teams channel'; }
   if (s.team_name) { return 'Teams team'; }
@@ -221,15 +236,24 @@ function summarySection(rows) {
 var ROW_CAP = 150;
 function sitesSection(rows) {
   var shown = rows.slice(0, ROW_CAP);
-  var head = ['Site / team', 'Type', 'Owner', 'Last activity', 'Files', 'Active', 'Views', 'Storage', 'Verdict'];
+  var head = ['Site / team', 'Type', 'Owner', 'Last activity', 'People', 'Files', 'Active',
+              'Views', 'Messages', 'Storage', 'Verdict'];
   var body = shown.map(function (s) {
     var name = esc(s.team_name || s.title || s.site_id || '—');
-    if (s.url) { name = '<span title="' + esc(s.url) + '">' + name + '</span>'; }
+    /* The URL is the only way to tell two same-named sites apart, so it is the
+       row's tooltip when the pull captured one. Some tenants return no Site URL
+       at all — then fall back to the raw site id rather than showing nothing. */
+    var hover = s.url || s.site_id;
+    if (hover) { name = '<span title="' + esc(hover) + '">' + name + '</span>'; }
     if (s.orphaned) { name += ' <span class="tag lo">orphaned</span>'; }
     if (s.external_sharing) { name += ' <span class="tag eq">external</span>'; }
     return [name, esc(typeOf(s)), esc(s.owner || '—'), esc(idleText(s)),
-            fmt(Number(s.file_count) || 0), fmt(Number(s.active_files) || 0),
-            fmt(Number(s.page_views) || 0), humanBytes(s.storage_used), verdictTag(s.verdict)];
+            peopleText(s), fmt(Number(s.file_count) || 0), fmt(Number(s.active_files) || 0),
+            fmt(Number(s.page_views) || 0), countOrDash(s.channel_messages),
+            /* storage_quota is the tenant's pooled 25TB allocation repeated on every
+               row, not a per-site limit, so a share of it would read <1% everywhere.
+               Used bytes alone is the only honest number here. */
+            humanBytes(s.storage_used), verdictTag(s.verdict)];
   });
 
   var note = STATE.payload
@@ -243,7 +267,7 @@ function sitesSection(rows) {
     '<h2 style="font-size:22px;margin:6px 0 4px">Every site and channel in the pull</h2>' +
     '<p class="sub">' + esc(note) + '</p>' +
     (shown.length
-      ? table(head, body, { numeric: function (i) { return i >= 4 && i <= 7; } })
+      ? table(head, body, { numeric: function (i) { return i >= 4 && i <= 9; } })
       : '<div class="placeholder" style="padding:30px">' +
         (STATE.payload
           ? 'No sites match the current filters.'

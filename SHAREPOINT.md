@@ -165,11 +165,20 @@ All three work, so `scan.py` output drops straight in:
 { "generated": "...", "tenants": [ { "tenant": "...", "sites": [...] } ] }
 ```
 
-Per-site fields the page reads: `title`, `team_name`, `url`, `owner`,
-`template`, `days_idle`, `last_activity`, `file_count`, `active_files`,
-`page_views`, `storage_used`, `storage_quota`, `external_sharing`,
-`is_group_site`, `is_channel_site`, `members`, `guests`, `channel_messages`,
-`orphaned`, `verdict`, `score`. Missing fields degrade to `—`.
+Per-site fields the page renders: `title`, `team_name`, `owner`, `days_idle`,
+`members`, `guests`, `file_count`, `active_files`, `page_views`,
+`channel_messages`, `storage_used`, `verdict`, plus `url`/`site_id` as the row
+tooltip, `is_group_site`/`is_channel_site` for the type, and `orphaned` /
+`external_sharing` as row tags. `score` drives the sort.
+
+A count that was never measured reads `—`, never `0` — `members` and
+`channel_messages` are null on any site whose group was not resolved, and on
+sites that are not group-backed at all.
+
+`storage_quota`, `last_activity`, `template` and `anon_links` are published but
+not displayed. `storage_quota` in particular is the tenant's pooled allocation
+repeated on every row, not a per-site limit, so a share of it would read `<1%`
+on every site.
 
 ---
 
