@@ -196,3 +196,26 @@ input[type=date].statsel{font-family:inherit;color:var(--ink);background:#fff;bo
       border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer}
 .chip[aria-pressed="true"]{color:#fff;border-color:transparent}
 .chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ── gauges ───────────────────────────────────────────────────────────────
+   Arc gauges. They wrap rather than shrink: below about 360px a single
+   column is more readable than three squeezed arcs. */
+.gauges{display:flex;flex-wrap:wrap;gap:18px 14px;justify-content:flex-start}
+.gauge{flex:1 1 150px;min-width:130px;max-width:210px;margin:0;text-align:center}
+.gauge svg{width:100%;height:auto;display:block}
+.gauge-num{font-family:'Fraunces',Georgia,serif;font-size:25px;font-weight:600;fill:var(--ink)}
+.gauge-sub{font-size:10.5px;fill:var(--muted)}
+.gauge-lab{font-size:12px;font-weight:600;color:var(--ink);line-height:1.3;margin:2px 0 0}
+.gauge-note{font-size:11px;color:var(--muted);line-height:1.4;margin:5px 0 0;text-align:left}
+@media (max-width:420px){
+  .gauges{gap:16px 10px}
+  .gauge{flex:1 1 100%;max-width:none;display:grid;grid-template-columns:120px 1fr;
+         gap:0 12px;align-items:center;text-align:left}
+  .gauge svg{grid-row:1/3;width:120px}
+  .gauge-lab{align-self:end}
+  .gauge-note{align-self:start;margin:3px 0 0}
+}
+
+/* Detail columns are hidden once a table starts stacking — see table() in
+   ui.js. The wide screen still shows every column. */
+@media (max-width:620px){ table th.sec, table td.sec { display:none } }
