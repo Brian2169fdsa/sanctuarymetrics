@@ -172,3 +172,27 @@ input[type=date].statsel{font-family:inherit;color:var(--ink);background:#fff;bo
 .addform input[type=date]{font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;
  border:1px solid var(--line);border-radius:8px;padding:8px 11px;width:100%}
 @media (max-width:720px), (pointer:coarse){.addform input[type=date]{min-height:44px;font-size:15px}}
+
+/* ── meters ───────────────────────────────────────────────────────────────
+   The gauge form, used only where a real denominator exists. Deliberately a
+   track and a fill rather than a dial: a dial spends a lot of pixels on
+   decoration and is harder to compare down a column, and these are always
+   read as a stack. */
+.meters{display:flex;flex-direction:column;gap:14px}
+.meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 5px}
+.meter-lab{font-size:13px;font-weight:600;color:var(--ink)}
+.meter-val{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.meter-val b{color:var(--ink);font-weight:700;margin-left:2px}
+.meter-of{color:var(--muted);font-weight:400}
+.meter-track{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+/* 4px rounded data-end, anchored to the baseline at 0 — the fill grows from
+   the track's start so the two ends never read as a floating bar. */
+.meter-fill{height:100%;border-radius:5px;min-width:3px;transition:width .2s ease}
+.meter-note{font-size:11.5px;color:var(--muted);margin:5px 0 0}
+
+/* ── area chips ───────────────────────────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.chip{font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);background:#fff;
+      border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer}
+.chip[aria-pressed="true"]{color:#fff;border-color:transparent}
+.chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}

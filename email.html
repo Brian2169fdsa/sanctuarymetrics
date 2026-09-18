@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Email Usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="ui.js"></script>
+<script src="usage.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ═════════════════════════════════════════════════════════════════════════
+   Email usage
+
+   Two sources, and the page keeps them apart because they answer different
+   questions:
+
+   · Group mailboxes — the Exchange columns on getOffice365GroupsActivityDetail,
+     which come with every pull. Shared mailboxes behind Teams and M365 groups.
+   · People — getMailboxUsageDetail and getEmailActivityUserDetail, pulled only
+     with scan.py --people-detail. Individual staff mailboxes.
+
+   The per-person columns vary by tenant, so that section renders whatever
+   columns the report returned rather than a hardcoded list — which is how the
+   Site URL bug went unnoticed for three rounds. Names are redacted in the
+   payload unless build-sharepoint-payload.py ran with --include-people.
+
+   Sizes, counts and dates only. No permission here can read a message.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+var STATE = { loaded: false, payload: null, error: null, view: 'groups', sort: 'storage', q: '' };
+
+var GSORTS = {
+  storage:  ['Exchange Mailbox Storage Used (Byte)', 'Mailbox size'],
+  items:    ['Exchange Mailbox Total Item Count',    'Items'],
+  received: ['Exchange Received Email Count',        'Mail received'],
+  name:     [null,                                   'Name']
+};
+
+function hasPeople() {
+  var p = STATE.payload;
+  if (!p) { return false; }
+  return !!((p.people.mailboxes && p.people.mailboxes.length) ||
+            (p.people.email_activity && p.people.email_activity.length));
+}
+
+function groupRows() {
+  var rows = (STATE.payload && STATE.payload.groups) || [];
+  var q = STATE.q.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(function (r) {
+      return str(r, 'Group Display Name').toLowerCase().indexOf(q) !== -1;
+    });
+  }
+  var col = GSORTS[STATE.sort][0];
+  return rows.slice().sort(function (a, b) {
+    if (!col) { return str(a, 'Group Display Name').localeCompare(str(b, 'Group Display Name')); }
+    return numOr0(b, col) - numOr0(a, col);
+  });
+}
+
+/* ── summary ─────────────────────────────────────────────────────────── */
+function summary(rows) {
+  var p = STATE.payload;
+  var tot = function (c) { return rows.reduce(function (a, r) { return a + numOr0(r, c); }, 0); };
+  var storage = tot('Exchange Mailbox Storage Used (Byte)');
+  var items = tot('Exchange Mailbox Total Item Count');
+  var received = tot('Exchange Received Email Count');
+  /* Received mail is only reported for groups that actually received some, so
+     "how many have a value" is itself the finding: a shared mailbox nobody
+     writes to is a shared mailbox nobody needs. */
+  var withMail = rows.filter(function (r) { return num(r, 'Exchange Received Email Count') !== null &&
+                                                   numOr0(r, 'Exchange Received Email Count') > 0; }).length;
+  var empty = rows.filter(function (r) { return numOr0(r, 'Exchange Mailbox Total Item Count') === 0; }).length;
+
+  return '<section>' +
+    '<div class="eyebrow">Email</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Group mailboxes at a glance</h2>' +
+    '<p class="sub">Exchange columns of the M365 Groups activity report &nbsp;·&nbsp; ' +
+      '<span class="win-chip">' + esc(windowChipFor(p)) + '</span></p>' +
+    kpis([
+      { lab: 'Group mailboxes', num: fmt(rows.length),      note: 'excluding deleted' },
+      { lab: 'Mail stored',     num: humanBytes(storage),   note: fmt(items) + ' items' },
+      { lab: 'Mail received',   num: fmt(received),         note: 'in the reporting window' },
+      { lab: 'Mailboxes receiving mail', num: fmt(withMail), note: 'of ' + fmt(rows.length) + ' in the window' },
+      { lab: 'Empty mailboxes', num: fmt(empty),            note: 'no items at all' }
+    ]) +
+    grid2(
+      card('Are these mailboxes used?',
+        meters([
+          { label: 'Mailboxes that received mail this window', value: withMail, total: rows.length,
+            note: 'A group mailbox with no inbound mail across the whole window is a candidate ' +
+                  'to retire — it is still costing storage and still an address people can reach.' },
+          { label: 'Mailboxes holding any items', value: rows.length - empty, total: rows.length }
+        ], AREA.email),
+        'Both denominators are the group count in the current filter, which is a real ceiling.'),
+      card('Largest group mailboxes',
+        hbar(rankSeries(rows, 'Group Display Name', 'Exchange Mailbox Storage Used (Byte)', 10)
+               .map(function (d) { return { label: d.label, value: Math.round(d.value / 1048576) }; }),
+             { color: AREA.email, barX: 150, W: chartW(true) }),
+        'Top 10, in MB. Mailboxes with no stored mail are left out rather than drawn as zero.')
+    ) +
+  '</section>';
+}
+
+/* ── group detail ────────────────────────────────────────────────────── */
+function groupDetail(rows) {
+  var head = ['Group', 'Type', 'Last activity', 'Mailbox size', 'Items', 'Received'];
+  var body = rows.slice(0, 200).map(function (r) {
+    return [esc(str(r, 'Group Display Name') || '—'),
+            esc(str(r, 'Group Type') || '—'),
+            esc(str(r, 'Last Activity Date') || 'none in window'),
+            humanBytes(numOr0(r, 'Exchange Mailbox Storage Used (Byte)')),
+            dash(num(r, 'Exchange Mailbox Total Item Count')),
+            dash(num(r, 'Exchange Received Email Count'))];
+  });
+  return table(head, body, { numeric: function (i) { return i >= 3; } });
+}
+
+/* ── people ──────────────────────────────────────────────────────────────
+   Rendered from whatever columns the report returned. Identity columns are
+   put first; everything else follows in report order. */
+function peopleTable(rows) {
+  if (!rows || !rows.length) { return ''; }
+  var cols = Object.keys(rows[0]).filter(function (c) { return c !== '__tenant'; });
+  var skip = { 'Report Refresh Date': 1, 'Report Period': 1 };
+  cols = cols.filter(function (c) { return !skip[c]; });
+  var body = rows.slice(0, 200).map(function (r) {
+    return cols.map(function (c) {
+      var v = str(r, c);
+      if (/\(Byte\)/.test(c)) { return humanBytes(numOr0(r, c)); }
+      var n = num(r, c);
+      return (n !== null && /count|quota/i.test(c)) ? fmt(n) : (v || '—');
+    });
+  });
+  var head = cols.map(function (c) { return c.replace(/ \(Byte\)$/, ''); });
+  return table(head, body, { numeric: function (i) { return /count|quota|byte|size/i.test(cols[i]); } });
+}
+
+function peopleSection() {
+  var p = STATE.payload;
+  var mb = p.people.mailboxes || [], act = p.people.email_activity || [];
+  var s = '';
+  if (p.peopleRedacted) {
+    s += '<div class="warn" style="margin:0 0 16px"><b>Names are redacted.</b> ' +
+         'This payload was built without <code>--include-people</code>, so individual ' +
+         'addresses read <code>a•••@domain</code>. Every count below is real.</div>';
+  }
+  if (mb.length) {
+    s += card('Individual mailboxes (' + fmt(mb.length) + ')', peopleTable(mb),
+      'Every column the mailbox report returned, in its own order. Showing up to 200 rows.');
+  }
+  if (act.length) {
+    s += card('Individual email activity (' + fmt(act.length) + ')', peopleTable(act),
+      'Send, receive and read counts are Microsoft\'s. No message content is collected.');
+  }
+  return s;
+}
+
+/* ── controls ────────────────────────────────────────────────────────── */
+function controls() {
+  var live = !!(STATE.payload && STATE.payload.groups.length);
+  var views = [['groups', 'Group mailboxes']];
+  if (hasPeople()) { views.push(['people', 'People']); }
+
+  var s = '';
+  if (views.length > 1) {
+    s += '<div class="chips">' + views.map(function (v) {
+      var on = STATE.view === v[0];
+      return '<button class="chip" type="button" data-view="' + v[0] + '" aria-pressed="' +
+             (on ? 'true' : 'false') + '"' +
+             (on ? ' style="background:' + AREA.email + '"' : '') + '>' + esc(v[1]) + '</button>';
+    }).join('') + '</div>';
+  }
+  if (STATE.view !== 'groups') { return s; }
+
+  s += '<div class="filterbar"><div class="controls">';
+  s += '<div class="f"><label for="f-sort">Sort by</label><select id="f-sort"' +
+       (live ? '' : ' disabled') + '>';
+  Object.keys(GSORTS).forEach(function (k) {
+    s += '<option value="' + k + '"' + (k === STATE.sort ? ' selected' : '') + '>' +
+         esc(GSORTS[k][1]) + '</option>';
+  });
+  s += '</select></div>';
+  s += '<div class="f"><label for="f-q">Search</label><input id="f-q" type="search"' +
+       (live ? '' : ' disabled') + ' placeholder="group name" value="' + esc(STATE.q) + '" ' +
+       'style="font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;' +
+       'border:1px solid var(--line);border-radius:8px;padding:8px 11px;min-width:150px;max-width:100%"></div>';
+  return s + '</div></div>';
+}
+
+function scope() {
+  return '<section>' + card('What this page can and cannot show',
+    '<p style="margin:0 0 10px">Mailbox <b>sizes, item counts and dates</b> only. ' +
+    'No permission behind this pull can read a message, a subject line or an attachment.</p>' +
+    '<p style="margin:0 0 10px">Group mailbox figures come with every pull. Individual ' +
+    'mailboxes need <code>scan.py --people-detail</code>, and their names stay redacted ' +
+    'in the published file unless the payload was built with <code>--include-people</code>.</p>' +
+    '<p style="margin:0">Nothing on this page changes anything in the tenant.</p>') +
+  '</section>';
+}
+
+/* ── render ──────────────────────────────────────────────────────────── */
+function render() {
+  var p = STATE.payload;
+  var s = pageHeader('Email Usage',
+    'Microsoft 365 · Exchange mailboxes',
+    p && p.generated ? 'Pull generated ' + esc(p.generated) : 'Awaiting first pull',
+    'email');
+
+  if (!STATE.loaded) {
+    s += '<div class="placeholder" style="padding:30px">Loading…</div>';
+  } else if (STATE.error) {
+    s += '<div class="warn"><b>Could not read the usage payload.</b> ' + esc(STATE.error) + '</div>';
+  } else if (!p || (!p.groups.length && !hasPeople())) {
+    s += awaitingUsage('M365 Groups', 'mailbox data');
+  } else if (STATE.view === 'people' && hasPeople()) {
+    s += '<section><div class="eyebrow">Email</div>' +
+         '<h2 style="font-size:26px;margin:6px 0 12px">Individual mailboxes</h2>' +
+         controls() + peopleSection() + '</section>' + scope();
+  } else {
+    var rows = groupRows();
+    s += summary(rows) +
+         '<section><div class="eyebrow">Detail</div>' +
+         '<h2 style="font-size:22px;margin:6px 0 4px">Every group mailbox in the pull</h2>' +
+         '<p class="sub">Showing ' + fmt(Math.min(rows.length, 200)) + ' of ' + fmt(rows.length) +
+           '. A figure Microsoft did not return reads —.</p>' +
+         controls() +
+         (rows.length ? groupDetail(rows)
+                      : '<div class="placeholder" style="padding:30px">No groups match that search.</div>') +
+         '</section>' + scope();
+  }
+
+  s += pageFooter('Microsoft Graph mailbox and groups activity reports' +
+       (p && p.period ? ', last ' + p.period + ' days' : ''));
+  document.getElementById('sheet').innerHTML = s;
+  applyDataLabels(document.getElementById('sheet'));
+  wire();
+}
+
+function wire() {
+  [].forEach.call(document.querySelectorAll('.chip[data-view]'), function (b) {
+    b.addEventListener('click', function () { STATE.view = this.getAttribute('data-view'); render(); });
+  });
+  var sel = document.getElementById('f-sort');
+  if (sel) { sel.addEventListener('change', function () { STATE.sort = this.value; render(); }); }
+  var q = document.getElementById('f-q');
+  if (q) {
+    q.addEventListener('input', function () {
+      STATE.q = this.value;
+      var pos = this.selectionStart;
+      render();
+      var again = document.getElementById('f-q');
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+  }
+}
+
+render();
+loadUsage(function (payload, err) {
+  STATE.payload = payload;
+  STATE.error = (err === 'unparseable') ? 'The file is not valid JSON.' : null;
+  STATE.loaded = true;
+  render();
+});
+</script>
+</body></html>
