@@ -100,4 +100,4 @@ foreach ($name in $Tenants.Keys) {
 $config | ConvertTo-Json -Depth 4 | Set-Content -Path $OutFile -Encoding UTF8
 Write-Host "`nWrote $OutFile with $($config.tenants.Count) tenant(s)." -ForegroundColor Green
 Write-Host "Secrets are in that file in plaintext. Keep it out of git." -ForegroundColor Yellow
-Write-Host "Next: python scan.py --config $OutFile"
+Write-Host "Next: python3 tools/scan.py --config $OutFile --enrich --out out/"

@@ -181,20 +181,16 @@ channels are folders inside the team's single site — their usage is inside tha
 team's row and Microsoft provides no way to separate it. There is no
 per-channel usage report in Graph. The page states this in its scope section.
 
-**2. `scan.py --enrich` only resolves team names for *dormant* groups.** It
-skips any group active in the last 90 days, and stops after 750 lookups:
+**2. `--enrich` costs roughly one Graph call per group.** Enrichment is what
+attaches the group display name, team name, member and guest counts, and
+channel message counts to a site, so by default every group is resolved —
+a usage review of everything needs everything.
 
-```python
-if gidle is not None and gidle < STALE_DAYS:
-    continue
-if resolved > 750:
-    break
-```
-
-That is correct for its original job (finding dead sites to clean up) but it
-means **active teams arrive with no team name attached**. For a usage review of
-everything, those two lines need removing or widening — expect roughly one
-Graph call per group, so a large tenant will be slower.
+Two flags tune it. `--dormant-only` resolves only groups idle 90+ days, which
+is the right trade when hunting dead sites to clean up rather than reviewing
+usage; active teams then arrive with no team name, member count or message
+count. `--max-lookups N` caps the calls (default 2000) and warns how many
+groups it left unresolved rather than truncating silently.
 
 ---
 

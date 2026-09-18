@@ -223,7 +223,7 @@ def score_site(rec):
 
 
 # ============================================================== collection
-def scan_tenant(tenant, enrich=False):
+def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
     name = tenant["name"]
     print(f"[{name}] authenticating…", file=sys.stderr)
     token = get_token(tenant["tenant_id"], tenant["client_id"], tenant["client_secret"])
@@ -301,11 +301,19 @@ def scan_tenant(tenant, enrich=False):
     for gid, g in (by_group.items() if enrich else []):
         if not gid:
             continue
-        # only spend a call on groups that look dormant
-        gidle = days_since(g.get("Last Activity Date"), refresh)
-        if gidle is not None and gidle < STALE_DAYS:
-            continue
-        if resolved > 750:
+        # Enrichment is what attaches the group display name, team name, member
+        # and guest counts, and channel message counts to a site. Skipping a
+        # group means that row arrives with none of them — so by default every
+        # group is resolved. --dormant-only restores the original cleanup-hunt
+        # behaviour of spending calls only on groups that look dead.
+        if dormant_only:
+            gidle = days_since(g.get("Last Activity Date"), refresh)
+            if gidle is not None and gidle < STALE_DAYS:
+                continue
+        if resolved >= max_lookups:
+            print(f"[{name}] WARNING: stopped enriching at {max_lookups} group "
+                  f"lookups; {len(by_group) - resolved} group(s) left unresolved. "
+                  f"Raise --max-lookups to cover them.", file=sys.stderr)
             break
         site = graph_get(token, f"/groups/{gid}/sites/root?$select=id,webUrl")
         resolved += 1
@@ -405,6 +413,13 @@ def main():
     ap.add_argument("--demo", action="store_true", help="generate sample data")
     ap.add_argument("--enrich", action="store_true",
                     help="join Teams activity to sites (needs Sites.Read.All + Group.Read.All)")
+    ap.add_argument("--dormant-only", action="store_true",
+                    help="with --enrich, resolve only groups idle %d+ days. Faster, but "
+                         "active teams then arrive with no team name, member count or "
+                         "message count." % STALE_DAYS)
+    ap.add_argument("--max-lookups", type=int, default=2000, metavar="N",
+                    help="with --enrich, cap group lookups at N (default 2000). "
+                         "Roughly one Graph call each.")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -418,7 +433,9 @@ def main():
         results = []
         for t in cfg["tenants"]:
             try:
-                results.append(scan_tenant(t, enrich=args.enrich))
+                results.append(scan_tenant(t, enrich=args.enrich,
+                                           dormant_only=args.dormant_only,
+                                           max_lookups=args.max_lookups))
             except Exception as e:                      # keep going across tenants
                 print(f"[{t['name']}] FAILED: {e}", file=sys.stderr)
 
