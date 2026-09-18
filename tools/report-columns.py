@@ -22,6 +22,16 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scan import get_token, get_report_csv  # noqa: E402
 
+# Same rule the payload builder redacts by, so this listing shows which columns
+# would be masked in a published pull.
+IDENTITY = ("user principal name", "owner principal name", "display name",
+            "user display name", "owner display name", "recipient")
+
+
+def is_identity(col):
+    c = col.strip().lower()
+    return any(k in c for k in IDENTITY)
+
 # What scan.py reads out of each report, so a mismatch is obvious at a glance.
 EXPECTED = {
     "getSharePointSiteUsageDetail": [
@@ -39,6 +49,21 @@ EXPECTED = {
         "Team Id", "Team Name", "Last Activity Date", "Channel Messages",
         "Guests",
     ],
+    # The per-person reports. scan.py --people-detail keeps every column rather
+    # than a chosen few, so nothing here is "expected" — the point of listing
+    # them is to see what each tenant actually returns before anything is built
+    # on top of it. A workload the tenant never enabled returns no rows.
+    "getMailboxUsageDetail": [],
+    "getEmailActivityUserDetail": [],
+    "getTeamsUserActivityDetail": [],
+}
+
+# Reports whose columns scan.py keeps wholesale — the "(scan.py does not read
+# this)" note would be on every line and would mean nothing.
+KEEPS_EVERYTHING = {
+    "getMailboxUsageDetail",
+    "getEmailActivityUserDetail",
+    "getTeamsUserActivityDetail",
 }
 
 
@@ -63,12 +88,16 @@ def main():
                 print(f"\n{func}: no rows returned")
                 continue
             cols = list(rows[0].keys())
-            print(f"\n{func} — {len(rows)} rows, {len(cols)} columns")
+            whole = func in KEEPS_EVERYTHING
+            note = " — every column kept" if whole else ""
+            print(f"\n{func} — {len(rows)} rows, {len(cols)} columns{note}")
             for c in cols:
                 filled = sum(1 for r in rows if (r.get(c) or "").strip())
-                flag = "" if c in expected else "   (scan.py does not read this)"
-                print(f"  {filled:>5} / {len(rows):<5} {c}{flag}")
-            missing = [c for c in expected if c not in cols]
+                flag = "" if (whole or c in expected) else "   (scan.py does not read this)"
+                identity = "   [redacted unless --include-people]" if (
+                    whole and is_identity(c)) else ""
+                print(f"  {filled:>5} / {len(rows):<5} {c}{flag}{identity}")
+            missing = [] if whole else [c for c in expected if c not in cols]
             if missing:
                 print("  MISSING — scan.py reads these but the report has no "
                       "such column:")
