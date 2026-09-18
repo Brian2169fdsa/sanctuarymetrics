@@ -246,7 +246,6 @@ function sitesSection(rows) {
     var hover = s.url || s.site_id;
     if (hover) { name = '<span title="' + esc(hover) + '">' + name + '</span>'; }
     if (s.orphaned) { name += ' <span class="tag lo">orphaned</span>'; }
-    if (s.external_sharing) { name += ' <span class="tag eq">external</span>'; }
     return [name, esc(typeOf(s)), esc(s.owner || '—'), esc(idleText(s)),
             peopleText(s), fmt(Number(s.file_count) || 0), fmt(Number(s.active_files) || 0),
             fmt(Number(s.page_views) || 0), countOrDash(s.channel_messages),
@@ -345,7 +344,6 @@ function demoPayload() {
       active_files: idle === null ? 0 : Math.floor(r() * 60),
       page_views: idle === null ? 0 : Math.floor(r() * 400),
       storage_used: storage, storage_quota: 0,
-      external_sharing: r() < 0.25, anon_links: 0,
       is_group_site: true, is_channel_site: isChannel,
       members: Math.floor(r() * 30), guests: r() < 0.2 ? 2 : 0,
       team_name: isChannel ? team + ' › ' + pick(chans) : team,

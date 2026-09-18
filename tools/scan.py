@@ -196,8 +196,6 @@ def score_site(rec):
     if storage >= BIG_BYTES:
         score -= 10
         reasons.append(f"Holds {human_bytes(storage)} — archive rather than delete")
-    if rec.get("external_sharing"):
-        reasons.append("Shared externally — review before any action")
     if rec.get("guests", 0) > 0:
         reasons.append(f"{rec['guests']} guest(s) still have access")
 
@@ -223,7 +221,8 @@ def score_site(rec):
 
 
 # ============================================================== collection
-def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
+def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000,
+                people_detail=False):
     name = tenant["name"]
     print(f"[{name}] authenticating…", file=sys.stderr)
     token = get_token(tenant["tenant_id"], tenant["client_id"], tenant["client_secret"])
@@ -236,6 +235,21 @@ def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
 
     print(f"[{name}] pulling Teams activity…", file=sys.stderr)
     teams = get_report_csv(token, "getTeamsTeamActivityDetail")
+
+    # Per-person reports. These carry named individuals, so the payload builder
+    # redacts them unless --include-people is passed. A tenant that has never
+    # enabled a workload returns no rows rather than an error.
+    people = {}
+    if people_detail:
+        for label, func in (("mailboxes", "getMailboxUsageDetail"),
+                            ("email_activity", "getEmailActivityUserDetail"),
+                            ("teams_users", "getTeamsUserActivityDetail")):
+            print(f"[{name}] pulling {label.replace('_', ' ')}…", file=sys.stderr)
+            try:
+                people[label] = get_report_csv(token, func)
+            except Exception as e:
+                print(f"[{name}] {label} unavailable: {e}", file=sys.stderr)
+                people[label] = []
 
     refresh = datetime.now(timezone.utc).date()
     for row in sites:
@@ -283,8 +297,6 @@ def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
             "page_views": as_int(row.get("Page View Count")),
             "storage_used": as_int(row.get("Storage Used (Byte)")),
             "storage_quota": as_int(row.get("Storage Allocated (Byte)")),
-            "external_sharing": str(row.get("External Sharing", "")).lower() == "true",
-            "anon_links": as_int(row.get("Anonymous Link Count")),
             "is_group_site": template in ("GROUP", "TEAMCHANNEL"),
             "is_channel_site": template == "TEAMCHANNEL",
             "members": None,
@@ -324,6 +336,11 @@ def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
             (r for r in records if r["site_id"] and r["site_id"] in site["id"]), None)
         if not target:
             continue
+        # getSharePointSiteUsageDetail returns an empty Site URL in every tenant
+        # we have seen, so this lookup is the only place a real URL appears.
+        # Without it the title falls back to 8 characters of GUID.
+        if site.get("webUrl"):
+            target["url"] = site["webUrl"]
         target["members"] = as_int(g.get("Member Count"))
         target["guests"] = as_int(g.get("External Member Count"))
         target["group_id"] = gid
@@ -355,6 +372,13 @@ def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000):
         "period_days": int(PERIOD[1:]),
         "concealed": concealed,
         "sites": records,
+        # The raw group and team rows, kept whole. The SharePoint tab only ever
+        # needed a few fields off these, so the rest — Exchange mailbox size,
+        # received mail, meetings, mentions, active channels — was fetched on
+        # every run and dropped. The Email, Teams and Groups tabs read them.
+        "groups": groups,
+        "teams": teams,
+        "people": people,
     }
 
 
@@ -388,8 +412,6 @@ def demo_tenant(name, n=90, seed=7):
             "page_views": 0 if dead else rnd.randint(0, 300),
             "storage_used": storage,
             "storage_quota": 25 * 1024**4,
-            "external_sharing": rnd.random() < 0.25,
-            "anon_links": rnd.choice([0, 0, 0, 2, 9]),
             "is_group_site": True,
             "is_channel_site": False,
             "members": rnd.choice([0, 2, 5, 14, 31]),
@@ -402,7 +424,8 @@ def demo_tenant(name, n=90, seed=7):
         rec.update(verdict=v, score=s, reasons=r)
         records.append(rec)
     return {"tenant": name, "refresh_date": refresh.isoformat(),
-            "period_days": int(PERIOD[1:]), "concealed": False, "sites": records}
+            "period_days": int(PERIOD[1:]), "concealed": False, "sites": records,
+            "groups": [], "teams": [], "people": {}}
 
 
 # ============================================================== main
@@ -417,6 +440,11 @@ def main():
                     help="with --enrich, resolve only groups idle %d+ days. Faster, but "
                          "active teams then arrive with no team name, member count or "
                          "message count." % STALE_DAYS)
+    ap.add_argument("--people-detail", action="store_true",
+                    help="also pull the per-person mailbox, email and Teams "
+                         "reports. Names are redacted in the published payload "
+                         "unless build-sharepoint-payload.py is run with "
+                         "--include-people.")
     ap.add_argument("--max-lookups", type=int, default=2000, metavar="N",
                     help="with --enrich, cap group lookups at N (default 2000). "
                          "Roughly one Graph call each.")
@@ -435,7 +463,8 @@ def main():
             try:
                 results.append(scan_tenant(t, enrich=args.enrich,
                                            dormant_only=args.dormant_only,
-                                           max_lookups=args.max_lookups))
+                                           max_lookups=args.max_lookups,
+                                           people_detail=args.people_detail))
             except Exception as e:                      # keep going across tenants
                 print(f"[{t['name']}] FAILED: {e}", file=sys.stderr)
 
