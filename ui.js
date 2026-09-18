@@ -188,7 +188,11 @@ function noExport(lastWindow) {
 /* ── page chrome shared by both pages ─────────────────────────────────── */
 function pageHeader(titleText, line1, line2, current) {
   return '<header>' +
-    '<img src="' + LOGO + '" alt="Sanctuary Recovery Centers">' +
+    /* data.js carries the logo inline as a data URI, but the usage tabs do not
+       load data.js — it is 250KB of marketing figures they never read. Fall
+       back to the file on disk so ui.js stands on its own. */
+    '<img src="' + (typeof LOGO !== 'undefined' && LOGO ? LOGO : 'logo.png') +
+      '" alt="Sanctuary Recovery Centers">' +
     '<div class="rtitle">' +
       '<div class="k">' + esc(titleText) + '</div>' +
       '<div class="s">' + line1 + '</div>' +
@@ -200,6 +204,9 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="twoweeks.html"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
       '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '>Projects</a>' +
       '<a href="sharepoint.html"' + (current === 'sharepoint' ? ' aria-current="page"' : '') + '>SharePoint</a>' +
+      '<a href="teams.html"' + (current === 'teams' ? ' aria-current="page"' : '') + '>Teams</a>' +
+      '<a href="email.html"' + (current === 'email' ? ' aria-current="page"' : '') + '>Email</a>' +
+      '<a href="groups.html"' + (current === 'groups' ? ' aria-current="page"' : '') + '>Groups</a>' +
     '</nav><hr class="phoenix">';
 }
 

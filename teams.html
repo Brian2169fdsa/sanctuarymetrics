@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Teams Usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="ui.js"></script>
+<script src="usage.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ═════════════════════════════════════════════════════════════════════════
+   Teams usage
+
+   Reads the getTeamsTeamActivityDetail rows inside sharepoint-usage.json,
+   which scan.py now returns whole. Column names are Microsoft's; run
+   tools/report-columns.py if one ever stops matching.
+
+   Counts only. "Channel Messages" is the number of messages Microsoft's own
+   activity report counted — never a message. The permission behind this pull
+   cannot read message text, and nothing here changes anything in the tenant.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+var STATE = { loaded: false, payload: null, error: null, sort: 'messages', q: '' };
+
+var SORTS = {
+  messages: ['Channel Messages', 'Channel messages'],
+  users:    ['Active Users',     'Active users'],
+  channels: ['Active Channels',  'Active channels'],
+  meetings: ['Meetings Organized', 'Meetings organized'],
+  name:     [null,               'Team name']
+};
+
+function teamRows() {
+  var rows = (STATE.payload && STATE.payload.teams) || [];
+  var q = STATE.q.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(function (r) {
+      return (str(r, 'Team Name') + ' ' + str(r, 'Team Type')).toLowerCase().indexOf(q) !== -1;
+    });
+  }
+  var col = SORTS[STATE.sort][0];
+  return rows.slice().sort(function (a, b) {
+    if (!col) { return str(a, 'Team Name').localeCompare(str(b, 'Team Name')); }
+    return numOr0(b, col) - numOr0(a, col);
+  });
+}
+
+/* ── summary ─────────────────────────────────────────────────────────── */
+function summary(rows) {
+  var p = STATE.payload;
+  var tot = function (c) { return rows.reduce(function (a, r) { return a + numOr0(r, c); }, 0); };
+  var msgs = tot('Channel Messages'), posts = tot('Post Messages'), replies = tot('Reply Messages');
+  var members = tot('Active Users'), guests = tot('Guests');
+  var withExternal = rows.filter(function (r) { return numOr0(r, 'Active External Users') > 0; }).length;
+  var silent = rows.filter(function (r) { return numOr0(r, 'Channel Messages') === 0; }).length;
+
+  return '<section>' +
+    '<div class="eyebrow">Teams</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">How the teams are actually used</h2>' +
+    '<p class="sub">Microsoft Teams activity report &nbsp;·&nbsp; <span class="win-chip">' +
+      esc(windowChipFor(p)) + '</span></p>' +
+    kpis([
+      { lab: 'Teams',            num: fmt(rows.length),  note: 'excluding deleted' },
+      { lab: 'Channel messages', num: fmt(msgs),         note: 'in the reporting window' },
+      { lab: 'Active users',     num: fmt(members),      note: 'across all teams' },
+      { lab: 'Meetings organized', num: fmt(tot('Meetings Organized')), note: 'in the window' },
+      { lab: 'Guests',           num: fmt(guests),       note: withExternal + ' team(s) with external activity' },
+      { lab: 'Silent teams',     num: fmt(silent),       note: 'no channel message in the window' }
+    ]) +
+    grid2(
+      card('Conversation, not broadcast',
+        meters([
+          { label: 'Replies as a share of all channel messages', value: replies, total: msgs,
+            note: 'A team where almost every message is a post and almost none is a reply is a ' +
+                  'noticeboard, not a conversation.' },
+          { label: 'Posts as a share of all channel messages', value: posts, total: msgs },
+          { label: 'Teams with any message this window', value: rows.length - silent, total: rows.length }
+        ], AREA.teams),
+        'Replies and posts are counted separately by Microsoft and sum to the channel-message total.'),
+      card('Busiest teams by channel messages',
+        hbar(rankSeries(rows, 'Team Name', 'Channel Messages', 10),
+             { color: AREA.teams, barX: 150, W: chartW(true) }),
+        'Top 10. Teams with no messages are left out rather than drawn as a zero-length bar.')
+    ) +
+  '</section>';
+}
+
+/* ── controls ────────────────────────────────────────────────────────── */
+function controls() {
+  var live = !!(STATE.payload && STATE.payload.teams.length);
+  var s = '<div class="filterbar"><div class="controls">';
+  s += '<div class="f"><label for="f-sort">Sort by</label><select id="f-sort"' +
+       (live ? '' : ' disabled') + '>';
+  Object.keys(SORTS).forEach(function (k) {
+    s += '<option value="' + k + '"' + (k === STATE.sort ? ' selected' : '') + '>' +
+         esc(SORTS[k][1]) + '</option>';
+  });
+  s += '</select></div>';
+  s += '<div class="f"><label for="f-q">Search</label><input id="f-q" type="search"' +
+       (live ? '' : ' disabled') + ' placeholder="team name" value="' + esc(STATE.q) + '" ' +
+       'style="font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;' +
+       'border:1px solid var(--line);border-radius:8px;padding:8px 11px;min-width:150px;max-width:100%"></div>';
+  return s + '</div></div>';
+}
+
+/* ── detail ──────────────────────────────────────────────────────────── */
+function detail(rows) {
+  var head = ['Team', 'Type', 'Last activity', 'Active users', 'Channels',
+              'Messages', 'Posts', 'Replies', 'Meetings', 'Mentions', 'Guests'];
+  var body = rows.slice(0, 200).map(function (r) {
+    var name = esc(str(r, 'Team Name') || '—');
+    if (numOr0(r, 'Active External Users') > 0) {
+      name += ' <span class="tag eq">external</span>';
+    }
+    if (numOr0(r, 'Active Shared Channels') > 0) {
+      name += ' <span class="tag eq">shared</span>';
+    }
+    return [name, esc(str(r, 'Team Type') || '—'), esc(str(r, 'Last Activity Date') || 'none in window'),
+            dash(num(r, 'Active Users')), dash(num(r, 'Active Channels')),
+            dash(num(r, 'Channel Messages')), dash(num(r, 'Post Messages')),
+            dash(num(r, 'Reply Messages')), dash(num(r, 'Meetings Organized')),
+            dash(num(r, 'Mentions')), dash(num(r, 'Guests'))];
+  });
+  return '<section>' +
+    '<div class="eyebrow">Detail</div>' +
+    '<h2 style="font-size:22px;margin:6px 0 4px">Every team in the pull</h2>' +
+    '<p class="sub">Showing ' + fmt(Math.min(rows.length, 200)) + ' of ' + fmt(rows.length) +
+      ' team' + (rows.length === 1 ? '' : 's') + '. A figure Microsoft did not return reads —.</p>' +
+    controls() +
+    (rows.length
+      ? table(head, body, { numeric: function (i) { return i >= 3; } })
+      : '<div class="placeholder" style="padding:30px">No teams match that search.</div>') +
+  '</section>';
+}
+
+/* ── scope ───────────────────────────────────────────────────────────── */
+function scope() {
+  return '<section>' + card('What this page can and cannot show',
+    '<p style="margin:0 0 10px">Every figure here is a count from Microsoft\'s own Teams ' +
+    'activity report. <b>No message text is collected or collectable</b> — the permission ' +
+    'behind this pull cannot read a message, a file, a meeting recording or a mailbox.</p>' +
+    '<p style="margin:0 0 10px"><b>Standard channels have no usage of their own.</b> Microsoft ' +
+    'reports activity per team, not per standard channel. Private and shared channels each get ' +
+    'their own SharePoint site and appear individually on the SharePoint tab.</p>' +
+    '<p style="margin:0">Nothing on this page changes anything in the tenant.</p>') +
+  '</section>';
+}
+
+/* ── render ──────────────────────────────────────────────────────────── */
+function render() {
+  var p = STATE.payload;
+  var s = pageHeader('Teams Usage',
+    'Microsoft 365 · Teams activity',
+    p && p.generated ? 'Pull generated ' + esc(p.generated) : 'Awaiting first pull',
+    'teams');
+
+  if (!STATE.loaded) {
+    s += '<div class="placeholder" style="padding:30px">Loading…</div>';
+  } else if (STATE.error) {
+    s += '<div class="warn"><b>Could not read the usage payload.</b> ' + esc(STATE.error) + '</div>';
+  } else if (!p || !p.teams.length) {
+    s += awaitingUsage('Teams', 'Teams activity');
+  } else {
+    var rows = teamRows();
+    s += summary(rows) + detail(rows) + scope();
+  }
+
+  s += pageFooter('Microsoft Graph Teams activity report' +
+       (p && p.period ? ', last ' + p.period + ' days' : ''));
+  document.getElementById('sheet').innerHTML = s;
+  applyDataLabels(document.getElementById('sheet'));
+  wire();
+}
+
+function wire() {
+  var sel = document.getElementById('f-sort');
+  if (sel) { sel.addEventListener('change', function () { STATE.sort = this.value; render(); }); }
+  var q = document.getElementById('f-q');
+  if (q) {
+    q.addEventListener('input', function () {
+      STATE.q = this.value;
+      var pos = this.selectionStart;
+      render();
+      var again = document.getElementById('f-q');
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+  }
+}
+
+/* ── boot ────────────────────────────────────────────────────────────── */
+render();
+loadUsage(function (payload, err) {
+  STATE.payload = payload;
+  STATE.error = (err === 'unparseable') ? 'The file is not valid JSON.' : null;
+  STATE.loaded = true;
+  render();
+});
+</script>
+</body></html>

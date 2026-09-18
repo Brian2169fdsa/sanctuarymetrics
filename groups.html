@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Groups Usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="ui.js"></script>
+<script src="usage.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ═════════════════════════════════════════════════════════════════════════
+   Microsoft 365 Groups usage
+
+   The group is the thing a team, a mailbox and a SharePoint site all hang off,
+   so this is the page that shows them side by side: members and guests, the
+   files in the group's site, the mail in its mailbox, and when it was last
+   touched at all.
+
+   Reads getOffice365GroupsActivityDetail whole, as scan.py now returns it.
+   Counts, sizes, dates and membership numbers only — never content.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+var STATE = { loaded: false, payload: null, error: null, type: 'all', sort: 'members', q: '' };
+
+var SORTS = {
+  members:  ['Member Count',                      'Members'],
+  guests:   ['External Member Count',             'Guests'],
+  files:    ['SharePoint Total File Count',       'Files'],
+  storage:  ['SharePoint Site Storage Used (Byte)', 'Site storage'],
+  mail:     ['Exchange Mailbox Storage Used (Byte)', 'Mailbox size'],
+  name:     [null,                                'Name']
+};
+
+function idleDays(r, refresh) {
+  var d = str(r, 'Last Activity Date');
+  if (!d || !refresh) { return null; }
+  var a = Date.parse(d), b = Date.parse(refresh);
+  if (isNaN(a) || isNaN(b)) { return null; }
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+
+function types() {
+  var seen = {};
+  ((STATE.payload && STATE.payload.groups) || []).forEach(function (r) {
+    var t = str(r, 'Group Type'); if (t) { seen[t] = 1; }
+  });
+  return ['all'].concat(Object.keys(seen).sort());
+}
+
+function groupRows() {
+  var rows = (STATE.payload && STATE.payload.groups) || [];
+  if (STATE.type !== 'all') {
+    rows = rows.filter(function (r) { return str(r, 'Group Type') === STATE.type; });
+  }
+  var q = STATE.q.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(function (r) {
+      return (str(r, 'Group Display Name') + ' ' + str(r, 'Group Type')).toLowerCase().indexOf(q) !== -1;
+    });
+  }
+  var col = SORTS[STATE.sort][0];
+  return rows.slice().sort(function (a, b) {
+    if (!col) { return str(a, 'Group Display Name').localeCompare(str(b, 'Group Display Name')); }
+    return numOr0(b, col) - numOr0(a, col);
+  });
+}
+
+/* ── summary ─────────────────────────────────────────────────────────── */
+function summary(rows) {
+  var p = STATE.payload;
+  var tot = function (c) { return rows.reduce(function (a, r) { return a + numOr0(r, c); }, 0); };
+  var members = tot('Member Count'), guests = tot('External Member Count');
+  var withGuests = rows.filter(function (r) { return numOr0(r, 'External Member Count') > 0; }).length;
+  var noOwner = rows.filter(function (r) { return !str(r, 'Owner Principal Name'); }).length;
+  var idle90 = rows.filter(function (r) {
+    var d = idleDays(r, p.refresh); return d === null || d >= 90;
+  }).length;
+  var active = rows.filter(function (r) {
+    var d = idleDays(r, p.refresh); return d !== null && d < 90;
+  }).length;
+
+  return '<section>' +
+    '<div class="eyebrow">Groups</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Every group, and what hangs off it</h2>' +
+    '<p class="sub">M365 Groups activity report &nbsp;·&nbsp; <span class="win-chip">' +
+      esc(windowChipFor(p)) + '</span></p>' +
+    kpis([
+      { lab: 'Groups',        num: fmt(rows.length),   note: 'excluding deleted' },
+      { lab: 'Members',       num: fmt(members),       note: 'sum across groups, people counted once per group' },
+      { lab: 'Guests',        num: fmt(guests),        note: withGuests + ' group(s) with any guest' },
+      { lab: 'Site storage',  num: humanBytes(tot('SharePoint Site Storage Used (Byte)')),
+        note: fmt(tot('SharePoint Total File Count')) + ' files' },
+      { lab: 'Mailbox storage', num: humanBytes(tot('Exchange Mailbox Storage Used (Byte)')),
+        note: fmt(tot('Exchange Mailbox Total Item Count')) + ' items' },
+      { lab: 'Idle 90d+',     num: fmt(idle90),        note: 'no activity, or last activity 90d+ ago' }
+    ]) +
+    grid2(
+      card('Health of the group estate',
+        meters([
+          { label: 'Groups active in the last 90 days', value: active, total: rows.length,
+            note: 'The rest have either gone quiet or never reported activity in the window.' },
+          { label: 'Groups with an owner on record', value: rows.length - noOwner, total: rows.length,
+            note: 'An ownerless group has nobody to ask before archiving it.' },
+          { label: 'Groups with at least one guest', value: withGuests, total: rows.length }
+        ], AREA.groups),
+        'Each denominator is the group count in the current filter — a real ceiling, not a quota.'),
+      card('Largest groups by membership',
+        hbar(rankSeries(rows, 'Group Display Name', 'Member Count', 10),
+             { color: AREA.groups, barX: 150, W: chartW(true) }),
+        'Top 10. Groups with no members are left out rather than drawn as a zero-length bar.')
+    ) +
+  '</section>';
+}
+
+/* ── controls ────────────────────────────────────────────────────────── */
+function controls() {
+  var live = !!(STATE.payload && STATE.payload.groups.length);
+  var ts = types();
+  var s = '';
+  if (ts.length > 2) {
+    s += '<div class="chips">' + ts.map(function (t) {
+      var on = STATE.type === t;
+      return '<button class="chip" type="button" data-type="' + esc(t) + '" aria-pressed="' +
+             (on ? 'true' : 'false') + '"' +
+             (on ? ' style="background:' + AREA.groups + '"' : '') + '>' +
+             esc(t === 'all' ? 'All groups' : t) + '</button>';
+    }).join('') + '</div>';
+  }
+  s += '<div class="filterbar"><div class="controls">';
+  s += '<div class="f"><label for="f-sort">Sort by</label><select id="f-sort"' +
+       (live ? '' : ' disabled') + '>';
+  Object.keys(SORTS).forEach(function (k) {
+    s += '<option value="' + k + '"' + (k === STATE.sort ? ' selected' : '') + '>' +
+         esc(SORTS[k][1]) + '</option>';
+  });
+  s += '</select></div>';
+  s += '<div class="f"><label for="f-q">Search</label><input id="f-q" type="search"' +
+       (live ? '' : ' disabled') + ' placeholder="group name" value="' + esc(STATE.q) + '" ' +
+       'style="font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;' +
+       'border:1px solid var(--line);border-radius:8px;padding:8px 11px;min-width:150px;max-width:100%"></div>';
+  return s + '</div></div>';
+}
+
+/* ── detail ──────────────────────────────────────────────────────────── */
+function detail(rows) {
+  var p = STATE.payload;
+  var head = ['Group', 'Type', 'Owner', 'Last activity', 'Members', 'Guests',
+              'Files', 'Site storage', 'Mail items', 'Mailbox size'];
+  var body = rows.slice(0, 200).map(function (r) {
+    var name = esc(str(r, 'Group Display Name') || '—');
+    if (!str(r, 'Owner Principal Name')) { name += ' <span class="tag lo">no owner</span>'; }
+    if (numOr0(r, 'External Member Count') > 0) { name += ' <span class="tag eq">guests</span>'; }
+    var d = idleDays(r, p.refresh);
+    return [name, esc(str(r, 'Group Type') || '—'), esc(str(r, 'Owner Principal Name') || '—'),
+            d === null ? 'none in window' : (d === 0 ? 'today' : d + 'd ago'),
+            dash(num(r, 'Member Count')), dash(num(r, 'External Member Count')),
+            dash(num(r, 'SharePoint Total File Count')),
+            humanBytes(numOr0(r, 'SharePoint Site Storage Used (Byte)')),
+            dash(num(r, 'Exchange Mailbox Total Item Count')),
+            humanBytes(numOr0(r, 'Exchange Mailbox Storage Used (Byte)'))];
+  });
+  return '<section>' +
+    '<div class="eyebrow">Detail</div>' +
+    '<h2 style="font-size:22px;margin:6px 0 4px">Every group in the pull</h2>' +
+    '<p class="sub">Showing ' + fmt(Math.min(rows.length, 200)) + ' of ' + fmt(rows.length) +
+      ' group' + (rows.length === 1 ? '' : 's') + '. A figure Microsoft did not return reads —.</p>' +
+    controls() +
+    (rows.length
+      ? table(head, body, { numeric: function (i) { return i >= 4; } })
+      : '<div class="placeholder" style="padding:30px">No groups match those filters.</div>') +
+  '</section>';
+}
+
+function scope() {
+  var p = STATE.payload;
+  var yammerDead = p && p.groups.length && p.groups.every(function (r) {
+    return numOr0(r, 'Yammer Posted Message Count') === 0;
+  });
+  return '<section>' + card('What this page can and cannot show',
+    '<p style="margin:0 0 10px">Membership numbers, file and mail counts, sizes and dates. ' +
+    '<b>Never content</b> — not a file, not a message, not a mailbox.</p>' +
+    (yammerDead ? '<p style="margin:0 0 10px">The report also carries Viva Engage (Yammer) ' +
+      'columns. Every one of them is zero across every group in this tenant, so they are left ' +
+      'off rather than shown as three empty charts.</p>' : '') +
+    '<p style="margin:0 0 10px">Owner is the owner Microsoft records on the group. A group ' +
+    'with none is flagged rather than judged — it is a prompt to find an owner, not a ' +
+    'recommendation to delete.</p>' +
+    '<p style="margin:0">Nothing on this page changes anything in the tenant.</p>') +
+  '</section>';
+}
+
+/* ── render ──────────────────────────────────────────────────────────── */
+function render() {
+  var p = STATE.payload;
+  var s = pageHeader('Groups Usage',
+    'Microsoft 365 · Groups activity',
+    p && p.generated ? 'Pull generated ' + esc(p.generated) : 'Awaiting first pull',
+    'groups');
+
+  if (!STATE.loaded) {
+    s += '<div class="placeholder" style="padding:30px">Loading…</div>';
+  } else if (STATE.error) {
+    s += '<div class="warn"><b>Could not read the usage payload.</b> ' + esc(STATE.error) + '</div>';
+  } else if (!p || !p.groups.length) {
+    s += awaitingUsage('M365 Groups', 'group activity');
+  } else {
+    var rows = groupRows();
+    s += summary(rows) + detail(rows) + scope();
+  }
+
+  s += pageFooter('Microsoft Graph M365 Groups activity report' +
+       (p && p.period ? ', last ' + p.period + ' days' : ''));
+  document.getElementById('sheet').innerHTML = s;
+  applyDataLabels(document.getElementById('sheet'));
+  wire();
+}
+
+function wire() {
+  [].forEach.call(document.querySelectorAll('.chip[data-type]'), function (b) {
+    b.addEventListener('click', function () { STATE.type = this.getAttribute('data-type'); render(); });
+  });
+  var sel = document.getElementById('f-sort');
+  if (sel) { sel.addEventListener('change', function () { STATE.sort = this.value; render(); }); }
+  var q = document.getElementById('f-q');
+  if (q) {
+    q.addEventListener('input', function () {
+      STATE.q = this.value;
+      var pos = this.selectionStart;
+      render();
+      var again = document.getElementById('f-q');
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+  }
+}
+
+render();
+loadUsage(function (payload, err) {
+  STATE.payload = payload;
+  STATE.error = (err === 'unparseable') ? 'The file is not valid JSON.' : null;
+  STATE.loaded = true;
+  render();
+});
+</script>
+</body></html>
