@@ -35,6 +35,7 @@ body.ms{margin:0;background:#fff;color:var(--ms-ink);font-family:Inter,system-ui
 .ms h2{font-size:22px;margin:0 0 4px}
 .ms h3{font-size:14px;font-weight:600;margin:0 0 10px}
 .ms header .t p{margin:4px 0 0;color:var(--ms-mute);font-size:13px}
+@media (max-width:640px){.ms header{gap:10px}.ms header img{width:80px;height:60px}.ms header .t{margin-left:0;text-align:left;width:100%}}
 .ms section{margin:28px 0 34px}
 .ms .sub{color:var(--ms-mute);margin:0 0 14px;font-size:13.5px}
 .ms .grid{display:grid;gap:14px}
