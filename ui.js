@@ -138,16 +138,27 @@ function autoNumeric(head, rows) {
 function table(head, rows, opts) {
   opts = opts || {};
   var numeric = opts.numeric || autoNumeric(head, rows);
+  /* opts.secondary(i) marks a column as detail rather than headline. On a
+     phone every table stacks each cell onto its own line, so a 13-column table
+     of 59 rows becomes a 59,000-pixel wall. Secondary columns drop out below
+     620px; nothing is lost, because the same table is complete on a wider
+     screen and the payload is downloadable. */
+  var secondary = opts.secondary || function () { return false; };
+  var cls = function (i) {
+    return (numeric(i) ? ' n' : '') + (secondary(i) ? ' sec' : '');
+  };
+  var attr = function (i) { var c = cls(i); return c ? ' class="' + c.trim() + '"' : ''; };
   var s = '<div class="tw"><table><thead><tr>';
-  head.forEach(function (h, i) { s += '<th' + (numeric(i) ? ' class="n"' : '') + '>' + esc(h) + '</th>'; });
+  head.forEach(function (h, i) { s += '<th' + attr(i) + '>' + esc(h) + '</th>'; });
   s += '</tr></thead><tbody>';
   rows.forEach(function (row, ri) {
     s += '<tr' + (opts.highlight === ri ? ' style="background:#fbf3ec"' : '') + '>';
     row.forEach(function (cell, i) {
       if (cell && typeof cell === 'object' && cell.tag) {
-        s += '<td><span class="tag ' + cell.tag + '">' + esc(cell.text) + '</span></td>';
+        s += '<td' + (secondary(i) ? ' class="sec"' : '') +
+             '><span class="tag ' + cell.tag + '">' + esc(cell.text) + '</span></td>';
       } else {
-        s += '<td' + (numeric(i) ? ' class="n"' : '') + '>' + cell + '</td>';
+        s += '<td' + attr(i) + '>' + cell + '</td>';
       }
     });
     s += '</tr>';

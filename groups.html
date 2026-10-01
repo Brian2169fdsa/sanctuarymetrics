@@ -99,7 +99,7 @@ function summary(rows) {
     ]) +
     grid2(
       card('Health of the group estate',
-        meters([
+        gauges([
           { label: 'Groups active in the last 90 days', value: active, total: rows.length,
             note: 'The rest have either gone quiet or never reported activity in the window.' },
           { label: 'Groups with an owner on record', value: rows.length - noOwner, total: rows.length,
@@ -148,7 +148,7 @@ function controls() {
 function detail(rows) {
   var p = STATE.payload;
   var head = ['Group', 'Type', 'Owner', 'Last activity', 'Members', 'Guests',
-              'Files', 'Site storage', 'Mail items', 'Mailbox size'];
+              'Files', 'Active files', 'Site storage', 'Mail items', 'Mailbox size'];
   var body = rows.slice(0, 200).map(function (r) {
     var name = esc(str(r, 'Group Display Name') || '—');
     if (!str(r, 'Owner Principal Name')) { name += ' <span class="tag lo">no owner</span>'; }
@@ -158,6 +158,7 @@ function detail(rows) {
             d === null ? 'none in window' : (d === 0 ? 'today' : d + 'd ago'),
             dash(num(r, 'Member Count')), dash(num(r, 'External Member Count')),
             dash(num(r, 'SharePoint Total File Count')),
+            dash(num(r, 'SharePoint Active File Count')),
             humanBytes(numOr0(r, 'SharePoint Site Storage Used (Byte)')),
             dash(num(r, 'Exchange Mailbox Total Item Count')),
             humanBytes(numOr0(r, 'Exchange Mailbox Storage Used (Byte)'))];
@@ -169,7 +170,9 @@ function detail(rows) {
       ' group' + (rows.length === 1 ? '' : 's') + '. A figure Microsoft did not return reads —.</p>' +
     controls() +
     (rows.length
-      ? table(head, body, { numeric: function (i) { return i >= 4; } })
+      ? table(head, body, { numeric: function (i) { return i >= 4; },
+          /* Phone keeps group, activity, members and site storage. */
+          secondary: function (i) { return [1, 2, 5, 6, 7, 9, 10].indexOf(i) !== -1; } })
       : '<div class="placeholder" style="padding:30px">No groups match those filters.</div>') +
   '</section>';
 }
