@@ -70,4 +70,4 @@ Notes:
 | Default branch | main | ✅ |
 | Report structure | Not single-file: `index.html` renders from `data.js` (hand-built snapshots Aug 6 / Aug 20 / Sep 3 / Sep 17) via `ui.js` | ✅ |
 | Pipeline output file | proposed `data/metrics.json` | 🟡 |
-| Vercel project name | | ❓ |
+| Vercel project | `sanctuarymetrics` (team phoenix-creative-works); previews build per branch | ✅ |
