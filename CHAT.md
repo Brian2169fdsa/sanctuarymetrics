@@ -2,7 +2,7 @@
 
 A floating **Ask the data** button sits on every page. It opens a popover that
 answers questions from this site's own figures — every snapshot, channel,
-two-week cut, and the SharePoint pull when one exists.
+and two-week cut.
 
 It is **off until you set three environment variables in Vercel.** Until then
 the panel opens and says exactly what is missing. It fails closed on purpose.
@@ -87,7 +87,7 @@ because this dataset deliberately runs different windows per channel.
 ## Where the data comes from
 
 `api/ask.js` reads `data.js` (in a sandboxed VM — it is plain `var`
-declarations) and `sharepoint-usage.json` if it exists, on each cold start.
+declarations) on each cold start.
 The base64 logo is stripped before anything is sent.
 
 That means **one copy of the data**: the chat can never drift out of sync with
@@ -100,9 +100,8 @@ the next deployment, with no separate step.
 
 Question text and the site's metrics go to the Anthropic API to be answered.
 No PII goes with them — `form.csv` is excluded from this site entirely, and
-the payload is aggregate marketing figures plus, where present, SharePoint
-site names and usage counts. If you turn on `--include-owners` for the
-SharePoint payload, staff email addresses become part of what is sent.
+the payload is aggregate marketing figures only. The Microsoft cost pages
+are not sent to the chat.
 
 Conversations are not stored anywhere by this site. Closing the panel discards
 them; the passcode lives in `sessionStorage` for that tab only.

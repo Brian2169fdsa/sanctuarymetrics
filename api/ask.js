@@ -62,17 +62,6 @@ function loadSiteData() {
       l10: sandbox.L10
     }, null, 1));
 
-  /* The SharePoint payload is a separate static file and may not exist yet. */
-  let sharepoint = null;
-  try {
-    sharepoint = JSON.parse(fs.readFileSync(path.join(root, 'sharepoint-usage.json'), 'utf8'));
-  } catch (e) { /* absent — that is a normal state, not an error */ }
-
-  parts.push(sharepoint
-    ? '## SharePoint / Teams usage\n' + JSON.stringify(sharepoint, null, 1)
-    : '## SharePoint / Teams usage\nNo pull has been done yet — sharepoint-usage.json does not exist. ' +
-      'If asked about SharePoint or Teams usage, say the data has not been connected yet rather than guessing.');
-
   CACHE = parts.join('\n\n');
   return CACHE;
 }

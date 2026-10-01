@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Microsoft Cost Cut</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="microsoft.css">
+<script src="microsoft-costs.js"></script>
+</head>
+<body class="ms"><div class="wrap">
+<nav class="ms-bar" aria-label="Microsoft cost system"><a class="ms-back" href="index.html">&larr; Sanctuary report</a><a href="microsoft.html">Usage review</a><a href="microsoft-savings.html" aria-current="page">Cost cut so far</a><a href="microsoft-analytics.html">Analytics</a><span class="ms-sys">Microsoft cost system</span></nav>
+
+<header><img src="microsoft-logo.png" alt="Sanctuary Recovery Centers">
+<div class="t"><h1>Cost cut so far</h1><p id="asof"></p></div></header>
+
+<section>
+<h2>The approved cut</h2>
+<p class="sub" id="lead"></p>
+<div class="grid g4" id="kpis"></div>
+</section>
+
+<section>
+<h2>Seats coming off</h2>
+<p class="sub">Priced at the rates on the current Microsoft invoices.</p>
+<div class="card scroll"><table id="seats"></table></div>
+</section>
+
+<section>
+<h2>When it shows up on the bill</h2>
+<div class="grid g2" id="timing"></div>
+</section>
+
+<section>
+<h2>Staying live</h2>
+<p class="sub">Kept as Elyssa asked: no changes to these four.</p>
+<div class="chips" id="kept"></div>
+</section>
+
+<section>
+<h2>Keeping it visible</h2>
+<p class="sub" id="procLead"></p>
+<div class="card">
+<h3>Standard offboarding checklist</h3>
+<ol class="steps" id="steps"></ol>
+<p class="fine">Plus a monthly snapshot of licenses vs. actual usage. It's tracked on the <a href="microsoft-analytics.html">Analytics</a> tab.</p>
+</div>
+</section>
+
+<section>
+<h2>As sent</h2>
+<blockquote id="msg"></blockquote>
+</section>
+
+<footer>Sanctuary Recovery Centers · Internal. Figures are pre-tax unless marked; tax at <span id="tax"></span> as on the invoices.
+Source: Microsoft invoices and the M365 Usage &amp; License Review.</footer>
+</div>
+<script>
+(function () {
+  var d = MS_COSTS, c = d.approvedCut;
+  var $ = function (id) { return document.getElementById(id); };
+
+  $('asof').textContent = 'As of ' + new Date(d.asOf + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  $('lead').textContent = c.accounts + ' accounts approved by ' + c.approvedBy + '.';
+  $('tax').textContent = (d.taxRate * 100).toFixed(1) + '%';
+
+  var kpis = [
+    ['Per month, before tax', msMoney(Math.round(MS.cutMonthly)), msMoney(MS.cutMonthly, true) + ' exact'],
+    ['Per month, with tax', msMoney(Math.round(MS.cutWithTax)), msMoney(MS.cutWithTax, true) + ' exact'],
+    ['Per year', msMoney(Math.round(MS.cutYearLow / 100) * 100) + ' – ' + msMoney(Math.round(MS.cutYearHigh / 100) * 100),
+      'before tax → with tax'],
+    ['Off the next invoice', '≈ ' + msMoney(MS.immediate), 'per month, right away']
+  ];
+  $('kpis').innerHTML = kpis.map(function (k, i) {
+    return '<div class="card kpi' + (i === 0 ? ' hero' : '') + '"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] +
+           '</div><div class="note">' + k[2] + '</div></div>';
+  }).join('');
+
+  var rows = c.lines.map(function (l) {
+    return '<tr><td>' + msEsc(l.sku) + (l.note ? ' <span style="color:var(--ms-mute)">(' + msEsc(l.note) + ')</span>' : '') +
+           '</td><td class="n">' + l.qty + '</td><td class="n">' + msMoney(l.price, true) + '</td><td class="n">' +
+           msMoney(l.qty * l.price, true) + '</td></tr>';
+  }).join('');
+  var seatsN = c.lines.reduce(function (a, l) { return a + l.qty; }, 0);
+  $('seats').innerHTML = '<thead><tr><th>License</th><th class="n">Seats</th><th class="n">Price / seat / mo</th><th class="n">Per month</th></tr></thead>' +
+    '<tbody>' + rows +
+    '<tr class="tot"><td>Total, before tax</td><td class="n">' + seatsN + '</td><td></td><td class="n">' + msMoney(MS.cutMonthly, true) + '</td></tr>' +
+    '<tr><td style="color:var(--ms-mute)">Tax (' + (d.taxRate * 100).toFixed(1) + '%)</td><td></td><td></td><td class="n" style="color:var(--ms-mute)">' +
+      msMoney(MS.cutWithTax - MS.cutMonthly, true) + '</td></tr>' +
+    '<tr class="tot"><td>Total, with tax</td><td></td><td></td><td class="n">' + msMoney(MS.cutWithTax, true) + '</td></tr></tbody>';
+
+  var end = new Date(c.annualTermEnds + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  $('timing').innerHTML =
+    '<div class="card kpi"><div class="lab">Right away</div><div class="num">≈ ' + msMoney(MS.immediate) + '<span style="font-size:16px"> /mo</span></div>' +
+    '<div class="note">Comes off the next invoice: the Premium seat and the month-to-month Standard seats.</div></div>' +
+    '<div class="card kpi"><div class="lab">On the annual term, through 2027</div><div class="num">≈ ' + msMoney(Math.round(MS.deferred)) +
+    '<span style="font-size:16px"> /mo</span></div>' +
+    '<div class="note">These seats are already paid for through the term (ends ' + end + '). They show up as seats we no longer ' +
+    'have to buy for new hires, not as a lower bill this month.</div></div>';
+
+  $('kept').innerHTML = d.keptLive.map(function (n) { return '<span class="chip">' + msEsc(n) + '</span>'; }).join('');
+  $('procLead').textContent = d.process.owner + ' agreed. From here on, every departure goes through the same four steps.';
+  $('steps').innerHTML = d.process.offboarding.map(function (s) { return '<li>' + msEsc(s) + '</li>'; }).join('');
+  $('msg').innerHTML = d.message.map(function (p) { return '<p>' + msEsc(p) + '</p>'; }).join('');
+})();
+</script>
+</body></html>

@@ -112,8 +112,8 @@
       body += '<div class="note"><b>Passcode needed</b>This site is reachable without a login, so the chat is behind ' +
               'a shared passcode. Enter it below — it is remembered for this browser tab only.</div>';
     } else if (!state.history.length) {
-      body += '<div class="note"><b>Ask about the data on this site</b>Every snapshot, channel, two-week cut and ' +
-              'SharePoint pull is loaded. Answers come with their source window, and anything not in the data gets ' +
+      body += '<div class="note"><b>Ask about the data on this site</b>Every snapshot, channel and two-week cut ' +
+              'is loaded. Answers come with their source window, and anything not in the data gets ' +
               'a straight "not in the data" rather than a guess.</div>';
       body += '<div class="tips">';
       PROMPTS.forEach(function (p) { body += '<button type="button" data-p="' + h(p) + '">' + h(p) + '</button>'; });

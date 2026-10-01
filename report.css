@@ -90,6 +90,8 @@ footer{padding:20px 40px 30px;color:var(--muted);font-size:12px;border-top:1px s
  color:var(--muted);padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:#fff}
 .topnav a:hover{color:var(--teal);border-color:#cfdbe2}
 .topnav a[aria-current="page"]{color:#fff;background:var(--teal);border-color:var(--teal)}
+.topnav a.navbtn{margin-left:auto;color:#fff;background:var(--teal);border-color:var(--teal);border-radius:8px}
+.topnav a.navbtn:hover{color:#fff;filter:brightness(1.12)}
 /* period selector */
 .periodbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:18px 40px;
  background:var(--paper);border-bottom:1px solid var(--line)}

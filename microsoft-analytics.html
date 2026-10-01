@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Microsoft Cost Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="microsoft.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="microsoft-costs.js"></script>
+</head>
+<body class="ms"><div class="wrap">
+<nav class="ms-bar" aria-label="Microsoft cost system"><a class="ms-back" href="index.html">&larr; Sanctuary report</a><a href="microsoft.html">Usage review</a><a href="microsoft-savings.html">Cost cut so far</a><a href="microsoft-analytics.html" aria-current="page">Analytics</a><span class="ms-sys">Microsoft cost system</span></nav>
+
+<header><img src="microsoft-logo.png" alt="Sanctuary Recovery Centers">
+<div class="t"><h1>Analytics</h1><p>Cost cut over time · licenses vs. actual usage</p></div></header>
+
+<section>
+<div class="grid g4" id="kpis"></div>
+<div style="margin-top:14px" id="guard"></div>
+</section>
+
+<section>
+<h2>Monthly Microsoft spend</h2>
+<p class="sub">Invoiced per month, including 9.1% sales tax, by billing profile. The dashed lines are where the bill should land once the approved cut takes effect.</p>
+<div class="card">
+<div class="legend"><span><i style="background:var(--ms-s1)"></i>Sanctuary profile</span><span><i style="background:var(--ms-s2)"></i>IT profile</span>
+<span><i class="line" style="border-color:#6b7280"></i>Target after next invoice</span><span><i class="line" style="border-color:#1f2937"></i>Target once annual terms end</span></div>
+<div class="ch tall"><canvas id="cSpend" role="img" aria-label="Monthly invoiced Microsoft spend by billing profile"></canvas></div>
+<details><summary>Show as a table</summary><div class="scroll"><table id="tSpend"></table></div></details>
+</div>
+</section>
+
+<section>
+<h2>Cost cut over time</h2>
+<p class="sub">Cumulative dollars off the bill, including tax. "Committed" is projected from the approved cut. "Confirmed" only grows when an actual invoice shows the drop.</p>
+<div class="card">
+<div class="legend"><span><i class="line" style="border-color:var(--ms-s1)"></i>Committed (projected)</span><span><i style="background:var(--ms-s3)"></i>Confirmed on invoice</span></div>
+<div class="ch"><canvas id="cCut" role="img" aria-label="Cumulative savings, committed versus confirmed"></canvas></div>
+<p class="fine" id="cutNote"></p>
+<details><summary>Confirmed savings log</summary><div class="scroll"><table id="tReal"></table></div></details>
+</div>
+</section>
+
+<section>
+<h2>Licenses vs. actual usage</h2>
+<p class="sub">Seats bought, assigned, and actually used in the last 30 days, by license. The gap between the last two is what to watch.</p>
+<div class="grid g2">
+<div class="card">
+<div class="legend"><span><i style="background:var(--ms-s1)"></i>Bought</span><span><i style="background:var(--ms-s2)"></i>Assigned</span><span><i style="background:var(--ms-s3)"></i>Used (30 days)</span></div>
+<div class="ch tall"><canvas id="cSku" role="img" aria-label="Seats bought, assigned and used per license"></canvas></div>
+</div>
+<div class="card scroll"><h3>Idle seats and what they cost</h3><table id="tIdle"></table>
+<p class="fine">Idle = assigned but no sign-in to any workload in 30 days. Some are people on leave or new hires, so review before cutting.</p></div>
+</div>
+</section>
+
+<section>
+<h2>Monthly snapshot</h2>
+<p class="sub">One row a month: licenses vs. actual usage, so cost creep shows up early. Add next month's row in <code>microsoft-costs.js</code>.</p>
+<div class="card scroll"><table id="tSnap"></table></div>
+</section>
+
+<footer>Sanctuary Recovery Centers · Internal. Source: Microsoft invoices and the M365 Usage &amp; License Review.
+Projected figures are computed from the approved cut and are labeled; they never replace an invoiced number.</footer>
+</div>
+<script>
+(function () {
+  var d = MS_COSTS, c = d.approvedCut;
+  var $ = function (id) { return document.getElementById(id); };
+  var css = getComputedStyle(document.documentElement);
+  var S1 = css.getPropertyValue('--ms-s1').trim(), S2 = css.getPropertyValue('--ms-s2').trim(), S3 = css.getPropertyValue('--ms-s3').trim();
+  var GRID = '#eef0f3', TICK = '#6b7280';
+
+  function addMonths(m, n) {
+    var p = m.split('-'), t = (+p[0]) * 12 + (+p[1] - 1) + n;
+    return Math.floor(t / 12) + '-' + ('0' + (t % 12 + 1)).slice(-2);
+  }
+  function mlabel(m) { var s = msMonth(m).split(' '); return s[0] + ' ' + s[1].slice(2); }
+  function money(v) { return msMoney(v, true); }
+
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = TICK;
+  var base = {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (x) { return ' ' + x.dataset.label + ': ' + money(x.parsed.y); } } } },
+    scales: {
+      x: { grid: { display: false }, border: { color: '#d1d5db' } },
+      y: { beginAtZero: true, grid: { color: GRID }, border: { display: false },
+           ticks: { callback: function (v) { return '$' + v.toLocaleString(); } } }
+    }
+  };
+
+  /* ── KPIs + budget guard ─────────────────────────────────────────── */
+  var snap = d.snapshots[d.snapshots.length - 1];
+  var afterCut = MS.invoices.filter(function (r) { return r.month >= c.firstInvoice; });
+  var kpis = [
+    ['Latest invoice', money(MS.latest.total), msMonth(MS.latest.month) + ', incl. tax'],
+    ['Committed cut', msMoney(Math.round(MS.cutMonthly)) + '/mo', '≈ ' + msMoney(MS.immediate) + ' right away, the rest as terms end'],
+    ['Confirmed so far', MS.realizedTotal ? msMoney(MS.realizedTotal, true) + '/mo' : '$0',
+      MS.realizedTotal ? 'from ' + d.realized.length + ' invoice(s)' : 'awaiting the ' + msMonth(c.firstInvoice) + ' invoice'],
+    ['Cost per active user', money(snap.licenseMonthly / snap.active30), snap.active30 + ' active of ' + snap.enabledLicensed +
+      ' licensed (' + Math.round(100 * snap.active30 / snap.enabledLicensed) + '%)']
+  ];
+  $('kpis').innerHTML = kpis.map(function (k) {
+    return '<div class="card kpi"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] + '</div><div class="note">' + k[2] + '</div></div>';
+  }).join('');
+
+  var g;
+  if (!afterCut.length) {
+    g = ['warn', '●', 'Not measurable yet', 'No invoice since the cut. The first one it can show up on is ' + msMonth(c.firstInvoice) +
+         '. Expect about ' + money(MS.targetNear) + ' incl. tax (' + msMonth(MS.latest.month) + ' minus the ' + msMoney(MS.immediate) +
+         ' + tax that comes off right away).'];
+  } else {
+    var last = afterCut[afterCut.length - 1];
+    if (last.total <= MS.targetNear + 1) {
+      g = ['good', '✓', 'On target', msMonth(last.month) + ' invoice was ' + money(last.total) + ', at or under the ' + money(MS.targetNear) + ' target.'];
+    } else {
+      g = ['bad', '!', 'Over target', msMonth(last.month) + ' invoice was ' + money(last.total) + ', ' + money(last.total - MS.targetNear) +
+           ' above the ' + money(MS.targetNear) + ' target. Check for new seats or a cut that didn’t land.'];
+    }
+  }
+  $('guard').innerHTML = '<div class="card"><span class="status ' + g[0] + '"><span aria-hidden="true">' + g[1] + '</span>' + g[2] +
+    '</span><span style="margin-left:10px;color:var(--ms-ink2)">' + g[3] + '</span>' +
+    '<p class="fine">Targets are set from the ' + msMonth(MS.latest.month) + ' invoice. New hires legitimately add seats, so read an over-target month against the snapshot below before calling it waste.</p></div>';
+
+  /* ── monthly spend ───────────────────────────────────────────────── */
+  var labels = MS.invoices.map(function (r) { return mlabel(r.month); });
+  var flat = function (v) { return MS.invoices.map(function () { return Math.round(v * 100) / 100; }); };
+  new Chart($('cSpend'), {
+    data: {
+      labels: labels,
+      datasets: [
+        { type: 'bar', label: 'Sanctuary profile', data: d.invoices.sanctuary, backgroundColor: S1, stack: 's', borderRadius: 0, borderSkipped: false, borderColor: '#fff', borderWidth: { top: 2 } },
+        { type: 'bar', label: 'IT profile', data: d.invoices.it, backgroundColor: S2, stack: 's', borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, borderColor: '#fff', borderWidth: { top: 2 } },
+        { type: 'line', label: 'Target after next invoice', data: flat(MS.targetNear), borderColor: '#6b7280', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, stack: 'ref1' },
+        { type: 'line', label: 'Target once annual terms end', data: flat(MS.targetFull), borderColor: '#1f2937', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, stack: 'ref2' }
+      ]
+    },
+    options: Object.assign({}, base, { scales: Object.assign({}, base.scales, { x: Object.assign({ stacked: true }, base.scales.x), y: Object.assign({ stacked: true }, base.scales.y) }),
+      plugins: Object.assign({}, base.plugins, { tooltip: { callbacks: {
+        label: function (x) { return ' ' + x.dataset.label + ': ' + money(x.parsed.y); },
+        footer: function (items) { var i = items[0].dataIndex; return 'Total: ' + money(MS.invoices[i].total); } } } }) })
+  });
+  $('tSpend').innerHTML = '<thead><tr><th>Month</th><th class="n">Sanctuary</th><th class="n">IT</th><th class="n">Total</th></tr></thead><tbody>' +
+    MS.invoices.map(function (r) { return '<tr><td>' + msMonth(r.month) + '</td><td class="n">' + money(r.sanctuary) + '</td><td class="n">' + money(r.it) + '</td><td class="n">' + money(r.total) + '</td></tr>'; }).join('') + '</tbody>';
+
+  /* ── cost cut over time ──────────────────────────────────────────── */
+  var annualFrom = addMonths(c.annualTermEnds.slice(0, 7), 1);
+  var months = [], m = c.firstInvoice;
+  while (m <= addMonths(annualFrom, 2)) { months.push(m); m = addMonths(m, 1); }
+  var committed = [], run = 0;
+  months.forEach(function (mm) { run += MS.immediateWithTax + (mm >= annualFrom ? MS.deferredWithTax : 0); committed.push(Math.round(run * 100) / 100); });
+  var realByMonth = {}; d.realized.forEach(function (r) { realByMonth[r.month] = r.monthly; });
+  var lastReal = d.realized.length ? d.realized[d.realized.length - 1].month : null, crun = 0;
+  var confirmed = months.map(function (mm) {
+    if (!lastReal || mm > lastReal) { return null; }
+    crun += realByMonth[mm] || 0; return Math.round(crun * 100) / 100;
+  });
+  new Chart($('cCut'), {
+    data: {
+      labels: months.map(mlabel),
+      datasets: [
+        { type: 'bar', label: 'Confirmed on invoice', data: confirmed, backgroundColor: S3, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false, maxBarThickness: 28 },
+        { type: 'line', label: 'Committed (projected)', data: committed, borderColor: S1, borderDash: [6, 4], borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: S1, stepped: false, tension: 0 }
+      ]
+    },
+    options: Object.assign({}, base, { plugins: Object.assign({}, base.plugins, { tooltip: { callbacks: {
+      label: function (x) { return x.parsed.y == null ? ' ' + x.dataset.label + ': no invoice yet' : ' ' + x.dataset.label + ': ' + money(x.parsed.y) + ' cumulative'; } } } }) })
+  });
+  $('cutNote').textContent = 'Committed assumes ' + msMoney(MS.immediate) + '/mo + tax from the ' + msMonth(c.firstInvoice) + ' invoice and the remaining ' +
+    msMoney(Math.round(MS.deferred)) + '/mo + tax from ' + msMonth(annualFrom) + ', after the annual terms end. Until then those seats are reused for new hires rather than bought again.';
+  $('tReal').innerHTML = '<thead><tr><th>Invoice</th><th class="n">Off the bill / mo (incl. tax)</th><th>Note</th></tr></thead><tbody>' +
+    (d.realized.length ? d.realized.map(function (r) { return '<tr><td>' + msMonth(r.month) + '</td><td class="n">' + money(r.monthly) + '</td><td>' + msEsc(r.note || '') + '</td></tr>'; }).join('')
+      : '<tr><td colspan="3" style="color:var(--ms-mute)">Nothing confirmed yet. The first invoice that can show the cut is ' + msMonth(c.firstInvoice) + '.</td></tr>') + '</tbody>';
+
+  /* ── licenses vs usage ───────────────────────────────────────────── */
+  var sku = d.sku.slice().sort(function (a, b) { return b.bought - a.bought; });
+  new Chart($('cSku'), {
+    type: 'bar',
+    data: {
+      labels: sku.map(function (s) { return s.name; }),
+      datasets: [
+        { label: 'Bought', data: sku.map(function (s) { return s.bought; }), backgroundColor: S1 },
+        { label: 'Assigned', data: sku.map(function (s) { return s.assigned; }), backgroundColor: S2 },
+        { label: 'Used (30 days)', data: sku.map(function (s) { return s.active30; }), backgroundColor: S3 }
+      ].map(function (ds) { return Object.assign(ds, { borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: 'start', borderColor: '#fff', borderWidth: 1, barPercentage: .85, categoryPercentage: .8 }); })
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (x) { return ' ' + x.dataset.label + ': ' + x.parsed.x + ' seats'; } } } },
+      scales: { x: { beginAtZero: true, grid: { color: GRID }, border: { display: false } }, y: { grid: { display: false }, border: { color: '#d1d5db' } } } }
+  });
+  var idleTot = 0, idleN = 0;
+  $('tIdle').innerHTML = '<thead><tr><th>License</th><th class="n">Assigned</th><th class="n">Used</th><th class="n">Idle</th><th class="n">Idle $ / mo</th></tr></thead><tbody>' +
+    sku.map(function (s) { var idle = s.assigned - s.active30; idleN += idle; idleTot += idle * s.price;
+      return '<tr><td>' + msEsc(s.name) + '</td><td class="n">' + s.assigned + '</td><td class="n">' + s.active30 + '</td><td class="n">' + idle + '</td><td class="n">' + money(idle * s.price) + '</td></tr>'; }).join('') +
+    '<tr class="tot"><td>Total</td><td></td><td></td><td class="n">' + idleN + '</td><td class="n">' + money(idleTot) + '</td></tr></tbody>';
+
+  /* ── monthly snapshot ────────────────────────────────────────────── */
+  $('tSnap').innerHTML = '<thead><tr><th>Month</th><th class="n">Seats bought</th><th class="n">Assigned</th><th class="n">Licensed &amp; enabled</th><th class="n">Active (30d)</th>' +
+    '<th class="n">License cost / mo (pre-tax)</th><th class="n">Invoiced / mo (incl. tax)</th><th>Source</th></tr></thead><tbody>' +
+    d.snapshots.map(function (s) {
+      return '<tr><td>' + msMonth(s.month) + '</td><td class="n">' + s.seatsBought + '</td><td class="n">' + s.seatsAssigned + '</td><td class="n">' + s.enabledLicensed +
+        '</td><td class="n">' + s.active30 + '</td><td class="n">' + money(s.licenseMonthly) + '</td><td class="n">' + money(s.invoicedMonthly) + '</td><td>' + msEsc(s.source) + '</td></tr>';
+    }).join('') + '</tbody>';
+})();
+</script>
+</body></html>
