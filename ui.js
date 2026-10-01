@@ -202,6 +202,7 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="compare.html"' + (current === 'compare' ? ' aria-current="page"' : '') + '>Compare</a>' +
       '<a href="twoweeks.html"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
       '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '>Projects</a>' +
+      '<a href="sanctuaryci.html"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
       '<a class="navbtn" href="microsoft.html">Microsoft cost system</a>' +
     '</nav><hr class="phoenix">';
 }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary CI — sanctuaryci.org Metrics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ── sanctuaryci.org metrics — placeholder until the data is piped in ──────
+   The page looks for data/sanctuaryci-metrics.json. It uses the same schema
+   as data/metrics.json (see pipeline/README.md): runs[], newest last, each
+   with channels.{website,facebook,instagram,linkedin}.metrics. Until that
+   file exists every channel shows "not connected yet". Nothing is
+   estimated or carried over from the Sanctuary Recovery Centers figures.   */
+var CI_SOURCE = 'data/sanctuaryci-metrics.json';
+var CI_CHANNELS = ['website', 'facebook', 'instagram', 'linkedin'];
+
+function ciLabel(key) {
+  return key.replace(/_(\d+d|lifetime)$/, function (m, p) { return p === 'lifetime' ? '' : ' (' + p + ')'; })
+            .replace(/_/g, ' ').replace(/^./, function (c) { return c.toUpperCase(); });
+}
+
+function ciWindow(m) {
+  return m.window && m.window.start ? m.window.start + ' – ' + m.window.end : (m.window ? 'as of ' + m.window.end : '');
+}
+
+function ciChannel(key, chan) {
+  var meta = CHANNEL_META[key];
+  if (!chan || !Object.keys(chan.metrics || {}).length) {
+    return '<section class="muted">' + sechead(meta.name, meta.color, 'sanctuaryci.org', '') +
+      '<div class="noexport"><b>Not connected yet</b>No ' + esc(meta.name) + ' data has been piped in for sanctuaryci.org. ' +
+      'This section fills in automatically once the source is connected.</div></section>';
+  }
+  var list = Object.keys(chan.metrics).map(function (k) {
+    var m = chan.metrics[k];
+    var pending = m.value === null || m.status === 'pending_verified_export';
+    return {
+      lab: ciLabel(k),
+      num: pending ? 'pending' : fmt(m.value),
+      chg: m.change_pct != null ? (m.change_pct >= 0 ? '▲ ' : '▼ ') + Math.abs(m.change_pct) + '%' : '',
+      dir: m.change_pct > 0 ? 'up' : (m.change_pct < 0 ? 'down' : 'flat'),
+      w: ciWindow(m)
+    };
+  });
+  return '<section>' + sechead(meta.name, meta.color, 'sanctuaryci.org · source: ' + esc(chan.metrics[Object.keys(chan.metrics)[0]].source || ''), '') +
+    kpis(list) + '</section>';
+}
+
+function render(data) {
+  var run = data && data.runs && data.runs.length ? data.runs[data.runs.length - 1] : null;
+  var status = run
+    ? 'Latest data: ' + esc(run.run_date)
+    : 'Placeholder · awaiting first data pull';
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader('sanctuaryci.org Metrics',
+      'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', status, 'sanctuaryci') +
+    '<section>' +
+      '<div class="eyebrow">Sanctuary CI</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">sanctuaryci.org at a glance</h2>' +
+      '<p class="lead">' + (run
+        ? 'Figures below come from the most recent data pull. Each one carries its own source window.'
+        : 'This page is ready for sanctuaryci.org data. When the pipeline starts writing <code>' + CI_SOURCE +
+          '</code>, the website and social sections below fill in on their own. Until then nothing is shown, ' +
+          'so no number on this page is ever an estimate.') + '</p>' +
+    '</section>' +
+    CI_CHANNELS.map(function (k) { return ciChannel(k, run && run.channels[k]); }).join('') +
+    pageFooter(run ? 'sanctuaryci.org data pull of ' + run.run_date : 'none yet — placeholder');
+
+  applyDataLabels();
+}
+
+render(null);
+fetch(CI_SOURCE, { cache: 'no-store' })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) { if (d) { render(d); } })
+  .catch(function () { /* no file yet — the placeholder stays */ });
+</script>
+</body></html>
