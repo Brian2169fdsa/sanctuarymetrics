@@ -1,0 +1,62 @@
+# Weekly: read the Make-fed metrics Sheet, build data/metrics.json, commit it.
+# The commit to main is what makes Vercel redeploy the report.
+#
+# Setup (once): repo Settings -> Secrets and variables -> Actions ->
+#   METRICS_CSV_URL = the Sheet's "Publish to web" CSV link for the `metrics` tab.
+# Until that secret exists this workflow skips cleanly instead of failing.
+name: metrics
+
+on:
+  schedule:
+    # Thursdays 14:00 UTC = 07:00 Phoenix, two hours after the Make run.
+    - cron: '0 14 * * 4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: metrics
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the Sheet link is configured
+        id: cfg
+        env:
+          METRICS_CSV_URL: ${{ secrets.METRICS_CSV_URL }}
+        run: |
+          if [ -z "$METRICS_CSV_URL" ]; then
+            echo "::notice::METRICS_CSV_URL is not set yet; skipping. See pipeline/README.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build data/metrics.json
+        if: steps.cfg.outputs.ready == 'true'
+        env:
+          METRICS_CSV_URL: ${{ secrets.METRICS_CSV_URL }}
+        run: |
+          mkdir -p data
+          # --max-age-days 8: a weekly scenario that missed a run fails here,
+          # loudly, instead of the report quietly going stale.
+          python3 tools/build-metrics-json.py --csv "$METRICS_CSV_URL" \
+            --out data/metrics.json --max-age-days 8
+
+      - name: Commit if changed
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          if git diff --quiet -- data/metrics.json && git ls-files --error-unmatch data/metrics.json >/dev/null 2>&1; then
+            echo "No change."
+            exit 0
+          fi
+          git config user.name "metrics-bot"
+          git config user.email "metrics-bot@users.noreply.github.com"
+          git add data/metrics.json
+          git commit -m "Refresh metrics.json from the metrics Sheet"
+          git push
