@@ -1,0 +1,1018 @@
+{
+  "name": "Sanctuary metrics: weekly pull to Sheet",
+  "flow": [
+    {
+      "id": 1,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "graph_version",
+            "value": "v25.0"
+          },
+          {
+            "name": "fb_page_id",
+            "value": "100063738294812"
+          },
+          {
+            "name": "ig_user_id",
+            "value": "SET_ME_IG_BUSINESS_ACCOUNT_ID"
+          },
+          {
+            "name": "ga4_property_id",
+            "value": "SET_ME_GA4_PROPERTY_ID"
+          },
+          {
+            "name": "run_date",
+            "value": "{{formatDate(now; \"YYYY-MM-DD\"; \"America/Phoenix\")}}"
+          },
+          {
+            "name": "window_end",
+            "value": "{{formatDate(addDays(now; -1); \"YYYY-MM-DD\"; \"America/Phoenix\")}}"
+          },
+          {
+            "name": "window_start",
+            "value": "{{formatDate(addDays(now; -28); \"YYYY-MM-DD\"; \"America/Phoenix\")}}"
+          },
+          {
+            "name": "window_start_14",
+            "value": "{{formatDate(addDays(now; -14); \"YYYY-MM-DD\"; \"America/Phoenix\")}}"
+          },
+          {
+            "name": "ig_since",
+            "value": "{{formatDate(parseDate(formatDate(addDays(now; -28); \"YYYY-MM-DD\"; \"America/Phoenix\"); \"YYYY-MM-DD\"; \"America/Los_Angeles\"); \"X\")}}"
+          },
+          {
+            "name": "ig_until",
+            "value": "{{formatDate(parseDate(formatDate(now; \"YYYY-MM-DD\"; \"America/Phoenix\"); \"YYYY-MM-DD\"; \"America/Los_Angeles\"); \"X\")}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config + 28-day window"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {
+        "authenticationType": "apiKey"
+      },
+      "mapper": {
+        "url": "https://graph.facebook.com/{{1.graph_version}}/{{1.fb_page_id}}",
+        "method": "get",
+        "queryParameters": [
+          {
+            "name": "fields",
+            "value": "id,name,followers_count,instagram_business_account{id,username}"
+          }
+        ],
+        "contentType": "",
+        "parseResponse": true,
+        "stopOnHttpError": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "FB Page identity (scope guard)"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {
+        "authenticationType": "apiKey"
+      },
+      "mapper": {
+        "url": "https://graph.facebook.com/{{1.graph_version}}/{{1.fb_page_id}}/insights",
+        "method": "get",
+        "queryParameters": [
+          {
+            "name": "metric",
+            "value": "page_media_view,page_total_media_view_unique,page_post_engagements,page_daily_follows_unique,page_daily_unfollows_unique,page_total_actions,page_views_total"
+          },
+          {
+            "name": "period",
+            "value": "days_28"
+          },
+          {
+            "name": "since",
+            "value": "{{1.window_end}}"
+          },
+          {
+            "name": "until",
+            "value": "{{1.run_date}}"
+          }
+        ],
+        "contentType": "",
+        "parseResponse": true,
+        "stopOnHttpError": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "FB Page insights (28d)"
+        }
+      },
+      "filter": {
+        "name": "Sanctuary only (Page + linked IG must match config)",
+        "conditions": [
+          [
+            {
+              "a": "{{2.data.id}}",
+              "o": "text:equal",
+              "b": "{{1.fb_page_id}}"
+            },
+            {
+              "a": "{{2.data.instagram_business_account.id}}",
+              "o": "text:equal",
+              "b": "{{1.ig_user_id}}"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {
+        "authenticationType": "apiKey"
+      },
+      "mapper": {
+        "url": "https://graph.facebook.com/{{1.graph_version}}/{{1.ig_user_id}}",
+        "method": "get",
+        "queryParameters": [
+          {
+            "name": "fields",
+            "value": "id,username,followers_count,media_count"
+          }
+        ],
+        "contentType": "",
+        "parseResponse": true,
+        "stopOnHttpError": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "IG account fields"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {
+        "authenticationType": "apiKey"
+      },
+      "mapper": {
+        "url": "https://graph.facebook.com/{{1.graph_version}}/{{1.ig_user_id}}/insights",
+        "method": "get",
+        "queryParameters": [
+          {
+            "name": "metric",
+            "value": "views,reach,accounts_engaged,total_interactions,profile_links_taps"
+          },
+          {
+            "name": "metric_type",
+            "value": "total_value"
+          },
+          {
+            "name": "period",
+            "value": "day"
+          },
+          {
+            "name": "since",
+            "value": "{{1.ig_since}}"
+          },
+          {
+            "name": "until",
+            "value": "{{1.ig_until}}"
+          }
+        ],
+        "contentType": "",
+        "parseResponse": true,
+        "stopOnHttpError": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "IG insights (28d total_value)"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {
+        "authenticationType": "apiKey"
+      },
+      "mapper": {
+        "url": "https://graph.facebook.com/{{1.graph_version}}/{{1.ig_user_id}}/media",
+        "method": "get",
+        "queryParameters": [
+          {
+            "name": "fields",
+            "value": "id,timestamp,media_type"
+          },
+          {
+            "name": "since",
+            "value": "{{1.ig_since}}"
+          },
+          {
+            "name": "until",
+            "value": "{{1.ig_until}}"
+          },
+          {
+            "name": "limit",
+            "value": "100"
+          }
+        ],
+        "contentType": "",
+        "parseResponse": true,
+        "stopOnHttpError": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "IG posts published in window"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "module": "google-analytics-4:makeAnApiCall",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "baseURL": "https://analyticsdata.googleapis.com/v1beta",
+        "url": "/properties/{{1.ga4_property_id}}:batchRunReports",
+        "method": "POST",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\n \"requests\": [\n  {\n   \"dateRanges\": [\n    {\n     \"startDate\": \"{{1.window_start}}\",\n     \"endDate\": \"{{1.window_end}}\"\n    }\n   ],\n   \"metrics\": [\n    {\n     \"name\": \"sessions\"\n    },\n    {\n     \"name\": \"totalUsers\"\n    },\n    {\n     \"name\": \"screenPageViews\"\n    },\n    {\n     \"name\": \"engagementRate\"\n    },\n    {\n     \"name\": \"averageSessionDuration\"\n    },\n    {\n     \"name\": \"keyEvents\"\n    }\n   ]\n  },\n  {\n   \"dateRanges\": [\n    {\n     \"startDate\": \"{{1.window_start_14}}\",\n     \"endDate\": \"{{1.window_end}}\"\n    }\n   ],\n   \"metrics\": [\n    {\n     \"name\": \"sessions\"\n    },\n    {\n     \"name\": \"totalUsers\"\n    },\n    {\n     \"name\": \"screenPageViews\"\n    },\n    {\n     \"name\": \"engagementRate\"\n    },\n    {\n     \"name\": \"averageSessionDuration\"\n    },\n    {\n     \"name\": \"keyEvents\"\n    }\n   ]\n  },\n  {\n   \"dateRanges\": [\n    {\n     \"startDate\": \"{{1.window_start}}\",\n     \"endDate\": \"{{1.window_end}}\"\n    }\n   ],\n   \"dimensions\": [\n    {\n     \"name\": \"sessionDefaultChannelGroup\"\n    }\n   ],\n   \"metrics\": [\n    {\n     \"name\": \"sessions\"\n    },\n    {\n     \"name\": \"keyEvents\"\n    }\n   ],\n   \"orderBys\": [\n    {\n     \"metric\": {\n      \"metricName\": \"sessions\"\n     },\n     \"desc\": true\n    }\n   ],\n   \"limit\": \"15\"\n  },\n  {\n   \"dateRanges\": [\n    {\n     \"startDate\": \"{{1.window_start}}\",\n     \"endDate\": \"{{1.window_end}}\"\n    }\n   ],\n   \"dimensions\": [\n    {\n     \"name\": \"pagePath\"\n    }\n   ],\n   \"metrics\": [\n    {\n     \"name\": \"screenPageViews\"\n    },\n    {\n     \"name\": \"bounceRate\"\n    }\n   ],\n   \"orderBys\": [\n    {\n     \"metric\": {\n      \"metricName\": \"screenPageViews\"\n     },\n     \"desc\": true\n    }\n   ],\n   \"limit\": \"10\"\n  },\n  {\n   \"dateRanges\": [\n    {\n     \"startDate\": \"{{1.window_start}}\",\n     \"endDate\": \"{{1.window_end}}\"\n    }\n   ],\n   \"dimensions\": [\n    {\n     \"name\": \"eventName\"\n    }\n   ],\n   \"metrics\": [\n    {\n     \"name\": \"keyEvents\"\n    }\n   ],\n   \"metricFilter\": {\n    \"filter\": {\n     \"fieldName\": \"keyEvents\",\n     \"numericFilter\": {\n      \"operation\": \"GREATER_THAN\",\n      \"value\": {\n       \"int64Value\": \"0\"\n      }\n     }\n    }\n   },\n   \"limit\": \"20\"\n  }\n ]\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "GA4 batchRunReports (5 reports)"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "google-sheets:addMultipleRows",
+      "version": 2,
+      "parameters": {},
+      "mapper": {
+        "spreadsheetId": "SET_ME_METRICS_SHEET_ID",
+        "sheetId": "metrics",
+        "tableFirstRow": "A1:Z1",
+        "rows": [
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "views",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_media_view\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "unique_viewers",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_total_media_view_unique\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "interactions",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_post_engagements\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "follows",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_daily_follows_unique\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "unfollows",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_daily_unfollows_unique\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "cta_clicks",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_total_actions\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "page_profile_views",
+              "",
+              "{{last(map(first(map(3.data.data; \"values\"; \"name\"; \"page_views_total\")); \"value\"))}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "facebook",
+              "followers_total",
+              "",
+              "{{2.data.followers_count}}",
+              "",
+              "{{1.run_date}}",
+              "lifetime",
+              "meta_graph_api",
+              "ok",
+              "{{2.data.name}}"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "views",
+              "",
+              "{{get(first(map(5.data.data; \"total_value\"; \"name\"; \"views\")); \"value\")}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "reach",
+              "",
+              "{{get(first(map(5.data.data; \"total_value\"; \"name\"; \"reach\")); \"value\")}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "accounts_engaged",
+              "",
+              "{{get(first(map(5.data.data; \"total_value\"; \"name\"; \"accounts_engaged\")); \"value\")}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "interactions",
+              "",
+              "{{get(first(map(5.data.data; \"total_value\"; \"name\"; \"total_interactions\")); \"value\")}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "profile_link_taps",
+              "",
+              "{{get(first(map(5.data.data; \"total_value\"; \"name\"; \"profile_links_taps\")); \"value\")}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "posts_published",
+              "",
+              "{{length(6.data.data)}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "meta_graph_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "instagram",
+              "followers_total",
+              "",
+              "{{4.data.followers_count}}",
+              "",
+              "{{1.run_date}}",
+              "lifetime",
+              "meta_graph_api",
+              "ok",
+              "@{{4.data.username}}"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "sessions",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[1].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "users",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[2].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "page_views",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[3].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "engagement_rate",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[4].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "avg_session_duration_sec",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[5].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "key_events",
+              "",
+              "{{7.body.reports[1].rows[1].metricValues[6].value}}",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "sessions",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[1].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "users",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[2].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "page_views",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[3].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "engagement_rate",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[4].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "avg_session_duration_sec",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[5].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "website",
+              "key_events",
+              "",
+              "{{7.body.reports[2].rows[1].metricValues[6].value}}",
+              "{{1.window_start_14}}",
+              "{{1.window_end}}",
+              "14d",
+              "ga4_data_api",
+              "ok",
+              ""
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "linkedin",
+              "impressions",
+              "",
+              "",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "linkedin_manual",
+              "pending_verified_export",
+              "LinkedIn Community Management API not approved; paste the verified Page-analytics export here"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "linkedin",
+              "clicks",
+              "",
+              "",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "linkedin_manual",
+              "pending_verified_export",
+              "LinkedIn Community Management API not approved; paste the verified Page-analytics export here"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "linkedin",
+              "engagement_rate",
+              "",
+              "",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "linkedin_manual",
+              "pending_verified_export",
+              "LinkedIn Community Management API not approved; paste the verified Page-analytics export here"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "linkedin",
+              "new_followers",
+              "",
+              "",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "linkedin_manual",
+              "pending_verified_export",
+              "LinkedIn Community Management API not approved; paste the verified Page-analytics export here"
+            ]
+          },
+          {
+            "values": [
+              "{{1.run_date}}",
+              "linkedin",
+              "followers_total",
+              "",
+              "",
+              "{{1.window_start}}",
+              "{{1.window_end}}",
+              "28d",
+              "linkedin_manual",
+              "pending_verified_export",
+              "LinkedIn Community Management API not approved; paste the verified Page-analytics export here"
+            ]
+          }
+        ],
+        "insertUnformatted": false,
+        "valueInputOption": "RAW"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Sheet: add channel totals"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 10,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{7.body.reports[3].rows}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": -300,
+                  "name": "Each channel group"
+                }
+              }
+            },
+            {
+              "id": 11,
+              "module": "google-sheets:addMultipleRows",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "spreadsheetId": "SET_ME_METRICS_SHEET_ID",
+                "sheetId": "metrics",
+                "tableFirstRow": "A1:Z1",
+                "rows": [
+                  {
+                    "values": [
+                      "{{1.run_date}}",
+                      "website",
+                      "sessions",
+                      "channel={{10.dimensionValues[1].value}}",
+                      "{{10.metricValues[1].value}}",
+                      "{{1.window_start}}",
+                      "{{1.window_end}}",
+                      "28d",
+                      "ga4_data_api",
+                      "ok",
+                      ""
+                    ]
+                  },
+                  {
+                    "values": [
+                      "{{1.run_date}}",
+                      "website",
+                      "key_events",
+                      "channel={{10.dimensionValues[1].value}}",
+                      "{{10.metricValues[2].value}}",
+                      "{{1.window_start}}",
+                      "{{1.window_end}}",
+                      "28d",
+                      "ga4_data_api",
+                      "ok",
+                      ""
+                    ]
+                  }
+                ],
+                "insertUnformatted": false,
+                "valueInputOption": "RAW"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": -300,
+                  "name": "Sheet: sessions + key events by channel"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 12,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{7.body.reports[4].rows}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Each top page"
+                }
+              }
+            },
+            {
+              "id": 13,
+              "module": "google-sheets:addMultipleRows",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "spreadsheetId": "SET_ME_METRICS_SHEET_ID",
+                "sheetId": "metrics",
+                "tableFirstRow": "A1:Z1",
+                "rows": [
+                  {
+                    "values": [
+                      "{{1.run_date}}",
+                      "website",
+                      "page_views",
+                      "page={{12.dimensionValues[1].value}}",
+                      "{{12.metricValues[1].value}}",
+                      "{{1.window_start}}",
+                      "{{1.window_end}}",
+                      "28d",
+                      "ga4_data_api",
+                      "ok",
+                      ""
+                    ]
+                  },
+                  {
+                    "values": [
+                      "{{1.run_date}}",
+                      "website",
+                      "bounce_rate",
+                      "page={{12.dimensionValues[1].value}}",
+                      "{{12.metricValues[2].value}}",
+                      "{{1.window_start}}",
+                      "{{1.window_end}}",
+                      "28d",
+                      "ga4_data_api",
+                      "ok",
+                      ""
+                    ]
+                  }
+                ],
+                "insertUnformatted": false,
+                "valueInputOption": "RAW"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Sheet: top pages"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 14,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{7.body.reports[5].rows}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 300,
+                  "name": "Each key event"
+                }
+              }
+            },
+            {
+              "id": 15,
+              "module": "google-sheets:addMultipleRows",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "spreadsheetId": "SET_ME_METRICS_SHEET_ID",
+                "sheetId": "metrics",
+                "tableFirstRow": "A1:Z1",
+                "rows": [
+                  {
+                    "values": [
+                      "{{1.run_date}}",
+                      "website",
+                      "key_events",
+                      "event={{14.dimensionValues[1].value}}",
+                      "{{14.metricValues[1].value}}",
+                      "{{1.window_start}}",
+                      "{{1.window_end}}",
+                      "28d",
+                      "ga4_data_api",
+                      "ok",
+                      ""
+                    ]
+                  }
+                ],
+                "insertUnformatted": false,
+                "valueInputOption": "RAW"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 300,
+                  "name": "Sheet: key events by name"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

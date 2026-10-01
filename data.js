@@ -1588,19 +1588,6 @@ var L10 = {
   ]
 };
 
-/* ── SharePoint usage review — placeholder, no data yet ───────────────────
-   The tab is reserved so the section has a home in the site. Nothing here
-   is a metric: every figure stays out until a real SharePoint / Microsoft
-   365 usage export is in hand, same rule as every other channel.          */
-var SHAREPOINT = {
-  title: 'SharePoint Usage Review',
-  status: 'Awaiting first pull',
-  source: 'source: Microsoft Graph reports API · SharePoint site usage + M365 Groups + Teams activity',
-  window: 'no export received yet',
-  note: 'The page reads sharepoint-usage.json from the site root; that file does not exist yet.',
-  lead: ''
-};
-
 /* ── two weeks at a glance ────────────────────────────────────────────────
    One 14-day set per report date, newest first. Nothing is ever replaced:
    each fortnight keeps its own real export at both ends, and the page has a

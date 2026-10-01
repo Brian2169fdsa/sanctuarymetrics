@@ -15,3 +15,7 @@ node_modules/
 # python venv for the SharePoint pull scripts
 .venv/
 __pycache__/
+
+# local secrets for the metrics pipeline (never commit)
+.env
+.env.*
