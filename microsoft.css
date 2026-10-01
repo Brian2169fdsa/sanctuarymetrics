@@ -18,8 +18,9 @@
 .ms-bar .ms-back{color:var(--ms-mute);border-color:transparent;padding-left:0;text-transform:none;letter-spacing:0;font-size:13px}
 .ms-bar .ms-sys{margin-left:auto;font-size:11px;color:var(--ms-mute);letter-spacing:.08em;text-transform:uppercase}
 @media (max-width:640px){
-  .ms-bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-  .ms-bar a{flex:0 0 auto}
+  .ms-bar{gap:6px}
+  .ms-bar .ms-back{flex-basis:100%;min-height:32px}
+  .ms-bar a:not(.ms-back){flex:1 1 auto;justify-content:center;padding:8px 10px}
   .ms-bar .ms-sys{display:none}
 }
 
