@@ -28,6 +28,36 @@
   box-shadow:0 24px 60px rgba(22,38,59,.28);color:var(--ink);background:#fff}
 #pmodal::backdrop{background:rgba(22,38,59,.42);backdrop-filter:blur(2px)}
 .pm{padding:22px 24px 20px;font-family:Inter,sans-serif}
+.pm-tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.pm-tab{all:unset;cursor:pointer;padding:9px 12px;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.pm-tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--blue)}
+.pm-tab:focus-visible{outline:2px solid var(--blue);outline-offset:-2px;border-radius:6px}
+.pm-pane{margin-top:16px}
+.pm-note,.pm-empty{font-size:13px;color:var(--muted);margin:0;padding:12px;border:1px dashed var(--line);border-radius:10px;list-style:none}
+.thread{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:2px}
+.msg{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fbfdfe}
+.msg-h{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.msg-h span{color:var(--muted)}
+.msg-b{font-size:14px;margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-x{all:unset;cursor:pointer;margin-left:auto;color:var(--muted);font-size:18px;line-height:1;padding:0 6px;border-radius:6px}
+.msg-x:hover{background:#fbeae6;color:#8f2f1b}
+.composer{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.composer-f{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.fine{font-size:12px;color:var(--muted)}
+ul.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+ul.files li{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.ftype{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:#f1f5f7;border-radius:6px;padding:3px 7px}
+.fmain{display:flex;flex-direction:column;min-width:0;flex:1}
+.fmain a,.file-dl{color:var(--blue);font-weight:600;font-size:14px;overflow-wrap:anywhere;text-align:left}
+.file-dl{all:unset;cursor:pointer;color:var(--blue);font-weight:600;font-size:14px}
+.file-dl:hover,.fmain a:hover{text-decoration:underline}
+.fmeta{font-size:12px;color:var(--muted)}
+.addlink{display:grid;grid-template-columns:2fr 1.4fr auto;gap:10px;align-items:end;margin-top:16px}
+.upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.upload label.btn{cursor:pointer}
+.pmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.pmeta-b{all:unset;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--teal);background:#eef5f8;border-radius:999px;padding:2px 9px}
+.pmeta-b:hover{background:#e0eef4}
 .pm-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .pm-head h3{font-family:Fraunces,serif;font-size:22px;font-weight:600;margin:0}
 .pm-x{all:unset;cursor:pointer;font-size:26px;line-height:1;color:var(--muted);padding:2px 8px;border-radius:8px}
@@ -59,6 +89,7 @@
 .pm-cancel:hover{background:#f1f5f7!important}
 @media (max-width:600px){
   .pm{padding:18px 16px}
+  .addlink{grid-template-columns:1fr}
   .pm-grid,.pm-event{grid-template-columns:1fr}
   .pm-foot{flex-direction:column-reverse;align-items:stretch}
   .pm-foot > div{justify-content:flex-end}
@@ -91,6 +122,8 @@ var OLD_META_KEY = 'src_projects_meta_v1';
 var MIGRATED_KEY = 'src_projects_migrated_v1';
 
 var ROWS = [];          /* rows from the server */
+var THREADS = null;     /* {comments, attachments} — null until their tables exist */
+var NAME_KEY = 'src_projects_name';
 var STATE = 'loading';  /* loading | password | error | ready */
 var ERROR = '';
 var BUSY = false;
@@ -113,7 +146,7 @@ function api(method, query, body) {
   });
 }
 function load() {
-  return api('GET').then(function (j) { ROWS = j.rows || []; STATE = 'ready'; });
+  return api('GET').then(function (j) { ROWS = j.rows || []; THREADS = j.threads || null; STATE = 'ready'; });
 }
 function fail(e) {
   if (e.code === 'password') { lsDel(PW_KEY); STATE = 'password'; ERROR = 'That password didn\'t work — check it and try again.'; }
@@ -228,6 +261,13 @@ function rowsHtml(items) {
       ' aria-label="Mark ' + esc(it.title) + ' done">';
     var item = '<button type="button" class="ptitle" data-edit="' + ref + '">' + esc(it.title) + '</button>';
     if (it.notes) { item += '<div class="pnotes">' + esc(it.notes) + '</div>'; }
+    var nC = commentsFor(it.ref).length, nA = attachmentsFor(it.ref).length;
+    if (nC || nA) {
+      item += '<div class="pmeta">' + (nC ? '<button type="button" class="pmeta-b" data-edit="' + ref + '" data-tab="disc">' +
+        nC + ' comment' + (nC === 1 ? '' : 's') + '</button>' : '') +
+        (nA ? '<button type="button" class="pmeta-b" data-edit="' + ref + '" data-tab="files">' + nA + ' file' +
+        (nA === 1 ? '' : 's') + ' &amp; link' + (nA === 1 ? '' : 's') + '</button>' : '') + '</div>';
+    }
     if (it.isEvent) {
       var invited = emailList(it.attendees).length;
       item += '<div class="pevent"><span class="tag eq">Event' + (it.eventDate ? ' · ' + esc(fmtDate(it.eventDate)) : '') +
@@ -323,7 +363,7 @@ function modalEl() {
   }
   return d;
 }
-function openModal(ref) {
+function openModal(ref, tab) {
   MODAL_REF = ref || null;
   var it = ref ? itemByRef(ref) : { title: '', owner: '', status: 'On-track', importance: '', due: '', notes: '',
                                     isEvent: false, eventDate: '', eventAddress: '', seed: false };
@@ -334,10 +374,16 @@ function openModal(ref) {
     : STATUSES.map(function (s) { return '<option' + (s === it.status ? ' selected' : '') + '>' + s + '</option>'; }).join('');
   var d = modalEl();
   d.innerHTML =
-    '<form method="dialog" class="pm" id="pm-form" novalidate>' +
-      '<div class="pm-head"><h3 id="pm-title">' + (ref ? 'Edit project' : 'New project') + '</h3>' +
+    '<div class="pm">' +
+      '<div class="pm-head"><h3 id="pm-title">' + (ref ? esc(it.title) : 'New project') + '</h3>' +
         '<button type="button" class="pm-x" id="pm-close" aria-label="Close">×</button></div>' +
       (seed ? '<p class="pm-sub">L10 rock · ' + esc(it.source) + '. The title and owner come from the L10 dashboard.</p>' : '') +
+      (ref ? '<div class="pm-tabs" role="tablist">' +
+        '<button type="button" role="tab" class="pm-tab" data-pane="details" aria-selected="true">Details</button>' +
+        '<button type="button" role="tab" class="pm-tab" data-pane="disc" aria-selected="false">Discussion <span id="pm-nc"></span></button>' +
+        '<button type="button" role="tab" class="pm-tab" data-pane="files" aria-selected="false">Files &amp; links <span id="pm-na"></span></button>' +
+        '</div>' : '') +
+    '<form method="dialog" id="pm-form" novalidate>' +
       '<div class="pm-grid">' +
         '<label class="pm-f pm-wide">Project / item' +
           '<input type="text" id="pm-t" maxlength="300" value="' + esc(it.title) + '"' + (seed ? ' readonly' : '') +
@@ -378,7 +424,9 @@ function openModal(ref) {
         '<div><button type="button" class="btn pm-cancel" id="pm-cancel">Cancel</button> ' +
         '<button type="submit" class="btn" id="pm-save">' + (ref ? 'Save changes' : 'Add project') + '</button></div>' +
       '</div>' +
-    '</form>';
+    '</form>' +
+    (ref ? '<div class="pm-pane" id="pm-disc" hidden></div><div class="pm-pane" id="pm-files" hidden></div>' : '') +
+    '</div>';
 
   document.getElementById('pm-e').addEventListener('change', function () {
     document.getElementById('pm-ev').hidden = !this.checked;
@@ -397,8 +445,170 @@ function openModal(ref) {
       modalWork(api('DELETE', '?id=' + encodeURIComponent(it.id)));
     });
   }
+  [].forEach.call(d.querySelectorAll('.pm-tab'), function (b) {
+    b.addEventListener('click', function () { showPane(this.getAttribute('data-pane')); });
+  });
   if (typeof d.showModal === 'function') { d.showModal(); } else { d.setAttribute('open', ''); }
-  document.getElementById(seed ? 'pm-s' : 'pm-t').focus();
+  if (ref) { renderDisc(); renderFiles(); }
+  if (ref && tab && tab !== 'details') { showPane(tab); } else { document.getElementById(seed ? 'pm-s' : 'pm-t').focus(); }
+}
+
+/* ── discussion + files tabs inside the popover ───────────────────────── */
+function commentsFor(ref) { return THREADS ? THREADS.comments.filter(function (c) { return c.project_key === ref; }) : []; }
+function attachmentsFor(ref) { return THREADS ? THREADS.attachments.filter(function (a) { return a.project_key === ref; }) : []; }
+function myName() { return lsGet(NAME_KEY) || ''; }
+function when(ts) {
+  var d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
+         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function fileSize(n) {
+  if (!n) { return ''; }
+  return n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+}
+function showPane(name) {
+  var d = document.getElementById('pmodal');
+  [].forEach.call(d.querySelectorAll('.pm-tab'), function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-pane') === name)); });
+  document.getElementById('pm-form').hidden = name !== 'details';
+  document.getElementById('pm-disc').hidden = name !== 'disc';
+  document.getElementById('pm-files').hidden = name !== 'files';
+  var focus = { details: 'pm-o', disc: 'pd-body', files: 'pf-url' }[name];
+  var el = document.getElementById(focus);
+  if (el && !el.readOnly) { el.focus(); }
+}
+function tabCounts() {
+  var nc = commentsFor(MODAL_REF).length, na = attachmentsFor(MODAL_REF).length;
+  var c = document.getElementById('pm-nc'), a = document.getElementById('pm-na');
+  if (c) { c.textContent = nc ? '(' + nc + ')' : ''; }
+  if (a) { a.textContent = na ? '(' + na + ')' : ''; }
+}
+function notReady(el) {
+  el.innerHTML = '<div class="pm-note">Discussion and files need two new tables and a storage bucket in Supabase. ' +
+    'Run the setup SQL from the top of <code>api/projects.js</code>, then reload.</div>';
+}
+/* run a thread/file action, refresh the data, redraw the pane and the table behind */
+function paneWork(promise, redraw, errEl) {
+  return promise.then(load).then(function () { redraw(); tabCounts(); render(); }, function (e) {
+    if (e.code === 'password') { closeModal(); fail(e); return; }
+    if (errEl) { errEl.textContent = e.message; errEl.hidden = false; }
+  });
+}
+
+function renderDisc() {
+  var el = document.getElementById('pm-disc');
+  if (!el) { return; }
+  if (!THREADS) { notReady(el); tabCounts(); return; }
+  var list = commentsFor(MODAL_REF);
+  el.innerHTML =
+    '<div class="thread" id="pd-list">' + (list.length ? list.map(function (c) {
+      return '<div class="msg"><div class="msg-h"><b>' + esc(c.author || 'Someone') + '</b><span>' + esc(when(c.created_at)) + '</span>' +
+        '<button type="button" class="msg-x" data-cdel="' + esc(c.id) + '" aria-label="Delete comment">×</button></div>' +
+        '<div class="msg-b">' + esc(c.body) + '</div></div>';
+    }).join('') : '<p class="pm-empty">No messages yet. Ask a question, flag missing information, or post an update.</p>') + '</div>' +
+    '<form class="composer" id="pd-form">' +
+      (myName() ? '' : '<label class="pm-f">Your name<input type="text" id="pd-name" maxlength="80" placeholder="Shown with your messages"></label>') +
+      '<label class="pm-f">Message<textarea id="pd-body" rows="3" maxlength="4000" placeholder="e.g. Not enough info to start — who is the contact at AzCA?"></textarea></label>' +
+      '<div class="pm-err" id="pd-err" hidden></div>' +
+      '<div class="composer-f"><span class="fine">' + (myName() ? 'Posting as <b>' + esc(myName()) + '</b> · ' +
+        '<a href="#" id="pd-rename">change</a>' : 'Everyone with the team password can see this thread.') + '</span>' +
+      '<button type="submit" class="btn" id="pd-send">Send</button></div>' +
+    '</form>';
+  var listEl = document.getElementById('pd-list');
+  listEl.scrollTop = listEl.scrollHeight;
+  var err = document.getElementById('pd-err');
+  document.getElementById('pd-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nameEl = document.getElementById('pd-name');
+    if (nameEl) {
+      if (!nameEl.value.trim()) { err.textContent = 'Add your name so the team knows who wrote it.'; err.hidden = false; nameEl.focus(); return; }
+      lsSet(NAME_KEY, nameEl.value.trim());
+    }
+    var body = document.getElementById('pd-body').value.trim();
+    if (!body) { document.getElementById('pd-body').focus(); return; }
+    document.getElementById('pd-send').disabled = true;
+    paneWork(api('POST', '?resource=comment', { project_key: MODAL_REF, author: myName(), body: body }), function () {
+      renderDisc(); document.getElementById('pd-body').focus();
+    }, err).then(function () { var b = document.getElementById('pd-send'); if (b) { b.disabled = false; } });
+  });
+  document.getElementById('pd-body').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.getElementById('pd-send').click(); }
+  });
+  var rn = document.getElementById('pd-rename');
+  if (rn) { rn.addEventListener('click', function (e) { e.preventDefault(); lsDel(NAME_KEY); renderDisc(); document.getElementById('pd-name').focus(); }); }
+  [].forEach.call(el.querySelectorAll('[data-cdel]'), function (b) {
+    b.addEventListener('click', function () {
+      if (!confirm('Delete this message for everyone?')) { return; }
+      paneWork(api('DELETE', '?resource=comment&id=' + encodeURIComponent(this.getAttribute('data-cdel'))), renderDisc, err);
+    });
+  });
+  tabCounts();
+}
+
+function renderFiles() {
+  var el = document.getElementById('pm-files');
+  if (!el) { return; }
+  if (!THREADS) { notReady(el); tabCounts(); return; }
+  var list = attachmentsFor(MODAL_REF);
+  el.innerHTML =
+    '<ul class="files">' + (list.length ? list.map(function (a) {
+      var meta = [a.kind === 'file' ? fileSize(a.size_bytes) : '', a.added_by || '', when(a.created_at)].filter(Boolean).join(' · ');
+      var open = a.kind === 'link'
+        ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer">' + esc(a.title || a.url) + '</a>'
+        : '<button type="button" class="file-dl" data-dl="' + esc(a.id) + '">' + esc(a.title) + '</button>';
+      return '<li><span class="ftype">' + (a.kind === 'link' ? 'Link' : 'File') + '</span><div class="fmain">' + open +
+        '<span class="fmeta">' + esc(meta) + '</span></div>' +
+        '<button type="button" class="msg-x" data-adel="' + esc(a.id) + '" aria-label="Remove">×</button></li>';
+    }).join('') : '<li class="pm-empty">Nothing attached yet. Add a link (Drive, Canva, a brief) or upload a file.</li>') + '</ul>' +
+    '<div class="pm-err" id="pf-err" hidden></div>' +
+    '<form class="addlink" id="pf-link">' +
+      '<label class="pm-f">Link<input type="url" id="pf-url" maxlength="2000" placeholder="https://…"></label>' +
+      '<label class="pm-f">Label (optional)<input type="text" id="pf-title" maxlength="200" placeholder="e.g. Event brief in Drive"></label>' +
+      '<button type="submit" class="btn">Add link</button>' +
+    '</form>' +
+    '<div class="upload"><label class="btn pm-cancel" for="pf-file">Upload a file</label>' +
+      '<input type="file" id="pf-file" class="vh"><span class="fine" id="pf-status">Up to 25 MB. Files are private to the team.</span></div>';
+  var err = document.getElementById('pf-err');
+  document.getElementById('pf-link').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var url = document.getElementById('pf-url').value.trim();
+    if (!/^https?:\/\//i.test(url)) { err.textContent = 'Links must start with http:// or https://'; err.hidden = false; return; }
+    paneWork(api('POST', '?resource=link', { project_key: MODAL_REF, url: url, title: document.getElementById('pf-title').value.trim(), added_by: myName() || null }),
+      renderFiles, err);
+  });
+  document.getElementById('pf-file').addEventListener('change', function () {
+    var f = this.files[0], status = document.getElementById('pf-status');
+    if (!f) { return; }
+    if (f.size > 25 * 1024 * 1024) { err.textContent = 'That file is ' + fileSize(f.size) + '; the limit is 25 MB.'; err.hidden = false; return; }
+    status.textContent = 'Uploading ' + f.name + '…';
+    var job = api('POST', '?resource=upload', { project_key: MODAL_REF, filename: f.name, size: f.size }).then(function (sig) {
+      var fd = new FormData();
+      fd.append('cacheControl', '3600');
+      fd.append('', f);
+      return fetch(sig.uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: fd }).then(function (r) {
+        if (!r.ok) { throw new Error('Upload failed (' + r.status + '). Check the project-files bucket exists in Supabase.'); }
+        return api('POST', '?resource=file', { project_key: MODAL_REF, title: f.name, storage_path: sig.path, size_bytes: f.size, added_by: myName() || null });
+      });
+    });
+    paneWork(job, renderFiles, err).then(function () { var s2 = document.getElementById('pf-status'); if (s2 && /Uploading/.test(s2.textContent)) { s2.textContent = 'Upload failed.'; } });
+  });
+  [].forEach.call(el.querySelectorAll('[data-dl]'), function (b) {
+    b.addEventListener('click', function () {
+      /* the signed URL is sent as an attachment, so following it downloads the
+         file without leaving this page */
+      api('GET', '?resource=download&id=' + encodeURIComponent(this.getAttribute('data-dl'))).then(function (j) {
+        var a = document.createElement('a');
+        a.href = j.url; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+      }, function (e) { err.textContent = e.message; err.hidden = false; });
+    });
+  });
+  [].forEach.call(el.querySelectorAll('[data-adel]'), function (b) {
+    b.addEventListener('click', function () {
+      if (!confirm('Remove this for everyone?')) { return; }
+      paneWork(api('DELETE', '?resource=attachment&id=' + encodeURIComponent(this.getAttribute('data-adel'))), renderFiles, err);
+    });
+  });
+  tabCounts();
 }
 function closeModal() {
   var d = document.getElementById('pmodal');
@@ -529,7 +739,7 @@ function wire() {
   on('#signout', 'click', function (e) { e.preventDefault(); lsDel(PW_KEY); ERROR = ''; STATE = 'password'; render(); });
 
   on('#np-open', 'click', function () { openModal(null); });
-  on('[data-edit]', 'click', function () { openModal(this.getAttribute('data-edit')); });
+  on('[data-edit]', 'click', function () { openModal(this.getAttribute('data-edit'), this.getAttribute('data-tab')); });
   on('.donechk', 'change', function () {
     var ref = this.getAttribute('data-ref'), it = itemByRef(ref);
     if (!it) { return; }
