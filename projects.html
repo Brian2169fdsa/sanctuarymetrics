@@ -35,34 +35,38 @@ function fmtDate(iso) {
   return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : iso;
 }
 
+/* the last L10 column is the current status; a tick-off here overrides it */
 function seedItems() {
   var meta = seedMeta();
   return L10.rows.map(function (r) {
-    var m = meta[r[0]] || {};
-    return { title: r[0], owner: 'Brian Reinhart', status: r[1].text,
-             importance: m.importance || '', due: m.due || '',
-             source: 'L10 dashboard · Aug 20, 2026', seed: true };
+    var m = meta[r[0]] || {}, cur = r[r.length - 1];
+    return { title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
+             importance: m.importance || '', due: m.due || '', prevStatus: m.prevStatus || '',
+             source: 'L10 dashboard · ' + L10.asOf, seed: true };
   });
 }
+function isDone(status) { return /^(done|complete)/i.test(status || ''); }
 function customItems() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch (e) { return []; }
 }
 function saveCustom(list) { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
 
 function tagFor(status) {
-  var s = status.toLowerCase();
+  var s = status.toLowerCase().split(' (')[0];
   if (s.indexOf('off') === 0) { return 'lo'; }
-  if (s === 'on-track' || s === 'complete') { return 'hi'; }
+  if (s === 'on-track' || s === 'complete' || s === 'done') { return 'hi'; }
   return 'eq';
 }
 
 function chips(items) {
   var counts = {};
-  items.forEach(function (i) { counts[i.status] = (counts[i.status] || 0) + 1; });
-  var hot = items.filter(function (i) { return i.importance === 'Hot'; }).length;
+  items.forEach(function (i) { var k = i.status.split(' (')[0]; counts[k] = (counts[k] || 0) + 1; });
+  var hot = items.filter(function (i) { return i.importance === 'Hot' && !isDone(i.status); }).length;
+  var done = items.filter(function (i) { return isDone(i.status); }).length;
   var s = '<div class="chips"><span class="c">' + items.length + ' items</span>' +
+          '<span class="c">' + (items.length - done) + ' open · ' + done + ' done</span>' +
           (hot ? '<span class="c" style="color:#C0492B">' + hot + ' Hot</span>' : '');
-  STATUSES.forEach(function (st) {
+  STATUSES.concat(['Done']).forEach(function (st) {
     if (counts[st]) { s += '<span class="c">' + counts[st] + ' ' + esc(st) + '</span>'; }
   });
   return s + '</div>';
@@ -72,6 +76,9 @@ function rowsHtml(items) {
   var s = '';
   items.forEach(function (it) {
     var ref = it.seed ? 'seed:' + it.title : 'custom:' + it.customIdx;
+    var done = isDone(it.status);
+    var checkCell = '<input type="checkbox" class="donechk" data-ref="' + esc(ref) + '"' + (done ? ' checked' : '') +
+      ' aria-label="Mark ' + esc(it.title) + ' done" style="width:18px;height:18px;cursor:pointer">';
     var statusCell;
     if (it.seed) {
       statusCell = '<span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span>';
@@ -89,7 +96,8 @@ function rowsHtml(items) {
       }).join('') + '</select>';
     var dateCell = '<input type="date" class="statsel duesel" data-ref="' + esc(ref) + '" value="' +
       esc(it.due || '') + '" aria-label="Complete date">';
-    s += '<tr><td>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
+    s += '<tr' + (done ? ' style="opacity:.6"' : '') + '><td>' + checkCell + '</td><td' +
+         (done ? ' style="text-decoration:line-through"' : '') + '>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
          '</td><td>' + impCell + '</td><td>' + dateCell + '</td><td>' + esc(it.source) + '</td></tr>';
   });
   return s;
@@ -111,19 +119,21 @@ function applyEdit(ref, field, value) {
 
 function render() {
   var custom = customItems().map(function (c, i) { c.customIdx = i; return c; });
-  var items = seedItems().concat(custom);
+  /* open items first, ticked-off items sink to the bottom */
+  var items = seedItems().concat(custom).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
 
   document.getElementById('sheet').innerHTML =
     pageHeader('Project Tracking',
       'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential',
-      'Seeded from the L10 Leadership dashboard · statuses as of the Aug 20, 2026 meeting', 'projects') +
+      'Seeded from the L10 Leadership dashboard · statuses as of the ' + esc(L10.asOf) + ' meeting', 'projects') +
     '<section>' +
       '<div class="eyebrow">Project tracker</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
       '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
-      'added below. L10 rows update when the dashboard is re-imported; rows added here can be edited or removed at any time.</p>' +
+      'added below. Tick the box to mark anything done — it moves to the bottom and can be unticked. L10 rows update when ' +
+      'the dashboard is re-imported; rows added here can be edited or removed at any time.</p>' +
       chips(items) +
-      '<div class="tw"><table><thead><tr><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
+      '<div class="tw"><table><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
       '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
     '</section>' +
     '<section>' +
@@ -142,7 +152,7 @@ function render() {
         '<button class="btn" id="np-add">Add project</button>' +
       '</div></div>' +
     '</section>' +
-    pageFooter('L10 Leadership dashboard (Rocks sheet), Aug 20, 2026 meeting column');
+    pageFooter('L10 Leadership dashboard (Rocks sheet), ' + L10.asOf + ' meeting column');
 
   applyDataLabels();
 
@@ -179,6 +189,23 @@ function render() {
   document.querySelectorAll('.duesel').forEach(function (inp) {
     inp.addEventListener('change', function () {
       applyEdit(this.getAttribute('data-ref'), 'due', this.value);
+      render();
+    });
+  });
+  document.querySelectorAll('.donechk').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var ref = this.getAttribute('data-ref');
+      var it = seedItems().concat(customItems().map(function (c, i) { c.customIdx = i; return c; }))
+        .filter(function (x) { return (x.seed ? 'seed:' + x.title : 'custom:' + x.customIdx) === ref; })[0];
+      if (this.checked) {
+        applyEdit(ref, 'prevStatus', it.status);
+        applyEdit(ref, 'status', 'Complete');
+      } else {
+        /* untick: a seed row falls back to its L10 status (or In Progress if L10
+           itself says Done); an added row goes back to what it was before */
+        var l10Done = it.seed && isDone(L10.rows.filter(function (r) { return r[0] === it.title; })[0].slice(-1)[0].text);
+        applyEdit(ref, 'status', it.seed ? (l10Done ? 'In Progress' : '') : (isDone(it.prevStatus) ? 'In Progress' : (it.prevStatus || 'In Progress')));
+      }
       render();
     });
   });

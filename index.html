@@ -100,9 +100,10 @@ function renderLinkedIn(c) {
   s += card(c.topPosts.title, table(c.topPosts.head, c.topPosts.rows));
 
   if (c.showCompetitors) {
-    s += card(COMPETITORS.title + ' — ' + COMPETITORS.window,
-      table(COMPETITORS.head, COMPETITORS.rows, { highlight: COMPETITORS.youIndex }),
-      COMPETITORS.note);
+    var C = c.competitors || COMPETITORS;
+    s += card(C.title + ' — ' + C.window,
+      table(C.head, C.rows, { highlight: C.youIndex }),
+      C.note);
   }
 
   if (c.industry) {
@@ -156,8 +157,8 @@ function renderRecommendations(snap) {
 }
 
 /* ── BizIQ campaign report (vendor report — not period-scoped) ───────── */
-function renderBizIQ() {
-  var B = BIZIQ;
+function renderBizIQ(B) {
+  B = B || BIZIQ;
   return '<section>' +
   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap">' +
     '<div>' +
@@ -185,11 +186,12 @@ function renderBizIQ() {
   '</section>';
 }
 
-function renderL10() {
+function renderL10(L) {
+  L = L || L10;
   return '<section><div class="eyebrow">L10 meeting</div>' +
     '<h2 style="font-size:22px;margin:6px 0 4px">Updates &amp; action items</h2>' +
-    '<p class="sub">' + esc(L10.source) + '</p>' +
-    card(L10.owner, table(L10.head, L10.rows, { numeric: function () { return false; } })) +
+    '<p class="sub">' + esc(L.source) + '</p>' +
+    card(L.owner, table(L.head, L.rows, { numeric: function () { return false; } })) +
     '<div class="placeholder" style="padding:16px">Other owners\' L10 items can be added here from the same dashboard on request.</div>' +
   '</section>';
 }
@@ -220,8 +222,8 @@ function render(id) {
     renderInstagram(ch.instagram) +
     renderLinkedIn(ch.linkedin) +
     renderRecommendations(snap) +
-    renderBizIQ() +
-    renderL10() +
+    renderBizIQ(snap.biziq) +
+    renderL10(snap.l10) +
     pageFooter(snap.dataLine);
 
   applyDataLabels();
