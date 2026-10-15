@@ -5,6 +5,59 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="report.css">
+<style>
+/* ── projects table ── */
+.ptools{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 8px}
+.ptools .chips{margin:0}
+.ptable td{vertical-align:top}
+.ptable .pchk input{width:18px;height:18px;cursor:pointer;margin-top:2px}
+.ptable .pitem{min-width:240px;max-width:460px}
+.ptitle{all:unset;cursor:pointer;font-weight:600;color:var(--ink);line-height:1.35}
+.ptitle:hover{color:var(--blue);text-decoration:underline}
+.ptitle:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
+.pnotes{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.pevent{font-size:12.5px;margin-top:6px}
+.pevent a{color:var(--blue)}
+.pdone{opacity:.6}
+.pdone .ptitle{text-decoration:line-through}
+.pedit{color:var(--teal)!important}
+.pedit:hover{background:#eef5f8!important}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* ── add / edit popover ── */
+#pmodal{border:0;padding:0;border-radius:16px;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px);
+  box-shadow:0 24px 60px rgba(22,38,59,.28);color:var(--ink);background:#fff}
+#pmodal::backdrop{background:rgba(22,38,59,.42);backdrop-filter:blur(2px)}
+.pm{padding:22px 24px 20px;font-family:Inter,sans-serif}
+.pm-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pm-head h3{font-family:Fraunces,serif;font-size:22px;font-weight:600;margin:0}
+.pm-x{all:unset;cursor:pointer;font-size:26px;line-height:1;color:var(--muted);padding:2px 8px;border-radius:8px}
+.pm-x:hover{background:#f1f5f7;color:var(--ink)}
+.pm-sub{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-top:18px}
+.pm-wide{grid-column:1/-1}
+.pm-f{display:flex;flex-direction:column;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.pm-f input,.pm-f select,.pm-f textarea{font-family:inherit;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400;
+  color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.pm-f textarea{resize:vertical;min-height:96px;line-height:1.45}
+.pm-f input[readonly]{background:#f6f9fa;color:var(--muted)}
+.pm-f input:focus,.pm-f select:focus,.pm-f textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.pm-check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer;padding:10px 12px;
+  border:1px solid var(--line);border-radius:10px;background:#fbfdfe}
+.pm-check input{width:18px;height:18px;cursor:pointer}
+.pm-event{display:grid;grid-template-columns:1fr 2fr;gap:14px 16px;padding:14px;border-radius:10px;background:#f3f8fb;border:1px solid #dbe8ef}
+.pm-event[hidden]{display:none}
+.pm-err{margin-top:14px;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
+.pm-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px;flex-wrap:wrap}
+.pm-foot > div{display:flex;gap:8px}
+.pm-cancel{background:transparent!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+.pm-cancel:hover{background:#f1f5f7!important}
+@media (max-width:600px){
+  .pm{padding:18px 16px}
+  .pm-grid,.pm-event{grid-template-columns:1fr}
+  .pm-foot{flex-direction:column-reverse;align-items:stretch}
+  .pm-foot > div{justify-content:flex-end}
+}
+</style>
 </head>
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
@@ -100,19 +153,23 @@ function l10Status(title) {
   var r = L10.rows.filter(function (x) { return x[0] === title; })[0];
   return r ? r[r.length - 1].text : '';
 }
+function extras(r) {
+  r = r || {};
+  return { notes: r.notes || '', isEvent: !!r.is_event, eventDate: r.event_date || '', eventAddress: r.event_address || '' };
+}
 function seedItems() {
   return L10.rows.map(function (r) {
     var m = seedRow(r[0]) || {}, cur = r[r.length - 1];
-    return { ref: 'seed:' + r[0], title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
-             importance: m.importance || '', due: m.due || '', prevStatus: m.prev_status || '',
-             source: 'L10 dashboard · ' + L10.asOf, seed: true };
+    return Object.assign({ ref: 'seed:' + r[0], title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
+             statusOverride: m.status || '', importance: m.importance || '', due: m.due || '', prevStatus: m.prev_status || '',
+             source: 'L10 dashboard · ' + L10.asOf, seed: true }, extras(m));
   });
 }
 function customItems() {
   return ROWS.filter(function (r) { return !r.seed_key; }).map(function (r) {
-    return { ref: 'row:' + r.id, id: r.id, title: r.title, owner: r.owner || '—', status: r.status || 'On-track',
+    return Object.assign({ ref: 'row:' + r.id, id: r.id, title: r.title, owner: r.owner || '', status: r.status || 'On-track',
              importance: r.importance || '', due: r.due || '', prevStatus: r.prev_status || '',
-             source: r.source || 'added here', seed: false };
+             source: r.source || 'added here', seed: false }, extras(r));
   });
 }
 function itemByRef(ref) {
@@ -131,15 +188,25 @@ function tagFor(status) {
   if (s === 'on-track' || s === 'complete' || s === 'done') { return 'hi'; }
   return 'eq';
 }
+function fmtDate(iso) {
+  if (!iso) { return ''; }
+  var d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function mapLink(addr) {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+}
 
 function chips(items) {
   var counts = {};
   items.forEach(function (i) { var k = i.status.split(' (')[0]; counts[k] = (counts[k] || 0) + 1; });
   var hot = items.filter(function (i) { return i.importance === 'Hot' && !isDone(i.status); }).length;
   var done = items.filter(function (i) { return isDone(i.status); }).length;
+  var events = items.filter(function (i) { return i.isEvent && !isDone(i.status); }).length;
   var s = '<div class="chips"><span class="c">' + items.length + ' items</span>' +
           '<span class="c">' + (items.length - done) + ' open · ' + done + ' done</span>' +
-          (hot ? '<span class="c" style="color:#C0492B">' + hot + ' Hot</span>' : '');
+          (hot ? '<span class="c" style="color:#C0492B">' + hot + ' Hot</span>' : '') +
+          (events ? '<span class="c">' + events + ' upcoming event' + (events === 1 ? '' : 's') + '</span>' : '');
   STATUSES.concat(['Done']).forEach(function (st) {
     if (counts[st]) { s += '<span class="c">' + counts[st] + ' ' + esc(st) + '</span>'; }
   });
@@ -151,29 +218,143 @@ function rowsHtml(items) {
   items.forEach(function (it) {
     var ref = esc(it.ref), done = isDone(it.status), dis = BUSY ? ' disabled' : '';
     var checkCell = '<input type="checkbox" class="donechk" data-ref="' + ref + '"' + (done ? ' checked' : '') + dis +
-      ' aria-label="Mark ' + esc(it.title) + ' done" style="width:18px;height:18px;cursor:pointer">';
-    var statusCell;
-    if (it.seed) {
-      statusCell = '<span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span>';
-    } else {
-      statusCell = '<select class="statsel stat" data-ref="' + ref + '" aria-label="Status"' + dis + '>';
-      STATUSES.forEach(function (st) {
-        statusCell += '<option' + (st === it.status ? ' selected' : '') + '>' + esc(st) + '</option>';
-      });
-      statusCell += '</select> <button class="btn ghost" data-del="' + esc(it.id) + '"' + dis + '>remove</button>';
+      ' aria-label="Mark ' + esc(it.title) + ' done">';
+    var item = '<button type="button" class="ptitle" data-edit="' + ref + '">' + esc(it.title) + '</button>';
+    if (it.notes) { item += '<div class="pnotes">' + esc(it.notes) + '</div>'; }
+    if (it.isEvent) {
+      item += '<div class="pevent"><span class="tag eq">Event' + (it.eventDate ? ' · ' + esc(fmtDate(it.eventDate)) : '') + '</span>' +
+        (it.eventAddress ? ' <a href="' + esc(mapLink(it.eventAddress)) + '" target="_blank" rel="noopener">' + esc(it.eventAddress) + '</a>' : '') +
+        '</div>';
     }
-    var impCell = '<select class="statsel impsel" data-ref="' + ref + '" aria-label="Importance"' + dis + '>' +
-      '<option value=""' + (it.importance ? '' : ' selected') + '>—</option>' +
-      IMPORTANCE.map(function (v) {
-        return '<option' + (v === it.importance ? ' selected' : '') + '>' + v + '</option>';
-      }).join('') + '</select>';
-    var dateCell = '<input type="date" class="statsel duesel" data-ref="' + ref + '" value="' +
-      esc(it.due || '') + '" aria-label="Complete date"' + dis + '>';
-    s += '<tr' + (done ? ' style="opacity:.6"' : '') + '><td>' + checkCell + '</td><td' +
-         (done ? ' style="text-decoration:line-through"' : '') + '>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
-         '</td><td>' + impCell + '</td><td>' + dateCell + '</td><td>' + esc(it.source) + '</td></tr>';
+    s += '<tr class="' + (done ? 'pdone' : '') + '">' +
+      '<td class="pchk">' + checkCell + '</td>' +
+      '<td class="pitem">' + item + '</td>' +
+      '<td>' + esc(it.owner || '—') + '</td>' +
+      '<td><span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span></td>' +
+      '<td>' + (it.importance ? '<span class="tag ' + it.importance.toLowerCase() + '">' + esc(it.importance) + '</span>' : '—') + '</td>' +
+      '<td style="white-space:nowrap">' + (it.due ? esc(fmtDate(it.due)) : '—') + '</td>' +
+      '<td><button type="button" class="btn ghost pedit" data-edit="' + ref + '"' + dis + '>Edit</button></td>' +
+    '</tr>';
   });
   return s;
+}
+
+/* ── the add / edit popover ───────────────────────────────────────────── */
+var MODAL_REF = null;   /* null = adding a new project */
+
+function modalEl() {
+  var d = document.getElementById('pmodal');
+  if (!d) {
+    d = document.createElement('dialog');
+    d.id = 'pmodal';
+    d.setAttribute('aria-labelledby', 'pm-title');
+    document.body.appendChild(d);
+    /* click on the dimmed backdrop closes it */
+    d.addEventListener('click', function (e) { if (e.target === d) { closeModal(); } });
+  }
+  return d;
+}
+function openModal(ref) {
+  MODAL_REF = ref || null;
+  var it = ref ? itemByRef(ref) : { title: '', owner: '', status: 'On-track', importance: '', due: '', notes: '',
+                                    isEvent: false, eventDate: '', eventAddress: '', seed: false };
+  var seed = !!it.seed;
+  var statusOpts = seed
+    ? '<option value="">L10 status: ' + esc(l10Status(it.title)) + '</option>' +
+      STATUSES.map(function (s) { return '<option' + (s === it.statusOverride ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+    : STATUSES.map(function (s) { return '<option' + (s === it.status ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+  var d = modalEl();
+  d.innerHTML =
+    '<form method="dialog" class="pm" id="pm-form" novalidate>' +
+      '<div class="pm-head"><h3 id="pm-title">' + (ref ? 'Edit project' : 'New project') + '</h3>' +
+        '<button type="button" class="pm-x" id="pm-close" aria-label="Close">×</button></div>' +
+      (seed ? '<p class="pm-sub">L10 rock · ' + esc(it.source) + '. The title and owner come from the L10 dashboard.</p>' : '') +
+      '<div class="pm-grid">' +
+        '<label class="pm-f pm-wide">Project / item' +
+          '<input type="text" id="pm-t" maxlength="300" value="' + esc(it.title) + '"' + (seed ? ' readonly' : '') +
+          ' placeholder="e.g. Q4 video content calendar" required></label>' +
+        '<label class="pm-f">Owner<input type="text" id="pm-o" maxlength="120" value="' + esc(it.owner) + '"' +
+          (seed ? ' readonly' : '') + ' placeholder="e.g. Brian Reinhart"></label>' +
+        '<label class="pm-f">Status<select id="pm-s">' + statusOpts + '</select></label>' +
+        '<label class="pm-f">Importance<select id="pm-i"><option value="">—</option>' +
+          IMPORTANCE.map(function (v) { return '<option' + (v === it.importance ? ' selected' : '') + '>' + v + '</option>'; }).join('') +
+        '</select></label>' +
+        '<label class="pm-f">Due date<input type="date" id="pm-d" value="' + esc(it.due) + '"></label>' +
+        '<label class="pm-f pm-wide">Notes &amp; details<textarea id="pm-n" rows="5" maxlength="4000" ' +
+          'placeholder="Anything the team should know — scope, next steps, contacts, links…">' + esc(it.notes) + '</textarea></label>' +
+        '<label class="pm-check pm-wide"><input type="checkbox" id="pm-e"' + (it.isEvent ? ' checked' : '') + '> This is an event</label>' +
+        '<div class="pm-event pm-wide" id="pm-ev"' + (it.isEvent ? '' : ' hidden') + '>' +
+          '<label class="pm-f">Event date<input type="date" id="pm-ed" value="' + esc(it.eventDate) + '"></label>' +
+          '<label class="pm-f">Address<input type="text" id="pm-ea" maxlength="300" value="' + esc(it.eventAddress) + '" ' +
+            'placeholder="e.g. Desert Willow Conference Center, 4340 E Cotton Center Blvd, Phoenix"></label>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pm-err" id="pm-err" role="alert" hidden></div>' +
+      '<div class="pm-foot">' +
+        (ref && !seed ? '<button type="button" class="btn ghost" id="pm-del">Remove project</button>' : '<span></span>') +
+        '<div><button type="button" class="btn pm-cancel" id="pm-cancel">Cancel</button> ' +
+        '<button type="submit" class="btn" id="pm-save">' + (ref ? 'Save changes' : 'Add project') + '</button></div>' +
+      '</div>' +
+    '</form>';
+
+  document.getElementById('pm-e').addEventListener('change', function () {
+    document.getElementById('pm-ev').hidden = !this.checked;
+    if (this.checked) { document.getElementById('pm-ed').focus(); }
+  });
+  document.getElementById('pm-form').addEventListener('input', function () { modalError(''); });
+  document.getElementById('pm-close').addEventListener('click', closeModal);
+  document.getElementById('pm-cancel').addEventListener('click', closeModal);
+  document.getElementById('pm-form').addEventListener('submit', function (e) { e.preventDefault(); saveModal(); });
+  var del = document.getElementById('pm-del');
+  if (del) {
+    del.addEventListener('click', function () {
+      if (!confirm('Remove this project for everyone?')) { return; }
+      modalWork(api('DELETE', '?id=' + encodeURIComponent(it.id)));
+    });
+  }
+  if (typeof d.showModal === 'function') { d.showModal(); } else { d.setAttribute('open', ''); }
+  document.getElementById(seed ? 'pm-s' : 'pm-t').focus();
+}
+function closeModal() {
+  var d = document.getElementById('pmodal');
+  if (d && d.open) { if (typeof d.close === 'function') { d.close(); } else { d.removeAttribute('open'); } }
+}
+function modalError(msg) {
+  var el = document.getElementById('pm-err');
+  el.textContent = msg; el.hidden = !msg;
+}
+/* run a save from the popover: on success close and refresh, on failure keep it open with the message */
+function modalWork(promise) {
+  var btn = document.getElementById('pm-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  modalError('');
+  return promise.then(load).then(function () { closeModal(); render(); }, function (e) {
+    if (e.code === 'password') { closeModal(); fail(e); return; }
+    btn.disabled = false; btn.textContent = MODAL_REF ? 'Save changes' : 'Add project';
+    modalError(e.message);
+  });
+}
+function saveModal() {
+  var v = function (id) { return document.getElementById(id).value.trim(); };
+  var isEvent = document.getElementById('pm-e').checked;
+  var title = v('pm-t');
+  if (!title) { modalError('Give the project a title.'); document.getElementById('pm-t').focus(); return; }
+  if (isEvent && !v('pm-ed')) { modalError('Add the event date, or untick "This is an event".'); document.getElementById('pm-ed').focus(); return; }
+  var fields = {
+    importance: v('pm-i'), due: v('pm-d'), notes: v('pm-n'),
+    is_event: isEvent, event_date: isEvent ? v('pm-ed') : null, event_address: isEvent ? v('pm-ea') : null
+  };
+  var it = MODAL_REF ? itemByRef(MODAL_REF) : null;
+  if (it && it.seed) {
+    fields.status = v('pm-s') || null;           /* blank = follow the L10 status */
+    return modalWork(saveFields(MODAL_REF, fields));
+  }
+  fields.status = v('pm-s');
+  fields.owner = v('pm-o');
+  if (it) { return modalWork(saveFields(MODAL_REF, fields)); }
+  fields.title = title;
+  fields.source = 'added here · ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return modalWork(api('POST', '', fields));
 }
 
 /* ── page states ──────────────────────────────────────────────────────── */
@@ -212,29 +393,16 @@ function render() {
       '<section>' +
         '<div class="eyebrow">Project tracker</div>' +
         '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
-        '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
-        'added below. Tick the box to mark anything done — it moves to the bottom and can be unticked. This list is ' +
-        'shared: everyone with the team password sees the same items and edits.' +
+        '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus the team\'s own ' +
+        'projects. Click a title or <b>Edit</b> to add notes, a due date or event details; tick the box to mark it done. ' +
+        'This list is shared — everyone with the team password sees the same items.' +
         (BUSY ? ' <b>Saving…</b>' : '') + '</p>' +
-        chips(items) +
-        '<div class="tw"><table><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
+        '<div class="ptools">' + chips(items) +
+          '<button type="button" class="btn" id="np-open"' + (BUSY ? ' disabled' : '') + '>+ New project</button></div>' +
+        '<div class="tw"><table class="ptable"><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th>' +
+        '<th>Importance</th><th>Due</th><th><span class="vh">Edit</span></th></tr></thead>' +
         '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
-      '</section>' +
-      '<section>' +
-        '<div class="sechead"><span class="dot" style="background:var(--blue)"></span><h2>Add a project</h2></div>' +
-        '<p class="sub">Added projects are saved to the shared list and appear for everyone.</p>' +
-        '<div class="card"><div class="addform">' +
-          '<div class="f"><label for="np-title">Project / item</label><input type="text" id="np-title" maxlength="300" placeholder="e.g. Q4 video content calendar"></div>' +
-          '<div class="f"><label for="np-owner">Owner</label><input type="text" id="np-owner" maxlength="120" placeholder="e.g. Brian Reinhart"></div>' +
-          '<div class="f"><label for="np-status">Status</label><select id="np-status">' +
-            STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
-          '<div class="f"><label for="np-imp">Importance</label><select id="np-imp">' +
-            '<option value="">—</option>' +
-            IMPORTANCE.map(function (v) { return '<option>' + v + '</option>'; }).join('') + '</select></div>' +
-          '<div class="f"><label for="np-due">Complete date</label><input type="date" id="np-due"></div>' +
-          '<button class="btn" id="np-add"' + (BUSY ? ' disabled' : '') + '>Add project</button>' +
-        '</div></div>' +
-        '<p class="sub" style="margin-top:10px"><a href="#" id="signout">Forget the team password on this browser</a></p>' +
+        '<p class="sub" style="margin-top:14px"><a href="#" id="signout">Forget the team password on this browser</a></p>' +
       '</section>';
   }
 
@@ -259,27 +427,8 @@ function wire() {
   on('#retry', 'click', function () { STATE = 'loading'; render(); start(); });
   on('#signout', 'click', function (e) { e.preventDefault(); lsDel(PW_KEY); ERROR = ''; STATE = 'password'; render(); });
 
-  on('#np-add', 'click', function () {
-    var t = document.getElementById('np-title').value.trim();
-    if (!t) { document.getElementById('np-title').focus(); return; }
-    act(api('POST', '', {
-      title: t,
-      owner: document.getElementById('np-owner').value.trim() || null,
-      status: document.getElementById('np-status').value,
-      importance: document.getElementById('np-imp').value,
-      due: document.getElementById('np-due').value,
-      source: 'added here · ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    }));
-  });
-  on('select.stat', 'change', function () {
-    act(saveFields(this.getAttribute('data-ref'), { status: this.value }));
-  });
-  on('.impsel', 'change', function () {
-    act(saveFields(this.getAttribute('data-ref'), { importance: this.value }));
-  });
-  on('.duesel', 'change', function () {
-    act(saveFields(this.getAttribute('data-ref'), { due: this.value }));
-  });
+  on('#np-open', 'click', function () { openModal(null); });
+  on('[data-edit]', 'click', function () { openModal(this.getAttribute('data-edit')); });
   on('.donechk', 'change', function () {
     var ref = this.getAttribute('data-ref'), it = itemByRef(ref);
     if (!it) { return; }
@@ -291,10 +440,6 @@ function wire() {
     } else {
       act(saveFields(ref, { status: (!it.prevStatus || isDone(it.prevStatus)) ? 'In Progress' : it.prevStatus }));
     }
-  });
-  on('[data-del]', 'click', function () {
-    if (!confirm('Remove this project for everyone?')) { return; }
-    act(api('DELETE', '?id=' + encodeURIComponent(this.getAttribute('data-del'))));
   });
 }
 
