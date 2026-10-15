@@ -23,6 +23,14 @@
        add column if not exists event_date    date,
        add column if not exists event_address text;
 
+     and for meeting invites (Teams / Outlook buttons on the page):
+
+     alter table public.projects
+       add column if not exists event_time     text,      -- 'HH:MM', 24-hour
+       add column if not exists event_duration integer,   -- minutes
+       add column if not exists attendees      text;      -- comma-separated emails
+     notify pgrst, 'reload schema';
+
    Two kinds of row share the table:
      seed_key = null      a project added on the page
      seed_key = <title>   the page's edits to an L10 rock (status, importance,
@@ -41,7 +49,9 @@ const crypto = require('crypto');
 const TABLE = 'projects';
 /* the only columns the page may write, with their maximum lengths */
 const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, prev_status: 120, source: 200,
-                 notes: 4000, event_date: 10, event_address: 300 };
+                 notes: 4000, event_date: 10, event_address: 300, event_time: 5, attendees: 4000 };
+const EMAIL = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[^\s@,;<>()]+$/;
+const MAX_ATTENDEES = 50;
 const DATE_FIELDS = { due: 1, event_date: 1 };
 
 function sendJSON(res, status, body) {
@@ -84,12 +94,32 @@ function clean(input) {
     if (v === null || v === undefined || v === '') { out[k] = null; return; }
     v = String(v).trim().slice(0, FIELDS[k]);
     if (DATE_FIELDS[k] && !/^\d{4}-\d{2}-\d{2}$/.test(v)) { throw new Error(k + ' must be YYYY-MM-DD'); }
+    if (k === 'event_time' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) { throw new Error('event_time must be HH:MM'); }
+    if (k === 'attendees') {
+      const list = v.split(/[\s,;]+/).filter(Boolean);
+      const bad = list.filter(function (a) { return !EMAIL.test(a); });
+      if (bad.length) { throw new Error('Not an email address: ' + bad.slice(0, 3).join(', ')); }
+      if (list.length > MAX_ATTENDEES) { throw new Error('Too many invitees (max ' + MAX_ATTENDEES + ')'); }
+      v = list.filter(function (a, i) { return list.indexOf(a) === i; }).join(', ') || null;
+    }
     out[k] = v;
   });
+  if ('event_duration' in (input || {})) {
+    const d = input.event_duration;
+    if (d === null || d === undefined || d === '') { out.event_duration = null; }
+    else {
+      const n = Number(d);
+      if (!Number.isInteger(n) || n < 5 || n > 1440) { throw new Error('event_duration must be 5–1440 minutes'); }
+      out.event_duration = n;
+    }
+  }
   /* the event flag is the one non-text column */
   if ('is_event' in (input || {})) { out.is_event = input.is_event === true || input.is_event === 'true'; }
   /* turning the event flag off clears the event details with it */
-  if (out.is_event === false) { out.event_date = null; out.event_address = null; }
+  if (out.is_event === false) {
+    out.event_date = null; out.event_address = null;
+    out.event_time = null; out.event_duration = null; out.attendees = null;
+  }
   return out;
 }
 
@@ -185,13 +215,13 @@ module.exports = async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST, PATCH, PUT, DELETE');
     return sendJSON(res, 405, { error: 'method', message: 'Method not allowed.' });
   } catch (e) {
-    const bad = /must be YYYY|JSON|body too large/.test(e.message);
+    const bad = /must be |Not an email|Too many invitees|JSON|body too large/.test(e.message);
     /* PGRST204 = a column the page sent doesn't exist yet (table not migrated) */
     const missingColumn = /PGRST204|Could not find the .* column/.test(e.message);
     return sendJSON(res, bad ? 400 : 502, {
       error: bad ? 'bad_request' : (missingColumn ? 'schema' : 'storage'),
       message: bad ? e.message
-        : missingColumn ? 'The projects table needs the notes/event columns — run the update SQL in Supabase (see api/projects.js).'
+        : missingColumn ? 'The projects table is missing a newer column — run the latest update SQL in Supabase (see api/projects.js).'
         : 'Could not reach the projects database. ' + (e.status === 404 ? 'Check the projects table exists.' : 'Try again shortly.')
     });
   }

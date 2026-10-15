@@ -44,8 +44,14 @@
 .pm-check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer;padding:10px 12px;
   border:1px solid var(--line);border-radius:10px;background:#fbfdfe}
 .pm-check input{width:18px;height:18px;cursor:pointer}
-.pm-event{display:grid;grid-template-columns:1fr 2fr;gap:14px 16px;padding:14px;border-radius:10px;background:#f3f8fb;border:1px solid #dbe8ef}
+.pm-event{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 16px;padding:14px;border-radius:10px;background:#f3f8fb;border:1px solid #dbe8ef}
 .pm-event[hidden]{display:none}
+.pm-ev-wide{grid-column:1/-1}
+.pm-meet{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pm-teams{background:#5B5FC7!important}
+.pm-teams:hover{background:#4a4eb0!important}
+.pm-hint{flex-basis:100%;margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+.pinv{font-size:12px;color:var(--muted)}
 .pm-err{margin-top:14px;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
 .pm-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px;flex-wrap:wrap}
 .pm-foot > div{display:flex;gap:8px}
@@ -155,7 +161,8 @@ function l10Status(title) {
 }
 function extras(r) {
   r = r || {};
-  return { notes: r.notes || '', isEvent: !!r.is_event, eventDate: r.event_date || '', eventAddress: r.event_address || '' };
+  return { notes: r.notes || '', isEvent: !!r.is_event, eventDate: r.event_date || '', eventAddress: r.event_address || '',
+           eventTime: r.event_time || '', eventDuration: r.event_duration || 60, attendees: r.attendees || '' };
 }
 function seedItems() {
   return L10.rows.map(function (r) {
@@ -222,8 +229,12 @@ function rowsHtml(items) {
     var item = '<button type="button" class="ptitle" data-edit="' + ref + '">' + esc(it.title) + '</button>';
     if (it.notes) { item += '<div class="pnotes">' + esc(it.notes) + '</div>'; }
     if (it.isEvent) {
-      item += '<div class="pevent"><span class="tag eq">Event' + (it.eventDate ? ' · ' + esc(fmtDate(it.eventDate)) : '') + '</span>' +
+      var invited = emailList(it.attendees).length;
+      item += '<div class="pevent"><span class="tag eq">Event' + (it.eventDate ? ' · ' + esc(fmtDate(it.eventDate)) : '') +
+        (it.eventTime ? ' · ' + esc(fmtTime(it.eventTime)) : '') + '</span>' +
+        (invited ? ' <span class="pinv">' + invited + ' invited</span>' : '') +
         (it.eventAddress ? ' <a href="' + esc(mapLink(it.eventAddress)) + '" target="_blank" rel="noopener">' + esc(it.eventAddress) + '</a>' : '') +
+        (it.eventDate && it.eventTime ? ' · <a href="' + esc(teamsLink(itemMeeting(it))) + '" target="_blank" rel="noopener">Teams invite</a>' : '') +
         '</div>';
     }
     s += '<tr class="' + (done ? 'pdone' : '') + '">' +
@@ -237,6 +248,64 @@ function rowsHtml(items) {
     '</tr>';
   });
   return s;
+}
+
+/* ── Teams / Outlook hand-off ──────────────────────────────────────────────
+   Both buttons open Microsoft's own "new meeting" form already filled in;
+   the person reviews it and clicks Send there, so invites go out from their
+   own calendar under their own login. Nothing is sent from this site.
+   Times use this browser's time zone (Phoenix for the team).              */
+var DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+/* local date + time (+ minutes) → ISO 8601 with this browser's UTC offset */
+function isoLocal(date, time, plusMin) {
+  var d = new Date(date + 'T' + time + ':00');
+  d = new Date(d.getTime() + (plusMin || 0) * 60000);
+  var off = -d.getTimezoneOffset(), sign = off >= 0 ? '+' : '-';
+  off = Math.abs(off);
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' +
+         pad(d.getMinutes()) + ':00' + sign + pad(Math.floor(off / 60)) + ':' + pad(off % 60);
+}
+function emailList(s) {
+  var seen = {};
+  return String(s || '').split(/[\s,;]+/).filter(function (a) {
+    var k = a.toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a) || seen[k]) { return false; }
+    seen[k] = 1; return true;
+  });
+}
+function meetingBody(m) {
+  var body = (m.notes || '').slice(0, 1200);
+  if (m.address) { body = 'Location: ' + m.address + (body ? '\n\n' + body : ''); }
+  return body;
+}
+function teamsLink(m) {
+  var start = isoLocal(m.date, m.time), end = isoLocal(m.date, m.time, m.duration);
+  return 'https://teams.microsoft.com/l/meeting/new?subject=' + encodeURIComponent(m.title) +
+    '&startTime=' + encodeURIComponent(start) + '&endTime=' + encodeURIComponent(end) +
+    (m.attendees.length ? '&attendees=' + encodeURIComponent(m.attendees.join(',')) : '') +
+    '&content=' + encodeURIComponent(meetingBody(m));
+}
+function outlookLink(m) {
+  var q = 'path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&subject=' + encodeURIComponent(m.title) +
+    (m.address ? '&location=' + encodeURIComponent(m.address) : '') +
+    '&body=' + encodeURIComponent(meetingBody(m)) +
+    (m.attendees.length ? '&to=' + encodeURIComponent(m.attendees.join(',')) : '');
+  if (m.time) {
+    q += '&startdt=' + encodeURIComponent(isoLocal(m.date, m.time)) + '&enddt=' + encodeURIComponent(isoLocal(m.date, m.time, m.duration));
+  } else {
+    q += '&allday=true&startdt=' + m.date + '&enddt=' + m.date;
+  }
+  return 'https://outlook.office.com/calendar/0/deeplink/compose?' + q;
+}
+function itemMeeting(it) {
+  return { title: it.title, date: it.eventDate, time: it.eventTime, duration: it.eventDuration || 60,
+           address: it.eventAddress, notes: it.notes, attendees: emailList(it.attendees) };
+}
+function fmtTime(t) {
+  if (!t) { return ''; }
+  var h = +t.slice(0, 2), m = t.slice(3);
+  return (h % 12 || 12) + ':' + m + (h < 12 ? ' AM' : ' PM');
 }
 
 /* ── the add / edit popover ───────────────────────────────────────────── */
@@ -282,11 +351,25 @@ function openModal(ref) {
         '<label class="pm-f">Due date<input type="date" id="pm-d" value="' + esc(it.due) + '"></label>' +
         '<label class="pm-f pm-wide">Notes &amp; details<textarea id="pm-n" rows="5" maxlength="4000" ' +
           'placeholder="Anything the team should know — scope, next steps, contacts, links…">' + esc(it.notes) + '</textarea></label>' +
-        '<label class="pm-check pm-wide"><input type="checkbox" id="pm-e"' + (it.isEvent ? ' checked' : '') + '> This is an event</label>' +
+        '<label class="pm-check pm-wide"><input type="checkbox" id="pm-e"' + (it.isEvent ? ' checked' : '') + '> This is an event or meeting</label>' +
         '<div class="pm-event pm-wide" id="pm-ev"' + (it.isEvent ? '' : ' hidden') + '>' +
           '<label class="pm-f">Event date<input type="date" id="pm-ed" value="' + esc(it.eventDate) + '"></label>' +
-          '<label class="pm-f">Address<input type="text" id="pm-ea" maxlength="300" value="' + esc(it.eventAddress) + '" ' +
-            'placeholder="e.g. Desert Willow Conference Center, 4340 E Cotton Center Blvd, Phoenix"></label>' +
+          '<label class="pm-f">Start time<input type="time" id="pm-et" step="900" value="' + esc(it.eventTime) + '"></label>' +
+          '<label class="pm-f">Length<select id="pm-du">' +
+            DURATIONS.map(function (n) {
+              return '<option value="' + n + '"' + (n === (it.eventDuration || 60) ? ' selected' : '') + '>' +
+                (n < 60 ? n + ' min' : (n / 60) + ' hr' + (n > 60 ? 's' : '')) + '</option>';
+            }).join('') + '</select></label>' +
+          '<label class="pm-f pm-ev-wide">Address<input type="text" id="pm-ea" maxlength="300" value="' + esc(it.eventAddress) + '" ' +
+            'placeholder="e.g. Desert Willow Conference Center, 4340 E Cotton Center Blvd, Phoenix — or Teams"></label>' +
+          '<label class="pm-f pm-ev-wide">Invitees<textarea id="pm-at" rows="2" maxlength="4000" ' +
+            'placeholder="name@sanctuaryrc.com, partner@example.org — separate with commas">' + esc(it.attendees) + '</textarea></label>' +
+          '<div class="pm-ev-wide pm-meet">' +
+            '<button type="button" class="btn pm-teams" id="pm-teams">Schedule Teams meeting</button>' +
+            '<button type="button" class="btn pm-cancel" id="pm-outlook">Add to Outlook calendar</button>' +
+            '<p class="pm-hint">Opens Teams or Outlook with everything filled in. Review it and click <b>Send</b> there — ' +
+            'invites go out from your own calendar. Save here too so the team sees the event.</p>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="pm-err" id="pm-err" role="alert" hidden></div>' +
@@ -302,6 +385,8 @@ function openModal(ref) {
     if (this.checked) { document.getElementById('pm-ed').focus(); }
   });
   document.getElementById('pm-form').addEventListener('input', function () { modalError(''); });
+  document.getElementById('pm-teams').addEventListener('click', function () { openMeeting('teams'); });
+  document.getElementById('pm-outlook').addEventListener('click', function () { openMeeting('outlook'); });
   document.getElementById('pm-close').addEventListener('click', closeModal);
   document.getElementById('pm-cancel').addEventListener('click', closeModal);
   document.getElementById('pm-form').addEventListener('submit', function (e) { e.preventDefault(); saveModal(); });
@@ -334,6 +419,20 @@ function modalWork(promise) {
     modalError(e.message);
   });
 }
+/* build the hand-off from what is in the popover right now (saved or not) */
+function openMeeting(kind) {
+  var v = function (id) { return document.getElementById(id).value.trim(); };
+  var title = v('pm-t'), date = v('pm-ed'), time = v('pm-et');
+  var raw = v('pm-at'), list = emailList(raw);
+  var bad = raw.split(/[\s,;]+/).filter(Boolean).filter(function (a) { return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a); });
+  if (!title) { modalError('Give it a title first.'); document.getElementById('pm-t').focus(); return; }
+  if (!date) { modalError('Add the event date first.'); document.getElementById('pm-ed').focus(); return; }
+  if (kind === 'teams' && !time) { modalError('A Teams meeting needs a start time.'); document.getElementById('pm-et').focus(); return; }
+  if (bad.length) { modalError('These don\'t look like email addresses: ' + bad.slice(0, 3).join(', ')); document.getElementById('pm-at').focus(); return; }
+  modalError('');
+  var m = { title: title, date: date, time: time, duration: +v('pm-du') || 60, address: v('pm-ea'), notes: v('pm-n'), attendees: list };
+  window.open(kind === 'teams' ? teamsLink(m) : outlookLink(m), '_blank', 'noopener');
+}
 function saveModal() {
   var v = function (id) { return document.getElementById(id).value.trim(); };
   var isEvent = document.getElementById('pm-e').checked;
@@ -342,7 +441,9 @@ function saveModal() {
   if (isEvent && !v('pm-ed')) { modalError('Add the event date, or untick "This is an event".'); document.getElementById('pm-ed').focus(); return; }
   var fields = {
     importance: v('pm-i'), due: v('pm-d'), notes: v('pm-n'),
-    is_event: isEvent, event_date: isEvent ? v('pm-ed') : null, event_address: isEvent ? v('pm-ea') : null
+    is_event: isEvent, event_date: isEvent ? v('pm-ed') : null, event_address: isEvent ? v('pm-ea') : null,
+    event_time: isEvent ? v('pm-et') : null, event_duration: isEvent ? (+v('pm-du') || 60) : null,
+    attendees: isEvent ? v('pm-at') : null
   };
   var it = MODAL_REF ? itemByRef(MODAL_REF) : null;
   if (it && it.seed) {
