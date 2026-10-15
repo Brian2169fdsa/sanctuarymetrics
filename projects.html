@@ -12,45 +12,119 @@
 <script src="chat.js" defer></script>
 <script>
 /* ── project tracker ──────────────────────────────────────────────────────
-   Seed rows come from the L10 dashboard (single source of truth: the L10
-   object in data.js). Rows added here are stored in THIS BROWSER's
-   localStorage — to make an item permanent for everyone, it goes into
-   data.js like the seeds.                                                 */
+   One shared list for the whole team, stored in Supabase through
+   /api/projects (see api/projects.js). The page asks for the team password
+   once and keeps it in this browser.
+
+   L10 rocks come from data.js (the L10 object — last column is the current
+   status). Edits made here to a rock (tick-off, importance, date) are stored
+   as a separate row keyed by the rock's title, so a new L10 import never
+   loses them. Projects added here are ordinary rows.
+
+   The first time a browser connects, anything it saved under the old
+   browser-only tracker (localStorage) is copied up once.                  */
 var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete'];
 var IMPORTANCE = ['Hot', 'Med', 'Cold'];
-var LS_KEY = 'src_projects_v1';
-var META_KEY = 'src_projects_meta_v1';   /* importance/date set on L10 seed rows */
+var API = '/api/projects';
+var PW_KEY = 'src_projects_pw';
+var OLD_LIST_KEY = 'src_projects_v1';       /* old browser-only store */
+var OLD_META_KEY = 'src_projects_meta_v1';
+var MIGRATED_KEY = 'src_projects_migrated_v1';
 
-function seedMeta() {
-  try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; }
+var ROWS = [];          /* rows from the server */
+var STATE = 'loading';  /* loading | password | error | ready */
+var ERROR = '';
+var BUSY = false;
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } }
+
+/* ── server calls ─────────────────────────────────────────────────────── */
+function api(method, query, body) {
+  return fetch(API + (query || ''), {
+    method: method,
+    headers: { 'Content-Type': 'application/json', 'X-Projects-Password': lsGet(PW_KEY) || '' },
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.code = j.error; e.status = r.status; throw e; }
+      return j;
+    });
+  });
 }
-function saveSeedMeta(m) { localStorage.setItem(META_KEY, JSON.stringify(m)); }
-function impTag(v) {
-  if (!v) { return '—'; }
-  return '<span class="tag ' + v.toLowerCase() + '">' + esc(v) + '</span>';
+function load() {
+  return api('GET').then(function (j) { ROWS = j.rows || []; STATE = 'ready'; });
 }
-function fmtDate(iso) {
-  if (!iso) { return ''; }
-  var p = iso.split('-');
-  return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : iso;
+function fail(e) {
+  if (e.code === 'password') { lsDel(PW_KEY); STATE = 'password'; ERROR = 'That password didn\'t work — check it and try again.'; }
+  else { STATE = 'error'; ERROR = e.message; }
+  render();
+}
+/* run a change, then re-read the list so everyone's edits show */
+function act(promise) {
+  BUSY = true; render();
+  return promise.then(load).then(function () { BUSY = false; render(); }, function (e) { BUSY = false; fail(e); });
 }
 
-/* the last L10 column is the current status; a tick-off here overrides it */
+/* ── one-time copy of the old browser-only data ───────────────────────── */
+function migrateOld() {
+  if (lsGet(MIGRATED_KEY)) { return Promise.resolve(); }
+  var list = [], meta = {};
+  try { list = JSON.parse(lsGet(OLD_LIST_KEY)) || []; } catch (e) { /* none */ }
+  try { meta = JSON.parse(lsGet(OLD_META_KEY)) || {}; } catch (e) { /* none */ }
+  var have = {};
+  ROWS.forEach(function (r) { if (!r.seed_key) { have[r.title + '|' + (r.owner || '')] = 1; } });
+  var jobs = [];
+  list.forEach(function (it) {
+    if (!it.title || have[it.title + '|' + (it.owner || '')]) { return; }   /* already copied by another tab */
+    jobs.push(function () {
+      return api('POST', '', { title: it.title, owner: it.owner, status: it.status, importance: it.importance,
+                               due: it.due, prev_status: it.prevStatus, source: it.source });
+    });
+  });
+  Object.keys(meta).forEach(function (k) {
+    var m = meta[k];
+    if (seedRow(k)) { return; }   /* the shared list already has edits for this rock — keep them */
+    jobs.push(function () {
+      return api('PUT', '', { seed_key: k, fields: { status: m.status, importance: m.importance, due: m.due, prev_status: m.prevStatus } });
+    });
+  });
+  return jobs.reduce(function (p, job) { return p.then(job); }, Promise.resolve())
+    .then(function () { lsSet(MIGRATED_KEY, new Date().toISOString()); return jobs.length ? load() : null; });
+}
+
+/* ── turning rows into table items ────────────────────────────────────── */
+function seedRow(title) { return ROWS.filter(function (r) { return r.seed_key === title; })[0]; }
+function l10Status(title) {
+  var r = L10.rows.filter(function (x) { return x[0] === title; })[0];
+  return r ? r[r.length - 1].text : '';
+}
 function seedItems() {
-  var meta = seedMeta();
   return L10.rows.map(function (r) {
-    var m = meta[r[0]] || {}, cur = r[r.length - 1];
-    return { title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
-             importance: m.importance || '', due: m.due || '', prevStatus: m.prevStatus || '',
+    var m = seedRow(r[0]) || {}, cur = r[r.length - 1];
+    return { ref: 'seed:' + r[0], title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
+             importance: m.importance || '', due: m.due || '', prevStatus: m.prev_status || '',
              source: 'L10 dashboard · ' + L10.asOf, seed: true };
   });
 }
-function isDone(status) { return /^(done|complete)/i.test(status || ''); }
 function customItems() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch (e) { return []; }
+  return ROWS.filter(function (r) { return !r.seed_key; }).map(function (r) {
+    return { ref: 'row:' + r.id, id: r.id, title: r.title, owner: r.owner || '—', status: r.status || 'On-track',
+             importance: r.importance || '', due: r.due || '', prevStatus: r.prev_status || '',
+             source: r.source || 'added here', seed: false };
+  });
 }
-function saveCustom(list) { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+function itemByRef(ref) {
+  return seedItems().concat(customItems()).filter(function (x) { return x.ref === ref; })[0];
+}
+/* save one or more fields on either kind of item */
+function saveFields(ref, fields) {
+  if (ref.indexOf('seed:') === 0) { return api('PUT', '', { seed_key: ref.slice(5), fields: fields }); }
+  return api('PATCH', '?id=' + encodeURIComponent(ref.slice(4)), fields);
+}
 
+function isDone(status) { return /^(done|complete)/i.test(status || ''); }
 function tagFor(status) {
   var s = status.toLowerCase().split(' (')[0];
   if (s.indexOf('off') === 0) { return 'lo'; }
@@ -75,27 +149,26 @@ function chips(items) {
 function rowsHtml(items) {
   var s = '';
   items.forEach(function (it) {
-    var ref = it.seed ? 'seed:' + it.title : 'custom:' + it.customIdx;
-    var done = isDone(it.status);
-    var checkCell = '<input type="checkbox" class="donechk" data-ref="' + esc(ref) + '"' + (done ? ' checked' : '') +
+    var ref = esc(it.ref), done = isDone(it.status), dis = BUSY ? ' disabled' : '';
+    var checkCell = '<input type="checkbox" class="donechk" data-ref="' + ref + '"' + (done ? ' checked' : '') + dis +
       ' aria-label="Mark ' + esc(it.title) + ' done" style="width:18px;height:18px;cursor:pointer">';
     var statusCell;
     if (it.seed) {
       statusCell = '<span class="tag ' + tagFor(it.status) + '">' + esc(it.status) + '</span>';
     } else {
-      statusCell = '<select class="statsel" data-idx="' + it.customIdx + '" aria-label="Status">';
+      statusCell = '<select class="statsel stat" data-ref="' + ref + '" aria-label="Status"' + dis + '>';
       STATUSES.forEach(function (st) {
         statusCell += '<option' + (st === it.status ? ' selected' : '') + '>' + esc(st) + '</option>';
       });
-      statusCell += '</select> <button class="btn ghost" data-del="' + it.customIdx + '">remove</button>';
+      statusCell += '</select> <button class="btn ghost" data-del="' + esc(it.id) + '"' + dis + '>remove</button>';
     }
-    var impCell = '<select class="statsel impsel" data-ref="' + esc(ref) + '" aria-label="Importance">' +
+    var impCell = '<select class="statsel impsel" data-ref="' + ref + '" aria-label="Importance"' + dis + '>' +
       '<option value=""' + (it.importance ? '' : ' selected') + '>—</option>' +
       IMPORTANCE.map(function (v) {
         return '<option' + (v === it.importance ? ' selected' : '') + '>' + v + '</option>';
       }).join('') + '</select>';
-    var dateCell = '<input type="date" class="statsel duesel" data-ref="' + esc(ref) + '" value="' +
-      esc(it.due || '') + '" aria-label="Complete date">';
+    var dateCell = '<input type="date" class="statsel duesel" data-ref="' + ref + '" value="' +
+      esc(it.due || '') + '" aria-label="Complete date"' + dis + '>';
     s += '<tr' + (done ? ' style="opacity:.6"' : '') + '><td>' + checkCell + '</td><td' +
          (done ? ' style="text-decoration:line-through"' : '') + '>' + esc(it.title) + '</td><td>' + esc(it.owner) + '</td><td>' + statusCell +
          '</td><td>' + impCell + '</td><td>' + dateCell + '</td><td>' + esc(it.source) + '</td></tr>';
@@ -103,121 +176,133 @@ function rowsHtml(items) {
   return s;
 }
 
-/* write an importance/date edit back to the right store */
-function applyEdit(ref, field, value) {
-  if (ref.indexOf('seed:') === 0) {
-    var meta = seedMeta(), key = ref.slice(5);
-    meta[key] = meta[key] || {};
-    meta[key][field] = value;
-    saveSeedMeta(meta);
-  } else {
-    var list = customItems();
-    list[+ref.slice(7)][field] = value;
-    saveCustom(list);
-  }
+/* ── page states ──────────────────────────────────────────────────────── */
+function passwordPanel() {
+  return '<section>' +
+    '<div class="eyebrow">Project tracker</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Team password</h2>' +
+    '<p class="lead">The project list is shared by the whole team. Enter the team password once — this browser will remember it.</p>' +
+    (ERROR ? '<div class="warn">' + esc(ERROR) + '</div>' : '') +
+    '<div class="card"><form class="addform" id="pwform" style="grid-template-columns:2fr auto">' +
+      '<div class="f"><label for="pw">Password</label><input type="password" id="pw" autocomplete="current-password" ' +
+      'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
+      '<button class="btn" type="submit">Open projects</button>' +
+    '</form></div></section>';
+}
+function messagePanel(title, body) {
+  return '<section><div class="eyebrow">Project tracker</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">' + title + '</h2>' + body + '</section>';
 }
 
 function render() {
-  var custom = customItems().map(function (c, i) { c.customIdx = i; return c; });
-  /* open items first, ticked-off items sink to the bottom */
-  var items = seedItems().concat(custom).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
+  var sub = 'Shared team list · L10 statuses as of the ' + esc(L10.asOf) + ' meeting';
+  var body;
+  if (STATE === 'loading') {
+    body = messagePanel('Loading projects…', '<p class="lead">Fetching the shared list.</p>');
+  } else if (STATE === 'password') {
+    body = passwordPanel();
+  } else if (STATE === 'error') {
+    body = messagePanel('Projects unavailable',
+      '<div class="warn">' + esc(ERROR) + '</div>' +
+      '<p class="lead"><button class="btn" id="retry">Try again</button></p>');
+  } else {
+    /* open items first, ticked-off items sink to the bottom */
+    var items = seedItems().concat(customItems()).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
+    body =
+      '<section>' +
+        '<div class="eyebrow">Project tracker</div>' +
+        '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
+        '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
+        'added below. Tick the box to mark anything done — it moves to the bottom and can be unticked. This list is ' +
+        'shared: everyone with the team password sees the same items and edits.' +
+        (BUSY ? ' <b>Saving…</b>' : '') + '</p>' +
+        chips(items) +
+        '<div class="tw"><table><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
+        '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
+      '</section>' +
+      '<section>' +
+        '<div class="sechead"><span class="dot" style="background:var(--blue)"></span><h2>Add a project</h2></div>' +
+        '<p class="sub">Added projects are saved to the shared list and appear for everyone.</p>' +
+        '<div class="card"><div class="addform">' +
+          '<div class="f"><label for="np-title">Project / item</label><input type="text" id="np-title" maxlength="300" placeholder="e.g. Q4 video content calendar"></div>' +
+          '<div class="f"><label for="np-owner">Owner</label><input type="text" id="np-owner" maxlength="120" placeholder="e.g. Brian Reinhart"></div>' +
+          '<div class="f"><label for="np-status">Status</label><select id="np-status">' +
+            STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
+          '<div class="f"><label for="np-imp">Importance</label><select id="np-imp">' +
+            '<option value="">—</option>' +
+            IMPORTANCE.map(function (v) { return '<option>' + v + '</option>'; }).join('') + '</select></div>' +
+          '<div class="f"><label for="np-due">Complete date</label><input type="date" id="np-due"></div>' +
+          '<button class="btn" id="np-add"' + (BUSY ? ' disabled' : '') + '>Add project</button>' +
+        '</div></div>' +
+        '<p class="sub" style="margin-top:10px"><a href="#" id="signout">Forget the team password on this browser</a></p>' +
+      '</section>';
+  }
 
   document.getElementById('sheet').innerHTML =
-    pageHeader('Project Tracking',
-      'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential',
-      'Seeded from the L10 Leadership dashboard · statuses as of the ' + esc(L10.asOf) + ' meeting', 'projects') +
-    '<section>' +
-      '<div class="eyebrow">Project tracker</div>' +
-      '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
-      '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus any projects ' +
-      'added below. Tick the box to mark anything done — it moves to the bottom and can be unticked. L10 rows update when ' +
-      'the dashboard is re-imported; rows added here can be edited or removed at any time.</p>' +
-      chips(items) +
-      '<div class="tw"><table><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th><th>Importance</th><th>Complete date</th><th>Source</th></tr></thead>' +
-      '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
-    '</section>' +
-    '<section>' +
-      '<div class="sechead"><span class="dot" style="background:var(--blue)"></span><h2>Add a project</h2></div>' +
-      '<p class="sub">Added items are saved in this browser only. To make one permanent for everyone, send it over ' +
-      'and it will be added to the site\'s data model alongside the L10 seeds.</p>' +
-      '<div class="card"><div class="addform">' +
-        '<div class="f"><label for="np-title">Project / item</label><input type="text" id="np-title" placeholder="e.g. Q4 video content calendar"></div>' +
-        '<div class="f"><label for="np-owner">Owner</label><input type="text" id="np-owner" placeholder="e.g. Brian Reinhart"></div>' +
-        '<div class="f"><label for="np-status">Status</label><select id="np-status">' +
-          STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' +
-        '<div class="f"><label for="np-imp">Importance</label><select id="np-imp">' +
-          '<option value="">—</option>' +
-          IMPORTANCE.map(function (v) { return '<option>' + v + '</option>'; }).join('') + '</select></div>' +
-        '<div class="f"><label for="np-due">Complete date</label><input type="date" id="np-due"></div>' +
-        '<button class="btn" id="np-add">Add project</button>' +
-      '</div></div>' +
-    '</section>' +
-    pageFooter('L10 Leadership dashboard (Rocks sheet), ' + L10.asOf + ' meeting column');
-
+    pageHeader('Project Tracking', 'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential', sub, 'projects') +
+    body +
+    pageFooter('L10 Leadership dashboard (Rocks sheet), ' + L10.asOf + ' meeting column · shared project list');
   applyDataLabels();
+  wire();
+}
 
-  document.getElementById('np-add').addEventListener('click', function () {
+/* ── event wiring ─────────────────────────────────────────────────────── */
+function on(sel, ev, fn) {
+  document.querySelectorAll(sel).forEach(function (el) { el.addEventListener(ev, fn); });
+}
+function wire() {
+  on('#pwform', 'submit', function (e) {
+    e.preventDefault();
+    lsSet(PW_KEY, document.getElementById('pw').value);
+    ERROR = ''; STATE = 'loading'; render(); start();
+  });
+  on('#retry', 'click', function () { STATE = 'loading'; render(); start(); });
+  on('#signout', 'click', function (e) { e.preventDefault(); lsDel(PW_KEY); ERROR = ''; STATE = 'password'; render(); });
+
+  on('#np-add', 'click', function () {
     var t = document.getElementById('np-title').value.trim();
     if (!t) { document.getElementById('np-title').focus(); return; }
-    var list = customItems();
-    list.push({
+    act(api('POST', '', {
       title: t,
-      owner: document.getElementById('np-owner').value.trim() || '—',
+      owner: document.getElementById('np-owner').value.trim() || null,
       status: document.getElementById('np-status').value,
       importance: document.getElementById('np-imp').value,
       due: document.getElementById('np-due').value,
       source: 'added here · ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    });
-    saveCustom(list);
-    render();
+    }));
   });
-
-  document.querySelectorAll('select.statsel[data-idx]').forEach(function (sel) {
-    sel.addEventListener('change', function () {
-      var list = customItems();
-      list[+this.getAttribute('data-idx')].status = this.value;
-      saveCustom(list);
-      render();
-    });
+  on('select.stat', 'change', function () {
+    act(saveFields(this.getAttribute('data-ref'), { status: this.value }));
   });
-  document.querySelectorAll('.impsel').forEach(function (sel) {
-    sel.addEventListener('change', function () {
-      applyEdit(this.getAttribute('data-ref'), 'importance', this.value);
-      render();
-    });
+  on('.impsel', 'change', function () {
+    act(saveFields(this.getAttribute('data-ref'), { importance: this.value }));
   });
-  document.querySelectorAll('.duesel').forEach(function (inp) {
-    inp.addEventListener('change', function () {
-      applyEdit(this.getAttribute('data-ref'), 'due', this.value);
-      render();
-    });
+  on('.duesel', 'change', function () {
+    act(saveFields(this.getAttribute('data-ref'), { due: this.value }));
   });
-  document.querySelectorAll('.donechk').forEach(function (chk) {
-    chk.addEventListener('change', function () {
-      var ref = this.getAttribute('data-ref');
-      var it = seedItems().concat(customItems().map(function (c, i) { c.customIdx = i; return c; }))
-        .filter(function (x) { return (x.seed ? 'seed:' + x.title : 'custom:' + x.customIdx) === ref; })[0];
-      if (this.checked) {
-        applyEdit(ref, 'prevStatus', it.status);
-        applyEdit(ref, 'status', 'Complete');
-      } else {
-        /* untick: a seed row falls back to its L10 status (or In Progress if L10
-           itself says Done); an added row goes back to what it was before */
-        var l10Done = it.seed && isDone(L10.rows.filter(function (r) { return r[0] === it.title; })[0].slice(-1)[0].text);
-        applyEdit(ref, 'status', it.seed ? (l10Done ? 'In Progress' : '') : (isDone(it.prevStatus) ? 'In Progress' : (it.prevStatus || 'In Progress')));
-      }
-      render();
-    });
+  on('.donechk', 'change', function () {
+    var ref = this.getAttribute('data-ref'), it = itemByRef(ref);
+    if (!it) { return; }
+    if (this.checked) {
+      act(saveFields(ref, { prev_status: it.status, status: 'Complete' }));
+    } else if (it.seed) {
+      /* untick a rock: fall back to its L10 status, or In Progress if L10 itself says Done */
+      act(saveFields(ref, { status: isDone(l10Status(it.title)) ? 'In Progress' : null }));
+    } else {
+      act(saveFields(ref, { status: (!it.prevStatus || isDone(it.prevStatus)) ? 'In Progress' : it.prevStatus }));
+    }
   });
-  document.querySelectorAll('[data-del]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var list = customItems();
-      list.splice(+this.getAttribute('data-del'), 1);
-      saveCustom(list);
-      render();
-    });
+  on('[data-del]', 'click', function () {
+    if (!confirm('Remove this project for everyone?')) { return; }
+    act(api('DELETE', '?id=' + encodeURIComponent(this.getAttribute('data-del'))));
   });
 }
+
+function start() {
+  if (lsGet(PW_KEY) === null) { STATE = 'password'; render(); return; }
+  load().then(migrateOld).then(function () { render(); }, fail);
+}
 render();
+start();
 </script>
 </body></html>
