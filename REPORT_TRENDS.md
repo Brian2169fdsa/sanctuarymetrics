@@ -2,7 +2,7 @@
 
 **Source:** every figure below comes from the site's data model (`data.js`) that feeds the Report, Compare and Two Weeks pages. Nothing here is new data; the only additions are computed ratios, marked *(computed)*.
 **Reports covered:** Aug 6, Aug 20, Sep 3, Sep 17, 2026. The site has four marketing snapshots, published every two weeks.
-**Prepared:** Oct 15, 2026.
+**Prepared:** Oct 15, 2026. **Update:** the Oct 1 and Oct 15 snapshots have since been added to the site (Report, Compare and Two Weeks pages), so the "no snapshot after Sep 17" gap below is closed.
 
 > **Read this first: the windows don't line up.** Each report uses whatever window each platform exported, so the snapshots are not one clean series:
 > - **Meta (FB/IG):** Aug 6 = Jul 9–Aug 5 · Aug 20 = Jul 23–Aug 19 · Sep 3 = Aug 6–Sep 2 · Sep 17 = Aug 20–Sep 16. These are all 28-day windows, and each one overlaps its neighbor by about 2 weeks. The **clean, non-overlapping pairs** are Aug 6 → Sep 3 and Aug 20 → Sep 17.
