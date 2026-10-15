@@ -19,3 +19,7 @@ __pycache__/
 # local secrets for the metrics pipeline (never commit)
 .env
 .env.*
+
+# M365 cleanup log: raw CSV holds full staff emails. The page ships only
+# the trimmed microsoft-cleanup.js built from it by tools/build-cleanup-js.py.
+sanctuary_m365_license_cleanup_*.csv
