@@ -77,3 +77,39 @@ body.ms{margin:0;background:#fff;color:var(--ms-ink);font-family:Inter,system-ui
 .ms .fine{font-size:12px;color:var(--ms-mute);margin:10px 0 0}
 .ms details summary{cursor:pointer;color:var(--ms-ink2);font-weight:600;font-size:13px;margin-top:10px}
 .ms footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--ms-line);font-size:12px;color:var(--ms-mute)}
+
+/* ── Cost cut so far: Oct 15 cleanup tracker ── */
+.ms .status.mute{color:var(--ms-mute);background:var(--ms-band);border:1px solid var(--ms-line)}
+.ms ol.tl{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.ms ol.tl li{border:1px solid var(--ms-line);border-top:3px solid var(--ms-good);border-radius:10px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:4px}
+.ms ol.tl li.pending{border-top-color:var(--ms-s2);background:#fffaf5}
+.ms ol.tl .when{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ms-mute)}
+.ms ol.tl b{color:var(--ms-ink2);font-size:14px}
+.ms ol.tl b a{color:inherit}
+.ms ol.tl .what{font-size:12.5px;color:var(--ms-mute)}
+@media (max-width:900px){.ms ol.tl{grid-template-columns:1fr}}
+.ms .sub-card{display:flex;flex-direction:column;gap:10px}
+.ms .sub-card.pending{border-top:3px solid var(--ms-s2)}
+.ms .sub-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ms .sub-top h3{margin:0;font-size:14px;line-height:1.35}
+.ms .sub-top .status{flex:0 0 auto;font-size:11px;padding:4px 9px;letter-spacing:.04em}
+.ms .seats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ms .seats div{background:var(--ms-band);border-radius:8px;padding:8px 10px}
+.ms .seats span{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ms-mute)}
+.ms .seats b{font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:600;color:var(--ms-ink);font-variant-numeric:tabular-nums}
+.ms .sub-card .meta{margin:0;font-size:12.5px;color:var(--ms-ink2)}
+.ms .sub-card .fine{margin:0}
+.ms .sub-card .next{margin:auto 0 0;padding:9px 11px;border-radius:8px;background:#fff4ec;color:var(--ms-s2);font-size:13px}
+.ms ol.open{margin:0;padding-left:20px}
+.ms ol.open li{padding:10px 0;border-bottom:1px solid var(--ms-line)}
+.ms ol.open li:last-child{border-bottom:none}
+.ms .oi-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.ms .oi-top .status{font-size:11px;padding:4px 9px;letter-spacing:.04em}
+.ms ol.open p{margin:6px 0 0;color:var(--ms-ink2);font-size:13.5px}
+.ms .sortb{all:unset;cursor:pointer;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.ms .sortb:hover{color:var(--ms-ink2)}
+.ms .sortb:focus-visible{outline:2px solid var(--ms-s1);outline-offset:2px;border-radius:3px}
+.ms #accts td .status{font-size:11px;padding:3px 8px;white-space:nowrap}
+.ms #accts td:nth-child(5){min-width:220px;color:var(--ms-ink2)}
+.ms tr.muted td{color:var(--ms-mute);background:var(--ms-band)}
+.ms #accts{min-width:820px}

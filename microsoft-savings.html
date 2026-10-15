@@ -5,6 +5,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="microsoft.css">
 <script src="microsoft-costs.js"></script>
+<script src="microsoft-cleanup.js"></script>
 </head>
 <body class="ms"><div class="wrap">
 <nav class="ms-bar" aria-label="Microsoft cost system"><a class="ms-back" href="index.html">&larr; Sanctuary report</a><a href="microsoft.html">Usage review</a><a href="microsoft-savings.html" aria-current="page">Cost cut so far</a><a href="microsoft-analytics.html">Analytics</a><span class="ms-sys">Microsoft cost system</span></nav>
@@ -13,25 +14,62 @@
 <div class="t"><h1>Cost cut so far</h1><p id="asof"></p></div></header>
 
 <section>
-<h2>The approved cut</h2>
+<h2>Oct 15 license cleanup</h2>
+<p class="sub" id="cLead"></p>
+<div class="grid g4" id="cKpis"></div>
+<p class="fine" id="cKpiNote"></p>
+</section>
+
+<section>
+<h2>How we got here</h2>
+<ol class="tl" id="timeline"></ol>
+</section>
+
+<section>
+<h2>Subscriptions: seats bought</h2>
+<p class="sub">Removing a license frees the seat; the bill only drops once the purchased seat count is reduced. One card per subscription.</p>
+<div class="grid g3" id="board"></div>
+</section>
+
+<section>
+<h2>Open items</h2>
+<div class="card"><ol class="open" id="open"></ol></div>
+</section>
+
+<section>
+<h2>Accounts cleaned up</h2>
+<p class="sub">Every account on the cleanup log. Click a column header to sort. Shown by mailbox name only.</p>
+<div class="card scroll"><table id="accts"></table></div>
+<div class="card" style="margin-top:14px" id="exoBulk"></div>
+</section>
+
+<section>
+<h2>What the removals add up to</h2>
+<p class="sub">Licenses removed × the rate on the cleanup log, before tax.</p>
+<div class="card scroll"><table id="freed"></table></div>
+<p class="fine" id="freedNote"></p>
+</section>
+
+<section>
+<h2>Background: the Sept 30 approved cut</h2>
 <p class="sub" id="lead"></p>
 <div class="grid g4" id="kpis"></div>
 </section>
 
 <section>
-<h2>Seats coming off</h2>
+<h2>Seats in the Sept 30 plan</h2>
 <p class="sub">Priced at the rates on the current Microsoft invoices.</p>
 <div class="card scroll"><table id="seats"></table></div>
 </section>
 
 <section>
-<h2>When it shows up on the bill</h2>
+<h2>When the plan expected it on the bill</h2>
 <div class="grid g2" id="timing"></div>
 </section>
 
 <section>
 <h2>Staying live</h2>
-<p class="sub">Kept as Elyssa asked: no changes to these four.</p>
+<p class="sub">Kept as Elyssa asked on Sept 30. On Oct 15 she approved removing Maguire's license; the other three are unchanged.</p>
 <div class="chips" id="kept"></div>
 </section>
 
@@ -51,15 +89,130 @@
 </section>
 
 <footer>Sanctuary Recovery Centers · Internal. Figures are pre-tax unless marked; tax at <span id="tax"></span> as on the invoices.
-Source: Microsoft invoices and the M365 Usage &amp; License Review.</footer>
+Source: Microsoft invoices, the M365 Usage &amp; License Review (snapshot Sept 27, 2026) and the license cleanup log of Oct 15, 2026
+(<span id="srcFile"></span>).</footer>
 </div>
 <script>
 (function () {
-  var d = MS_COSTS, c = d.approvedCut;
+  var d = MS_COSTS, c = d.approvedCut, L = MS_CLEANUP, K = L.kpis;
   var $ = function (id) { return document.getElementById(id); };
+  var day = function (iso, opts) {
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', opts || { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+  var tax = 1 + d.taxRate;
 
-  $('asof').textContent = 'As of ' + new Date(d.asOf + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  $('lead').textContent = c.accounts + ' accounts approved by ' + c.approvedBy + '.';
+  $('asof').textContent = 'Cleanup logged ' + day(L.loggedOn) + ' · usage snapshot ' + day(L.snapshot);
+  $('srcFile').textContent = L.source;
+
+  /* ── Oct 15 cleanup ─────────────────────────────────────────────────── */
+  $('cLead').textContent = K.accountsRemoved + ' accounts had their license removed and ' + K.exoRemoved +
+    ' Premium holders lost a redundant Exchange Online (Plan 2) seat. The seats themselves are still on the subscriptions, ' +
+    'so the invoice has not changed yet.';
+  var ck = [
+    ['Licenses removed', String(K.licensesRemoved), K.accountsRemoved + ' accounts + ' + K.exoRemoved + ' Exchange Online (Plan 2) seats', true],
+    ['Freed per month', msMoney(K.freedMonthly, true), 'value of the licenses removed, before tax'],
+    ['Off the invoice so far', msMoney(K.offInvoiceMonthly), K.offInvoiceMonthly ? 'per month' : 'seats not yet reduced'],
+    ['Comes off once seats are reduced', msMoney(K.pendingMonthly, true), msMoney(K.pendingMonthly * tax, true) + ' with tax · three pending reductions']
+  ];
+  $('cKpis').innerHTML = ck.map(function (k) {
+    return '<div class="card kpi' + (k[3] ? ' hero' : '') + '"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] +
+           '</div><div class="note">' + msEsc(k[2]) + '</div></div>';
+  }).join('');
+  $('cKpiNote').textContent = 'Rates: Exchange Online (Plan 2) at ' + msMoney(L.overrides.exo_rate, true) +
+    ' until the invoice line is confirmed; the 10-seat monthly Business Standard subscription at ' +
+    msMoney(L.overrides.standard_monthly_rate, true) + '. Freed is larger than what comes off the invoice: some freed seats sit on annual terms or stay purchased as headroom.';
+
+  /* ── timeline ───────────────────────────────────────────────────────── */
+  var tl = [
+    ['Sept 27', 'Usage snapshot', '180-day usage & license review of the tenant.', 'done', 'microsoft.html'],
+    ['Sept 30', 'Elyssa approves 24 accounts', 'The approved cut below.', 'done'],
+    ['Oct 15', 'Elyssa adds three more', 'Merriweather, iop@ and kmaguire added to the removal list.', 'done'],
+    ['Oct 15', 'Licenses removed', K.accountsRemoved + ' accounts and ' + K.exoRemoved + ' Exchange Online (Plan 2) seats, per the cleanup log.', 'done'],
+    ['Next', 'Seat reductions', 'Reduce purchased seats on the three pending subscriptions so the savings reach the invoice.', 'pending']
+  ];
+  $('timeline').innerHTML = tl.map(function (t) {
+    return '<li class="' + t[3] + '"><span class="when">' + t[0] + '</span><b>' +
+      (t[4] ? '<a href="' + t[4] + '">' + msEsc(t[1]) + '</a>' : msEsc(t[1])) + '</b><span class="what">' + msEsc(t[2]) + '</span></li>';
+  }).join('');
+
+  /* ── subscription board ─────────────────────────────────────────────── */
+  function chip(status) {
+    var cls = /^DONE/.test(status) ? 'good' : /^PENDING/.test(status) ? 'warn' : /^OPEN/.test(status) ? 'warn' : /LOCKED/.test(status) ? 'mute' : 'mute';
+    return '<span class="status ' + cls + '">' + msEsc(status) + '</span>';
+  }
+  $('board').innerHTML = L.subscriptions.map(function (s) {
+    var pending = s.status === 'PENDING';
+    var next = pending
+      ? '<p class="next"><b>Next step:</b> reduce purchased ' + s.after + ' → ' + s.target +
+        (s.pendingMonthly ? ' · ' + msMoney(s.pendingMonthly, true) + '/mo off the invoice' : '') + '</p>' : '';
+    return '<div class="card sub-card' + (pending ? ' pending' : '') + '">' +
+      '<div class="sub-top"><h3>' + msEsc(s.label) + '</h3>' + chip(s.status) + '</div>' +
+      '<div class="seats"><div><span>Before</span><b>' + s.before + '</b></div><div><span>Now</span><b>' + s.after + '</b></div>' +
+      '<div><span>Target</span><b>' + s.target + '</b></div></div>' +
+      '<p class="meta">' + (s.price ? msMoney(s.price, true) + ' / seat / mo' : 'No rate on the log') + ' · effective ' +
+      (s.effective ? day(s.effective, { month: 'short', day: 'numeric', year: 'numeric' }) : '—') + '</p>' +
+      (s.notes ? '<p class="fine">' + msEsc(s.notes) + '</p>' : '') + next + '</div>';
+  }).join('');
+
+  /* ── open items ─────────────────────────────────────────────────────── */
+  $('open').innerHTML = L.openItems.map(function (o) {
+    return '<li><div class="oi-top"><b>' + msEsc(o.item) + '</b>' + chip(o.status) + '</div>' +
+      (o.action ? '<p>' + msEsc(o.action) + '</p>' : '') + '</li>';
+  }).join('');
+
+  /* ── accounts table (sortable) ──────────────────────────────────────── */
+  var cols = [['who', 'Mailbox'], ['license', 'License removed'], ['blocked', 'Sign-in blocked'], ['status', 'Status'], ['notes', 'Notes']];
+  var sort = { k: null, dir: 1 };
+  function renderAccts() {
+    var rows = L.accounts.slice();
+    if (sort.k) {
+      rows.sort(function (a, b) { return String(a[sort.k]).localeCompare(String(b[sort.k]), 'en', { sensitivity: 'base' }) * sort.dir; });
+    }
+    $('accts').innerHTML = '<thead><tr>' + cols.map(function (cl) {
+      var on = sort.k === cl[0];
+      return '<th aria-sort="' + (on ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button type="button" class="sortb" data-k="' +
+        cl[0] + '">' + cl[1] + (on ? (sort.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>';
+    }).join('') + '</tr></thead><tbody>' + rows.map(function (a) {
+      return '<tr' + (a.muted ? ' class="muted"' : '') + '><td>' + msEsc(a.who) + '</td><td>' + msEsc(a.license) + '</td><td>' +
+        msEsc(a.blocked) + '</td><td>' + chip(a.status) + '</td><td>' + msEsc(a.notes || '') + '</td></tr>';
+    }).join('') + '</tbody>';
+    [].forEach.call(document.querySelectorAll('#accts .sortb'), function (b) {
+      b.addEventListener('click', function () {
+        var k = this.getAttribute('data-k');
+        sort.dir = sort.k === k ? -sort.dir : 1; sort.k = k;
+        renderAccts();
+        document.querySelector('#accts .sortb[data-k="' + k + '"]').focus();
+      });
+    });
+  }
+  renderAccts();
+
+  var bulk = L.exoBulk[0];
+  $('exoBulk').innerHTML = bulk
+    ? '<h3>Exchange Online (Plan 2) removed from ' + bulk.qty + ' Premium holders</h3>' +
+      '<p class="fine" style="margin:0 0 10px">' + msEsc(bulk.by) + '. ' + msEsc(bulk.notes) + '</p>' +
+      '<div class="chips">' + bulk.who.map(function (w) { return '<span class="chip">' + msEsc(w) + '</span>'; }).join('') + '</div>' +
+      (L.exoOpen.length ? '<p class="fine">Still holding Exchange Online (Plan 2): ' +
+        L.exoOpen.map(function (e) { return msEsc(e.who); }).join(', ') + ' — see open items.</p>' : '')
+    : '';
+
+  /* ── freed breakdown ────────────────────────────────────────────────── */
+  $('freed').innerHTML = '<thead><tr><th>License</th><th class="n">Removed</th><th class="n">Rate / mo</th><th class="n">Per month</th></tr></thead><tbody>' +
+    L.freedLines.map(function (f) {
+      return '<tr><td>' + msEsc(f.product) + '</td><td class="n">' + f.qty + '</td><td class="n">' + msMoney(f.price, true) +
+        '</td><td class="n">' + msMoney(f.monthly, true) + '</td></tr>';
+    }).join('') +
+    '<tr class="tot"><td>Total, before tax</td><td class="n">' +
+      L.freedLines.reduce(function (a, f) { return a + f.qty; }, 0) + '</td><td></td><td class="n">' + msMoney(K.freedMonthly, true) + '</td></tr></tbody>';
+  var multi = L.freedLines.reduce(function (a, f) { return a + f.qty; }, 0) - K.licensesRemoved;
+  if (multi > 0) {
+    $('freedNote').textContent = 'The headline counts ' + K.licensesRemoved + ' removals: one per account plus the ' + K.exoRemoved +
+      ' Exchange Online seats. This table counts every license, so an account that lost two licenses (kmaguire: Premium and ' +
+      'Exchange Online) appears twice here, which is why it totals ' + (K.licensesRemoved + multi) + '.';
+  }
+
+  /* ── background: the Sept 30 approved cut (unchanged) ────────────────── */
+  $('lead').textContent = c.accounts + ' accounts approved by ' + c.approvedBy + ' on Sept 30 — the plan the Oct 15 cleanup carried out.';
   $('tax').textContent = (d.taxRate * 100).toFixed(1) + '%';
 
   var kpis = [
@@ -67,10 +220,10 @@ Source: Microsoft invoices and the M365 Usage &amp; License Review.</footer>
     ['Per month, with tax', msMoney(Math.round(MS.cutWithTax)), msMoney(MS.cutWithTax, true) + ' exact'],
     ['Per year', msMoney(Math.round(MS.cutYearLow / 100) * 100) + ' – ' + msMoney(Math.round(MS.cutYearHigh / 100) * 100),
       'before tax → with tax'],
-    ['Off the next invoice', '≈ ' + msMoney(MS.immediate), 'per month, right away']
+    ['Planned off the next invoice', '≈ ' + msMoney(MS.immediate), 'per month, once seats are reduced']
   ];
-  $('kpis').innerHTML = kpis.map(function (k, i) {
-    return '<div class="card kpi' + (i === 0 ? ' hero' : '') + '"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] +
+  $('kpis').innerHTML = kpis.map(function (k) {
+    return '<div class="card kpi"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] +
            '</div><div class="note">' + k[2] + '</div></div>';
   }).join('');
 
