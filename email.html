@@ -89,7 +89,7 @@ function summary(rows) {
     ]) +
     grid2(
       card('Are these mailboxes used?',
-        meters([
+        gauges([
           { label: 'Mailboxes that received mail this window', value: withMail, total: rows.length,
             note: 'A group mailbox with no inbound mail across the whole window is a candidate ' +
                   'to retire — it is still costing storage and still an address people can reach.' },
@@ -116,45 +116,172 @@ function groupDetail(rows) {
             dash(num(r, 'Exchange Mailbox Total Item Count')),
             dash(num(r, 'Exchange Received Email Count'))];
   });
-  return table(head, body, { numeric: function (i) { return i >= 3; } });
+  return table(head, body, { numeric: function (i) { return i >= 3; },
+    /* Phone keeps group, mailbox size and received. */
+    secondary: function (i) { return [1, 2, 4].indexOf(i) !== -1; } });
 }
 
 /* ── people ──────────────────────────────────────────────────────────────
-   Rendered from whatever columns the report returned. Identity columns are
-   put first; everything else follows in report order. */
-function peopleTable(rows) {
+   These reports are long — 189 mailboxes and 180 activity rows in this tenant —
+   and dumping every row of every column produced a page 52,000 pixels tall
+   that nobody could read on a phone or a desktop. So: the columns worth
+   reading, in a deliberate order, ranked by the figure the table is about, and
+   capped.
+
+   Columns the report returns that are NOT listed here are still appended, so a
+   tenant whose report carries something extra sees it rather than losing it
+   silently. Report plumbing columns are dropped — they are the same value on
+   every row. */
+var PEOPLE_CAP = 50;
+
+var MAILBOX_COLS = [
+  ['Display Name',                'Mailbox',      'text'],
+  ['Last Activity Date',          'Last activity', 'date'],
+  ['Item Count',                  'Items',        'num'],
+  ['Storage Used (Byte)',         'Size',         'bytes'],
+  ['Prohibit Send Quota (Byte)',  'Quota',        'bytes'],
+  ['__fill',                      'Of quota',     'fill'],
+  ['Deleted Item Count',          'Deleted items', 'num'],
+  ['Has Archive',                 'Archive',      'text']
+];
+var ACTIVITY_COLS = [
+  ['Display Name',           'Person',        'text'],
+  ['Last Activity Date',     'Last activity', 'date'],
+  ['Send Count',             'Sent',          'num'],
+  ['Receive Count',          'Received',      'num'],
+  ['Read Count',             'Read',          'num'],
+  ['Meeting Created Count',  'Meetings made', 'num'],
+  ['Meeting Interacted Count', 'Meetings joined', 'num'],
+  ['Assigned Products',      'Licence',       'text']
+];
+
+/* Same value on every row — they belong in the page header, not 189 times. */
+var PLUMBING = { 'Report Refresh Date': 1, 'Report Period': 1, 'Is Deleted': 1,
+                 'Deleted Date': 1, 'User Principal Name': 1 };
+
+function peopleTable(rows, spec, sortCol) {
   if (!rows || !rows.length) { return ''; }
-  var cols = Object.keys(rows[0]).filter(function (c) { return c !== '__tenant'; });
-  var skip = { 'Report Refresh Date': 1, 'Report Period': 1 };
-  cols = cols.filter(function (c) { return !skip[c]; });
-  var body = rows.slice(0, 200).map(function (r) {
+  /* Anything the report returned that the spec does not name is appended, so a
+     tenant with extra columns sees them rather than losing them quietly. */
+  var named = {};
+  spec.forEach(function (c) { named[c[0]] = 1; });
+  var extra = Object.keys(rows[0]).filter(function (c) {
+    return c !== '__tenant' && !named[c] && !PLUMBING[c];
+  }).map(function (c) { return [c, c.replace(/ \(Byte\)$/, ''), /\(Byte\)/.test(c) ? 'bytes' : 'auto']; });
+  var cols = spec.concat(extra);
+
+  var sorted = rows.slice().sort(function (a, b) { return numOr0(b, sortCol) - numOr0(a, sortCol); });
+  var shown = sorted.slice(0, PEOPLE_CAP);
+
+  var body = shown.map(function (r) {
     return cols.map(function (c) {
-      var v = str(r, c);
-      if (/\(Byte\)/.test(c)) { return humanBytes(numOr0(r, c)); }
-      var n = num(r, c);
-      return (n !== null && /count|quota/i.test(c)) ? fmt(n) : (v || '—');
+      var key = c[0], kind = c[2];
+      if (kind === 'fill') {
+        var q = numOr0(r, 'Prohibit Send Quota (Byte)'), u = numOr0(r, 'Storage Used (Byte)');
+        if (!q) { return '—'; }
+        var pct = u / q * 100;
+        return (pct >= 1 ? Math.round(pct) : (pct > 0 ? '<1' : 0)) + '%';
+      }
+      if (kind === 'bytes') { return num(r, key) === null ? '—' : humanBytes(numOr0(r, key)); }
+      if (kind === 'num')   { return dash(num(r, key)); }
+      if (kind === 'date')  { return esc(str(r, key) || 'none in window'); }
+      var v = str(r, key);
+      if (kind === 'auto') { var n = num(r, key); if (n !== null) { return fmt(n); } }
+      return esc(v || '—');
     });
   });
-  var head = cols.map(function (c) { return c.replace(/ \(Byte\)$/, ''); });
-  return table(head, body, { numeric: function (i) { return /count|quota|byte|size/i.test(cols[i]); } });
+
+  var note = rows.length > PEOPLE_CAP
+    ? 'Top ' + PEOPLE_CAP + ' of ' + fmt(rows.length) + ', ranked by ' +
+      sortCol.replace(/ \(Byte\)$/, '').toLowerCase() + '. The full set is in the payload.'
+    : fmt(rows.length) + ' row' + (rows.length === 1 ? '' : 's') + '.';
+
+  return table(cols.map(function (c) { return c[1]; }), body,
+               { numeric: function (i) { return ['num', 'bytes', 'fill'].indexOf(cols[i][2]) !== -1; },
+                 /* Name and the first two figures survive on a phone. */
+                 secondary: function (i) { return i > 3; } }) +
+         '<p class="note" style="font-size:11.5px;color:var(--muted);margin:8px 0 0">' +
+         esc(note) + '</p>';
+}
+
+/* ── people summary ──────────────────────────────────────────────────────
+   Unlike SharePoint's pooled tenant allocation, a mailbox quota is a real
+   per-mailbox ceiling — the size at which Exchange stops accepting mail — so a
+   share of it is a genuine measurement and a fair gauge.
+
+   Which makes the headline here an absence: if nobody is near their quota,
+   that is the answer, and the meter says so in one line instead of 189 rows of
+   sub-1% bars. */
+function peopleSummary(mb, act) {
+  var n = function (r, c) { var v = num(r, c); return v === null ? 0 : v; };
+  var fills = [];
+  mb.forEach(function (r) {
+    var q = n(r, 'Prohibit Send Quota (Byte)'), u = n(r, 'Storage Used (Byte)');
+    if (q > 0) { fills.push({ pct: u / q * 100, used: u }); }
+  });
+  var over50 = fills.filter(function (f) { return f.pct > 50; }).length;
+  var over80 = fills.filter(function (f) { return f.pct > 80; }).length;
+  var sorted = fills.map(function (f) { return f.pct; }).sort(function (a, b) { return a - b; });
+  var median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  var storage = mb.reduce(function (a, r) { return a + n(r, 'Storage Used (Byte)'); }, 0);
+  var sent = act.reduce(function (a, r) { return a + n(r, 'Send Count'); }, 0);
+  var received = act.reduce(function (a, r) { return a + n(r, 'Receive Count'); }, 0);
+  var read = act.reduce(function (a, r) { return a + n(r, 'Read Count'); }, 0);
+  var meetings = act.reduce(function (a, r) { return a + n(r, 'Meeting Created Count'); }, 0);
+  var silent = act.filter(function (r) { return n(r, 'Send Count') === 0; }).length;
+
+  var tiles = [
+    { lab: 'Mailboxes', num: fmt(mb.length), note: 'individual, excluding shared' },
+    { lab: 'Mail stored', num: humanBytes(storage),
+      note: 'median mailbox at ' + (median < 1 ? '<1' : Math.round(median)) + '% of its quota' },
+    { lab: 'Sent', num: fmt(sent), note: 'in the reporting window' },
+    { lab: 'Received', num: fmt(received), note: fmt(read) + ' read' },
+    { lab: 'Meetings created', num: fmt(meetings), note: 'in the window' },
+    { lab: 'Sent nothing', num: fmt(silent), note: 'no mail sent in the window' }
+  ];
+
+  return kpis(tiles) + grid2(
+    card('Is anyone near their mailbox limit?',
+      gauges([
+        { label: 'Mailboxes above 80% of the send quota', value: over80, total: fills.length,
+          note: over80 === 0
+            ? 'None. Exchange stops accepting mail at the send quota, so this is the number that ' +
+              'would matter — and nobody is close to it.'
+            : 'These stop receiving mail when they hit the quota.' },
+        { label: 'Mailboxes above 50% of the send quota', value: over50, total: fills.length },
+        { label: 'People who sent mail this window', value: act.length - silent, total: act.length }
+      ], AREA.email),
+      'A mailbox quota is a real per-mailbox ceiling, unlike the pooled tenant storage ' +
+      'allocation on the SharePoint tab — so a share of it is a measurement, not decoration.'),
+    card('Largest mailboxes',
+      hbar(rankSeries(mb, 'Display Name', 'Storage Used (Byte)', 10)
+             .map(function (d) { return { label: d.label, value: Math.round(d.value / 1073741824 * 10) / 10 }; }),
+           { color: AREA.email, barX: 150, W: chartW(true) }),
+      'Top 10, in GB. Names are redacted unless the payload was built with --include-people.')
+  );
 }
 
 function peopleSection() {
   var p = STATE.payload;
   var mb = p.people.mailboxes || [], act = p.people.email_activity || [];
   var s = '';
+  if (mb.length || act.length) { s += peopleSummary(mb, act); }
   if (p.peopleRedacted) {
     s += '<div class="warn" style="margin:0 0 16px"><b>Names are redacted.</b> ' +
          'This payload was built without <code>--include-people</code>, so individual ' +
          'addresses read <code>a•••@domain</code>. Every count below is real.</div>';
   }
   if (mb.length) {
-    s += card('Individual mailboxes (' + fmt(mb.length) + ')', peopleTable(mb),
-      'Every column the mailbox report returned, in its own order. Showing up to 200 rows.');
+    s += card('Largest mailboxes (' + fmt(mb.length) + ' total)',
+      peopleTable(mb, MAILBOX_COLS, 'Storage Used (Byte)'),
+      'Of quota is size against the prohibit-send quota — the point Exchange stops ' +
+      'accepting mail. A column the report returned that is not named above is appended ' +
+      'rather than dropped.');
   }
   if (act.length) {
-    s += card('Individual email activity (' + fmt(act.length) + ')', peopleTable(act),
-      'Send, receive and read counts are Microsoft\'s. No message content is collected.');
+    s += card('Busiest senders (' + fmt(act.length) + ' people total)',
+      peopleTable(act, ACTIVITY_COLS, 'Send Count'),
+      'Counts are Microsoft\'s. No message content is collected or collectable.');
   }
   return s;
 }

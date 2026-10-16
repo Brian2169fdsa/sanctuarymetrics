@@ -147,6 +147,55 @@ function meters(items, color) {
   }).join('') + '</div>';
 }
 
+/* ── gauges ──────────────────────────────────────────────────────────────
+   A 180° arc, same rule as the bar meter it replaces: only where a real
+   denominator exists. The arc is the form people mean by "gauge" — the value
+   reads as a position on a fixed sweep, so a glance says "barely started" or
+   "nearly full" without reading the number.
+
+   Kept deliberately plain: one track arc, one value arc, the percentage in the
+   middle, the raw counts underneath. No needle, no tick marks, no coloured
+   zones — those spend pixels on decoration and imply thresholds the data has
+   not earned. Rounded stroke caps give the 4px data-end the mark spec wants. */
+function arcPath(cx, cy, r, fromDeg, toDeg) {
+  var rad = function (d) { return (d - 180) * Math.PI / 180; };
+  var x1 = cx + r * Math.cos(rad(fromDeg)), y1 = cy + r * Math.sin(rad(fromDeg));
+  var x2 = cx + r * Math.cos(rad(toDeg)),   y2 = cy + r * Math.sin(rad(toDeg));
+  var large = (toDeg - fromDeg) > 180 ? 1 : 0;
+  return 'M' + r1(x1) + ' ' + r1(y1) + ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' +
+         r1(x2) + ' ' + r1(y2);
+}
+
+function gauges(items, color) {
+  if (!items || !items.length) { return ''; }
+  var W = 150, H = 96, cx = 75, cy = 82, r = 60, sw = 13;
+  return '<div class="gauges">' + items.map(function (d, i) {
+    var has = d.value !== null && d.value !== undefined &&
+              d.total !== null && d.total !== undefined && d.total > 0;
+    var frac = has ? Math.max(0, Math.min(1, d.value / d.total)) : 0;
+    var pct = has ? frac * 100 : null;
+    /* Below 1% still draws a visible sliver: an arc identical to the empty
+       track would read as "no data" rather than "almost none". */
+    var sweep = has && frac > 0 ? Math.max(180 * frac, 2.5) : 0;
+    var gid = 'g' + i + '-' + Math.random().toString(36).slice(2, 7);
+    return '<figure class="gauge">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+        esc(d.label) + ': ' + (has ? Math.round(pct) + ' percent' : 'not measured') + '">' +
+        '<path d="' + arcPath(cx, cy, r, 0, 180) + '" fill="none" stroke="var(--line)" ' +
+          'stroke-width="' + sw + '" stroke-linecap="round"/>' +
+        (sweep ? '<path d="' + arcPath(cx, cy, r, 0, sweep) + '" fill="none" stroke="' + color +
+          '" stroke-width="' + sw + '" stroke-linecap="round"/>' : '') +
+        '<text x="' + cx + '" y="' + (cy - 14) + '" text-anchor="middle" class="gauge-num">' +
+          (has ? (pct >= 1 ? Math.round(pct) : (pct > 0 ? '<1' : '0')) + '%' : '—') + '</text>' +
+        '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" class="gauge-sub">' +
+          (has ? fmt(d.value) + ' of ' + fmt(d.total) : 'not measured') + '</text>' +
+      '</svg>' +
+      '<figcaption class="gauge-lab">' + esc(d.label) + '</figcaption>' +
+      (d.note ? '<div class="gauge-note">' + esc(d.note) + '</div>' : '') +
+    '</figure>';
+  }).join('') + '</div>';
+}
+
 /* ── ranked bars ─────────────────────────────────────────────────────────
    Top n rows by a column, as an hbar series. Rows with no value are dropped
    rather than plotted as zero. */

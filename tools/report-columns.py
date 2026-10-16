@@ -55,7 +55,7 @@ EXPECTED = {
     # on top of it. A workload the tenant never enabled returns no rows.
     "getMailboxUsageDetail": [],
     "getEmailActivityUserDetail": [],
-    "getTeamsUserActivityDetail": [],
+    "getTeamsUserActivityUserDetail": [],
 }
 
 # Reports whose columns scan.py keeps wholesale — the "(scan.py does not read
@@ -63,7 +63,7 @@ EXPECTED = {
 KEEPS_EVERYTHING = {
     "getMailboxUsageDetail",
     "getEmailActivityUserDetail",
-    "getTeamsUserActivityDetail",
+    "getTeamsUserActivityUserDetail",
 }
 
 
