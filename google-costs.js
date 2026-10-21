@@ -45,6 +45,7 @@ var GOOGLE_COSTS = {
      shown on google.html to signed-in staff. From the Oct 21 review. */
   review: {
     checkedOn: '2026-10-21', accounts: 13, ready: 5, verify: 5, keep: 3,
+    gmailImported: 7, gmailImportedWhen: 'Nov 2023 – Feb 2024', gmailNotImported: 2,
     googleGB: 48.1, driveNotInM365GB: 5.6,
     sharedDrives: 'TIP 2.0, Cirriculum, Curriculum, Updated IOP Portal, IOP (about 80 MB)'
   },
@@ -58,12 +59,13 @@ var GOOGLE_COSTS = {
 
   /* Every place in Microsoft 365 a Google migration would leave a trace. */
   evidence: [
-    { check: 'Exchange migration batches', result: '0 batches', finding: 'No mailbox migration from Gmail is on record.' },
+    { check: 'Exchange migration batches', result: '0 batches', finding: 'None remain, but the import did happen (see the [Gmail] folders) — the batches were removed after it finished.' },
     { check: 'Migration Manager: Google Workspace', result: 'Never set up', finding: 'Google Drive was not moved with SharePoint Migration Manager.' },
     { check: '"Sanctuary Google Archive" SharePoint site', result: '2 files, 0 GB', finding: 'The site made for the Google files (created Jun 9) is empty.' },
     { check: 'Personal archive site for a kept account', result: '3 files, 0 GB', finding: 'That account\'s Google Drive files are not there.' },
     { check: 'TIP 2.0 SharePoint site', result: '431 files, 0.87 GB', finding: 'Google\'s TIP 2.0 shared drive is 59 MB, so this likely covers it.' },
-    { check: 'Matching Microsoft 365 mailboxes', result: '10 of 13 accounts', finding: 'They exist and are bigger than Gmail, but were in use before — size alone does not prove the Gmail history was imported.' }
+    { check: 'Gmail history in 365 mailboxes', result: '7 accounts imported', finding: 'Exchange shows [Gmail] folders holding mail dated before each 365 mailbox existed: the Gmail history was imported, Nov 2023 – Feb 2024. Not imported: the 2 accounts with no 365 mailbox.' },
+    { check: 'OneDrive storage per user', result: 'Larger than Google Drive for most', finding: 'Most Verify accounts have more in OneDrive than in Google Drive, so files may have been copied there. One (6 MB in OneDrive against 2.9 GB in Drive) clearly was not.' }
   ],
 
   /* Savings confirmed on an actual invoice. Example: { month: '2026-11', monthly: 84.00, note: '' } */
@@ -85,8 +87,8 @@ var GOOGLE_COSTS = {
       detail: 'Tick accounts on this page and send them for approval. Ulonda is locked as must-keep.',
       status: 'doing' },
     { step: 'Confirm the Gmail history is in 365',
-      detail: 'Open a 365 mailbox (Ulonda\'s is the best test) and look for mail dated before 365 went live. If it isn\'t there, export from Gmail before deleting.',
-      status: 'todo' },
+      detail: 'Done Oct 21: Exchange shows imported [Gmail] folders in 7 mailboxes (Nov 2023 – Feb 2024). Still to export: the 2 accounts with no 365 mailbox.',
+      status: 'done' },
     { step: 'Point sanctuarysoberliving.com mail to Microsoft 365',
       detail: 'Its MX still points to Gmail, and info@sanctuarysoberliving.com still receives mail there. Create the 365 mailbox, then switch MX.',
       status: 'todo' },

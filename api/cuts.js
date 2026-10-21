@@ -52,7 +52,14 @@ async function google(req, res, me) {
     const rows = await supabase('GET', '?select=*&order=google_total_mb.desc', null, null, GTABLE);
     const recIds = rows.map(function (r) { return r.cut_rec_id; }).filter(function (x, i, all) { return x && all.indexOf(x) === i; });
     const recs = recIds.length ? await supabase('GET', '?id=in.(' + recIds.join(',') + ')&select=id,status,decided_by_name,decided_at,project_id', null, null, TABLE) : [];
-    return sendJSON(res, 200, { accounts: rows, recs: recs, seatPrice: SEAT_PRICE });
+    /* the 365 mailboxes and their folders (migration proof); absent until that SQL is run */
+    let mailboxes = [], folders = [];
+    try {
+      mailboxes = await supabase('GET', '?select=*&order=mailbox.asc', null, null, 'google_m365_mailboxes');
+      folders = await supabase('GET', '?select=mailbox,folder,items,mb,oldest,newest,from_gmail&order=mailbox.asc,folder.asc&limit=2000',
+                               null, null, 'google_m365_folders');
+    } catch (e) { /* tables not created yet */ }
+    return sendJSON(res, 200, { accounts: rows, recs: recs, seatPrice: SEAT_PRICE, mailboxes: mailboxes, folders: folders });
   }
   const b = await readBody(req);
   const accts = list(b);
