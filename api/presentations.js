@@ -197,11 +197,15 @@ module.exports = async function handler(req, res) {
     if (e.bad || /JSON|body too large/.test(e.message)) {
       return sendJSON(res, 400, { error: 'bad_request', message: e.bad ? e.message : 'Could not read the request.' });
     }
-    const schema = /PGRST20[25]|relation "?public\.presentations|Bucket not found/i.test(e.message);
+    /* say which half is missing: the table (PostgREST can't see it) or the private bucket */
+    const noTable = /PGRST20[25]|42P01|public\.presentations/i.test(e.message);
+    const noBucket = /Bucket not found/i.test(e.message);
     return sendJSON(res, 502, {
-      error: schema ? 'schema' : 'storage',
-      message: schema ? 'Presentations aren\'t set up in Supabase yet — run supabase/presentations.sql (or ALL.sql).'
-                      : 'Could not reach the presentations storage. Try again shortly.'
+      error: noTable || noBucket ? 'schema' : 'storage',
+      message: noTable ? 'Supabase can\'t see the presentations table yet. In the SQL Editor, run supabase/presentations.sql ' +
+                         '(it ends with a schema reload), then refresh this page.'
+        : noBucket ? 'The private "presentations" storage bucket is missing in Supabase. Run supabase/presentations.sql again.'
+        : 'Could not reach the presentations storage. Try again shortly.'
     });
   }
 };
