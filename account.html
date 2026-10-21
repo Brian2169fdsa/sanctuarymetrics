@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.ac-form{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;max-width:720px}
+.ac-f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.ac-f input,.ac-f select,.ac-f textarea{font-family:Inter,sans-serif;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;
+  color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.ac-f textarea{resize:vertical;line-height:1.45}
+.ac-f input:focus,.ac-f select:focus,.ac-f textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.ac-wide{grid-column:1/-1}
+.ac-foot{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ac-msg{grid-column:1/-1;padding:10px 12px;border-radius:9px;font-size:13.5px}
+.ac-msg.err{background:#fbeae6;color:#8f2f1b}
+.ac-msg.ok{background:#e9f5ee;color:#1f5a37}
+.ac-msg[hidden]{display:none}
+.ac-temp{margin-top:12px;padding:14px 16px;border-radius:10px;background:#f3f8fb;border:1px solid #dbe8ef;font-size:14px;line-height:1.55}
+.ac-temp code{font-size:15px;font-weight:700;background:#fff;border:1px solid var(--line);padding:3px 8px;border-radius:6px;user-select:all}
+.ac-sec{margin-top:6px}
+details.ac-setup{margin-top:16px;max-width:720px}
+details.ac-setup summary{cursor:pointer;font-weight:600;color:var(--teal);font-size:14px}
+.ac-users td{vertical-align:middle}
+.ac-users select{font-family:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--line);border-radius:7px}
+.ac-acts{display:flex;gap:6px;flex-wrap:wrap}
+.btn.sm{min-height:0;padding:5px 10px;font-size:11.5px}
+.btn.lt{background:#fff!important;color:var(--teal)!important;border:1px solid var(--line)!important}
+.btn.lt:hover{background:#eef5f8!important}
+.ac-off{opacity:.55}
+.ac-to{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink)}
+.ac-to label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.ac-to[hidden]{display:none}
+.ac-al{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:flex-start}
+.ac-al.new{background:#fdf6f1;box-shadow:inset 3px 0 0 var(--coral)}
+.ac-al .t{font-weight:600;font-size:14px}
+.ac-al .b{font-size:13px;color:#4b5b65;margin-top:3px;white-space:pre-line;line-height:1.45}
+.ac-al .m{font-size:12px;color:var(--muted);margin-top:4px}
+.ac-al a{font-size:12.5px;color:var(--blue);white-space:nowrap}
+@media (max-width:640px){.ac-form{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ── account page ─────────────────────────────────────────────────────────
+   Signed out: sign in, or first-time setup for the master admin.
+   Signed in:  your name and password, and every alert you've had.
+   Admins also: add people, change roles, reset passwords, send alerts.    */
+var USERS = [], ALERTS = [], PROJECTS = [];
+var NEXT = new URLSearchParams(location.search).get('next') || '';
+var DEFAULT_ADMIN = 'breinhart@sanctuaryrecoverycenters.com';
+
+function api(m, u, b) { return SM.api(m, u, b); }
+function v(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function msg(id, kind, text) { var el = document.getElementById(id); el.className = 'ac-msg ' + kind; el.textContent = text; el.hidden = !text; }
+function busy(btn, on, label) { btn.disabled = on; if (label) { btn.textContent = label; } }
+function when(iso) {
+  return iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+}
+function safeNext() { return /^[a-z0-9-]+\.html(#.*)?$/i.test(NEXT) ? NEXT : 'projects.html'; }
+
+/* ── signed out ───────────────────────────────────────────────────────── */
+function signedOut() {
+  return '<section><div class="eyebrow">Account</div><h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
+    '<p class="lead">Sign in to see projects, message the team on each one, and get alerts.</p>' +
+    '<div class="card"><form class="ac-form" id="f-login" novalidate>' +
+      '<label class="ac-f">Email<input id="l-email" type="email" autocomplete="username" required></label>' +
+      '<label class="ac-f">Password<input id="l-pw" type="password" autocomplete="current-password" required></label>' +
+      '<div class="ac-msg" id="l-msg" role="alert" hidden></div>' +
+      '<div class="ac-foot"><button class="btn" type="submit" id="l-go">Sign in</button>' +
+        '<span class="sub" style="margin:0">Forgot it? Ask an admin to reset your password.</span></div>' +
+    '</form></div>' +
+    '<details class="ac-setup"><summary>First time here as the master admin?</summary>' +
+      '<div class="card" style="margin-top:12px"><form class="ac-form" id="f-setup" novalidate>' +
+        '<p class="ac-wide" style="margin:0;font-size:13.5px;line-height:1.5">One-time setup for the master admin account. ' +
+          'You\'ll need the current team password to prove it\'s you.</p>' +
+        '<label class="ac-f">Admin email<input id="s-email" type="email" value="' + SM.h(DEFAULT_ADMIN) + '" autocomplete="username"></label>' +
+        '<label class="ac-f">Your name<input id="s-name" type="text" maxlength="80" value="Brian Reinhart" autocomplete="name"></label>' +
+        '<label class="ac-f">Choose a password<input id="s-pw" type="password" autocomplete="new-password" placeholder="10+ characters"></label>' +
+        '<label class="ac-f">Team password<input id="s-team" type="password" autocomplete="off"></label>' +
+        '<div class="ac-msg" id="s-msg" role="alert" hidden></div>' +
+        '<div class="ac-foot"><button class="btn" type="submit" id="s-go">Create admin account</button></div>' +
+      '</form></div></details></section>';
+}
+
+/* ── signed in ────────────────────────────────────────────────────────── */
+function mine(u) {
+  return '<section><div class="eyebrow">' + (u.role === 'admin' ? 'Master admin' : 'Account') + '</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">' + SM.h(u.name) + '</h2>' +
+    '<p class="lead" style="margin-bottom:14px">' + SM.h(u.email) + '</p>' +
+    (u.must_change_password ? '<div class="warn" style="margin-bottom:14px">You signed in with a temporary password. Choose your own below.</div>' : '') +
+    '<div class="card" id="password"><h3>' + (u.must_change_password ? 'Choose your password' : 'Change password') + '</h3>' +
+      '<form class="ac-form" id="f-pw" novalidate>' +
+        '<label class="ac-f">' + (u.must_change_password ? 'Temporary password' : 'Current password') +
+          '<input id="p-cur" type="password" autocomplete="current-password"></label>' +
+        '<label class="ac-f">New password<input id="p-new" type="password" autocomplete="new-password" placeholder="10+ characters"></label>' +
+        '<div class="ac-msg" id="p-msg" role="alert" hidden></div>' +
+        '<div class="ac-foot"><button class="btn" type="submit" id="p-go">Save password</button></div>' +
+      '</form></div>' +
+    '<div class="card"><h3>Your name</h3><form class="ac-form" id="f-name" novalidate>' +
+      '<label class="ac-f">Shown on your messages<input id="n-name" type="text" maxlength="80" value="' + SM.h(u.name) + '"></label>' +
+      '<div class="ac-foot" style="align-self:end"><button class="btn lt" type="submit" id="n-go">Save name</button></div>' +
+      '<div class="ac-msg" id="n-msg" role="status" hidden></div></form></div>' +
+    '</section>';
+}
+function alertsSection() {
+  var unread = ALERTS.filter(function (a) { return !a.read_at; }).length;
+  return '<section id="alerts"><div class="eyebrow">Alerts</div>' +
+    '<h2 style="font-size:24px;margin:6px 0 12px">Your alerts' + (unread ? ' · ' + unread + ' new' : '') + '</h2>' +
+    (unread ? '<p><button class="btn lt sm" id="a-all">Mark all read</button></p>' : '') +
+    '<div class="card" style="padding:0;overflow:hidden">' +
+    (ALERTS.length ? ALERTS.map(function (a) {
+      return '<div class="ac-al' + (a.read_at ? '' : ' new') + '"><div>' +
+        '<div class="t">' + (a.kind === 'message' ? '💬 ' : a.kind === 'request' ? '📝 ' : '') + SM.h(a.title) + '</div>' +
+        (a.body ? '<div class="b">' + SM.h(a.body) + '</div>' : '') +
+        '<div class="m">' + (a.from && a.from.name ? SM.h(a.from.name) + ' · ' : '') + SM.h(when(a.created_at)) + '</div></div>' +
+        (a.link ? '<a href="' + SM.h(a.link) + '" data-read="' + SM.h(a.id) + '">Open →</a>' : '') + '</div>';
+    }).join('') : '<p style="padding:18px;margin:0;color:var(--muted)">Nothing yet.</p>') +
+    '</div></section>';
+}
+
+/* ── admin ────────────────────────────────────────────────────────────── */
+function projectOptions() {
+  var seeds = (typeof L10 !== 'undefined' ? L10.rows : []).map(function (r) { return { ref: 'seed:' + r[0], title: r[0] }; });
+  return seeds.concat(PROJECTS).map(function (p) { return '<option value="' + SM.h(p.ref) + '">' + SM.h(p.title) + '</option>'; }).join('');
+}
+function adminSection(me) {
+  var others = USERS.filter(function (u) { return u.id !== me.id && !u.disabled; });
+  var rows = USERS.map(function (u) {
+    var self = u.id === me.id;
+    return '<tr class="' + (u.disabled ? 'ac-off' : '') + '">' +
+      '<td><b>' + SM.h(u.name) + '</b><div class="sub" style="margin:2px 0 0">' + SM.h(u.email) + '</div></td>' +
+      '<td>' + (self ? '<span class="tag hot">Admin</span>' :
+        '<select data-role="' + u.id + '" aria-label="Role for ' + SM.h(u.name) + '">' +
+          '<option value="member"' + (u.role === 'member' ? ' selected' : '') + '>Member</option>' +
+          '<option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>') + '</td>' +
+      '<td>' + (u.disabled ? 'Turned off' : (u.must_change_password ? 'Temporary password' : 'Active')) + '</td>' +
+      '<td style="white-space:nowrap">' + SM.h(when(u.last_login_at)) + '</td>' +
+      '<td>' + (self ? '' : '<div class="ac-acts">' +
+        '<button class="btn sm lt" data-reset="' + u.id + '">Reset password</button>' +
+        '<button class="btn sm lt" data-off="' + u.id + '" data-to="' + (!u.disabled) + '">' + (u.disabled ? 'Turn on' : 'Turn off') + '</button>' +
+        '<button class="btn sm ghost" data-del="' + u.id + '">Delete</button></div>') + '</td></tr>';
+  }).join('');
+  return '<section id="people"><div class="eyebrow">Admin</div><h2 style="font-size:24px;margin:6px 0 12px">People</h2>' +
+    '<div class="card"><h3>Give someone an account</h3><form class="ac-form" id="f-add" novalidate>' +
+      '<label class="ac-f">Name<input id="u-name" type="text" maxlength="80" placeholder="e.g. Jane Smith"></label>' +
+      '<label class="ac-f">Email<input id="u-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label>' +
+      '<label class="ac-f">Role<select id="u-role"><option value="member">Member — projects, messages, alerts</option>' +
+        '<option value="admin">Admin — also manages people and sends alerts</option></select></label>' +
+      '<div class="ac-foot" style="align-self:end"><button class="btn" type="submit" id="u-go">Create account</button></div>' +
+      '<div class="ac-msg" id="u-msg" role="alert" hidden></div>' +
+    '</form><div id="u-temp"></div></div>' +
+    '<div class="card"><h3>Everyone with an account</h3><div class="tw"><table class="ac-users"><thead><tr>' +
+      '<th>Person</th><th>Role</th><th>Status</th><th>Last sign-in</th><th><span class="vh">Actions</span></th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div><div id="r-temp"></div></div>' +
+    '</section>' +
+    '<section id="send"><div class="eyebrow">Admin</div><h2 style="font-size:24px;margin:6px 0 12px">Send an alert</h2>' +
+    '<div class="card"><form class="ac-form" id="f-alert" novalidate>' +
+      '<div class="ac-f ac-wide">To<div class="ac-to">' +
+        '<label><input type="radio" name="to" value="all" checked> Everyone</label>' +
+        '<label><input type="radio" name="to" value="pick"> Choose people</label></div>' +
+        '<div class="ac-to" id="to-list" hidden>' + (others.length ? others.map(function (u) {
+          return '<label><input type="checkbox" value="' + u.id + '" name="to-u"> ' + SM.h(u.name) + '</label>';
+        }).join('') : '<span>No one else has an account yet.</span>') + '</div></div>' +
+      '<label class="ac-f ac-wide">Title<input id="al-title" type="text" maxlength="200" placeholder="e.g. Need your sign-off on the fall flyer"></label>' +
+      '<label class="ac-f ac-wide">Message<textarea id="al-body" rows="3" maxlength="2000" placeholder="Optional details"></textarea></label>' +
+      '<label class="ac-f ac-wide">About a project (optional)<select id="al-proj"><option value="">—</option>' + projectOptions() + '</select></label>' +
+      '<div class="ac-msg" id="al-msg" role="alert" hidden></div>' +
+      '<div class="ac-foot"><button class="btn" type="submit" id="al-go">Send alert</button></div>' +
+    '</form></div></section>';
+}
+function tempBox(name, email, temp, isReset) {
+  return '<div class="ac-temp" role="status"><b>' + (isReset ? 'New temporary password for ' : 'Account ready for ') + SM.h(name) + '.</b> ' +
+    'Send them this — it\'s only shown once:<br><br>' +
+    'Sign in at <b>' + SM.h(location.origin) + '/account.html</b><br>Email: <b>' + SM.h(email) + '</b><br>' +
+    'Temporary password: <code>' + SM.h(temp) + '</code> <button class="btn sm lt" type="button" data-copy="' + SM.h(
+      'Sign in at ' + location.origin + '/account.html\nEmail: ' + email + '\nTemporary password: ' + temp) + '">Copy</button><br><br>' +
+    'They\'ll be asked to choose their own password after signing in.</div>';
+}
+
+/* ── render + load ────────────────────────────────────────────────────── */
+function render() {
+  var u = SM.me;
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Account', 'Sign-in, alerts &amp; people &nbsp;·&nbsp; Internal', u ? 'Signed in as ' + SM.h(u.email) : 'Not signed in', 'account') +
+    (u ? mine(u) + alertsSection() + (u.role === 'admin' ? adminSection(u) : '') : signedOut()) +
+    pageFooter('accounts');
+  applyDataLabels();
+  wire();
+  if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) { t.scrollIntoView(); } }
+}
+function load() {
+  var u = SM.me;
+  if (!u) { render(); return Promise.resolve(); }
+  var jobs = [api('GET', '/api/alerts').then(function (j) { ALERTS = j.alerts || []; })];
+  if (u.role === 'admin') {
+    jobs.push(api('GET', '/api/users').then(function (j) { USERS = j.users || []; }));
+    jobs.push(api('GET', '/api/projects').then(function (j) {
+      PROJECTS = (j.rows || []).filter(function (r) { return !r.seed_key; }).map(function (r) { return { ref: 'row:' + r.id, title: r.title }; });
+    }, function () { PROJECTS = []; }));
+  }
+  return Promise.all(jobs).then(render, function (e) {
+    render();
+    document.getElementById('sheet').insertAdjacentHTML('afterbegin', '<div class="warn" style="margin:12px 40px">' + SM.h(e.message) + '</div>');
+  });
+}
+
+function on(id, ev, fn) { var el = document.getElementById(id); if (el) { el.addEventListener(ev, fn); } }
+function wire() {
+  on('f-login', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('l-go');
+    if (!v('l-email') || !v('l-pw')) { msg('l-msg', 'err', 'Enter your email and password.'); return; }
+    busy(btn, true, 'Signing in…');
+    SM.login(v('l-email'), document.getElementById('l-pw').value).then(function (u) {
+      if (u.must_change_password) { load(); } else { location.href = safeNext(); }
+    }, function (err) { busy(btn, false, 'Sign in'); msg('l-msg', 'err', err.message); });
+  });
+  on('f-setup', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('s-go');
+    busy(btn, true, 'Setting up…');
+    api('POST', '/api/auth', { action: 'setup', email: v('s-email'), name: v('s-name'),
+      password: document.getElementById('s-pw').value, team_password: document.getElementById('s-team').value })
+      .then(function (j) { SM.setUser(j.user); load(); }, function (err) { busy(btn, false, 'Create admin account'); msg('s-msg', 'err', err.message); });
+  });
+  on('f-pw', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('p-go');
+    busy(btn, true, 'Saving…');
+    api('POST', '/api/auth', { action: 'password', current: document.getElementById('p-cur').value, password: document.getElementById('p-new').value })
+      .then(function (j) {
+        SM.setUser(j.user); render();
+        msg('p-msg', 'ok', 'Password saved.');
+        if (NEXT) { setTimeout(function () { location.href = safeNext(); }, 900); }
+      }, function (err) { busy(btn, false, 'Save password'); msg('p-msg', 'err', err.message); });
+  });
+  on('f-name', 'submit', function (e) {
+    e.preventDefault();
+    api('POST', '/api/auth', { action: 'profile', name: v('n-name') })
+      .then(function (j) { SM.setUser(j.user); render(); msg('n-msg', 'ok', 'Name saved.'); }, function (err) { msg('n-msg', 'err', err.message); });
+  });
+  on('a-all', 'click', function () { api('PATCH', '/api/alerts', { all: true }).then(function () { SM.refreshBell(); load(); }); });
+  document.querySelectorAll('[data-read]').forEach(function (a) {
+    a.addEventListener('click', function () { api('PATCH', '/api/alerts', { ids: [a.getAttribute('data-read')] }).catch(function () {}); });
+  });
+
+  /* admin */
+  on('f-add', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('u-go'), name = v('u-name'), email = v('u-email');
+    busy(btn, true, 'Creating…');
+    api('POST', '/api/users', { name: name, email: email, role: v('u-role') }).then(function (j) {
+      return load().then(function () {
+        document.getElementById('u-temp').innerHTML = tempBox(j.user.name, j.user.email, j.temp_password, false);
+        wireCopy();
+        document.getElementById('u-temp').scrollIntoView({ block: 'center' });
+      });
+    }, function (err) { busy(btn, false, 'Create account'); msg('u-msg', 'err', err.message); });
+  });
+  document.querySelectorAll('[data-role]').forEach(function (s) {
+    s.addEventListener('change', function () {
+      api('PATCH', '/api/users?id=' + s.getAttribute('data-role'), { role: s.value }).then(load, function (err) { alert(err.message); load(); });
+    });
+  });
+  document.querySelectorAll('[data-reset]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var u = USERS.filter(function (x) { return x.id === b.getAttribute('data-reset'); })[0];
+      if (!confirm('Give ' + u.name + ' a new temporary password? Their current one stops working and they\'re signed out.')) { return; }
+      api('PATCH', '/api/users?id=' + u.id, { reset_password: true }).then(function (j) {
+        return load().then(function () {
+          document.getElementById('r-temp').innerHTML = tempBox(u.name, u.email, j.temp_password, true);
+          wireCopy();
+          document.getElementById('r-temp').scrollIntoView({ block: 'center' });
+        });
+      }, function (err) { alert(err.message); });
+    });
+  });
+  document.querySelectorAll('[data-off]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      api('PATCH', '/api/users?id=' + b.getAttribute('data-off'), { disabled: b.getAttribute('data-to') === 'true' })
+        .then(load, function (err) { alert(err.message); });
+    });
+  });
+  document.querySelectorAll('[data-del]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var u = USERS.filter(function (x) { return x.id === b.getAttribute('data-del'); })[0];
+      if (!confirm('Delete ' + u.name + '\'s account? Their messages stay, shown under their name.')) { return; }
+      api('DELETE', '/api/users?id=' + u.id).then(load, function (err) { alert(err.message); });
+    });
+  });
+  document.querySelectorAll('input[name="to"]').forEach(function (r) {
+    r.addEventListener('change', function () { document.getElementById('to-list').hidden = r.value !== 'pick' || !r.checked; });
+  });
+  on('f-alert', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('al-go');
+    var pick = document.querySelector('input[name="to"]:checked').value;
+    var to = pick === 'all' ? 'all' : [].map.call(document.querySelectorAll('input[name="to-u"]:checked'), function (c) { return c.value; });
+    busy(btn, true, 'Sending…');
+    api('POST', '/api/alerts', { to: to, title: v('al-title'), body: v('al-body'), project_ref: v('al-proj') }).then(function (j) {
+      busy(btn, false, 'Send alert');
+      document.getElementById('al-title').value = ''; document.getElementById('al-body').value = '';
+      msg('al-msg', 'ok', 'Sent to ' + j.sent + (j.sent === 1 ? ' person.' : ' people.'));
+    }, function (err) { busy(btn, false, 'Send alert'); msg('al-msg', 'err', err.message); });
+  });
+}
+function wireCopy() {
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var t = b.getAttribute('data-copy');
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = 'Copied'; },
+        function () { b.textContent = 'Select and copy the text'; });
+    });
+  });
+}
+
+document.getElementById('sheet').innerHTML = pageHeader('Account', 'Sign-in, alerts &amp; people', 'Loading…', 'account');
+SM.ready.then(load);
+</script>
+</body></html>

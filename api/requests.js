@@ -18,11 +18,13 @@
      PRINT_OWNER     optional. Who the task is assigned to on the Projects
                      page. Defaults to "Brian Reinhart".
 
-   Route (needs the X-Projects-Password header):
+   Route (signed in, or the X-Projects-Password header). Admins with an
+   account get an alert for each new request:
      POST {kind: 'business_cards' | 'flyer' | 'website_edit', …}   file one request
    ========================================================================== */
 
-const { sendJSON, readBody, passwordOk, supabase } = require('./projects').helpers;
+const { sendJSON, readBody, supabase } = require('../lib/db');
+const { authorize, admins, sendAlerts } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [25, 50, 100, 250, 500, 1000] };
 const KINDS = { business_cards: 1, flyer: 1, website_edit: 1 };
@@ -105,15 +107,14 @@ function toRow(body) {
 }
 
 module.exports = async function handler(req, res) {
-  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PROJECTS_PASSWORD']
+  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Print requests are not set up yet: missing ' + missing.join(', ') + '.' });
   }
-  const given = req.headers['x-projects-password'];
-  if (!passwordOk(given, process.env.PROJECTS_PASSWORD) &&
-      !(process.env.PRINT_PASSWORD && passwordOk(given, process.env.PRINT_PASSWORD))) {
-    return sendJSON(res, 401, { error: 'password', message: 'Wrong or missing team password.' });
+  const who = await authorize(req, { printPassword: true });
+  if (!who) {
+    return sendJSON(res, 401, { error: 'password', message: 'Sign in, or enter the team password.' });
   }
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -123,6 +124,13 @@ module.exports = async function handler(req, res) {
   try {
     const row = toRow(await readBody(req));
     const rows = await supabase('POST', '', row);
+    /* let the admins know on the bell */
+    try {
+      const ref = 'row:' + rows[0].id;
+      await sendAlerts((await admins()).map(function (u) { return u.id; }), {
+        from_user_id: who.user ? who.user.id : null, kind: 'request', project_ref: ref,
+        title: 'New request: ' + rows[0].title, body: rows[0].notes, link: 'projects.html#open=' + encodeURIComponent(ref) });
+    } catch (e) { /* accounts not set up yet — the task is saved either way */ }
     return sendJSON(res, 201, { ok: true, title: rows[0] && rows[0].title });
   } catch (e) {
     if (e.bad || /JSON|body too large/.test(e.message)) {

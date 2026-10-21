@@ -57,6 +57,37 @@
 .pm-foot > div{display:flex;gap:8px}
 .pm-cancel{background:transparent!important;color:var(--ink)!important;border:1px solid var(--line)!important}
 .pm-cancel:hover{background:#f1f5f7!important}
+/* ── messages in the popover ── */
+#pmodal.wchat{width:min(1060px,calc(100vw - 32px))}
+.pm-wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.pm-chat{border-left:1px solid var(--line);background:#f8fbfc;display:flex;flex-direction:column;min-height:420px;max-height:calc(100vh - 32px)}
+.pc-head{padding:22px 18px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.pc-head h4{font-family:Fraunces,serif;font-size:18px;font-weight:600;margin:0}
+.pc-head span{font-size:12px;color:var(--muted)}
+.pc-list{flex:1;overflow:auto;padding:4px 18px 12px;display:flex;flex-direction:column;gap:10px}
+.pc-empty{margin:auto 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5;padding:20px 6px}
+.pc-m{max-width:88%;align-self:flex-start}
+.pc-m.me{align-self:flex-end}
+.pc-b{background:#fff;border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:8px 11px;font-size:14px;line-height:1.45;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.pc-m.me .pc-b{background:#2C5468;border-color:#2C5468;color:#fff;border-radius:12px 12px 4px 12px}
+.pc-meta{font-size:11px;color:var(--muted);margin:3px 4px 0;display:flex;gap:8px}
+.pc-m.me .pc-meta{justify-content:flex-end}
+.pc-meta button{all:unset;cursor:pointer;color:var(--muted);text-decoration:underline}
+.pc-form{border-top:1px solid var(--line);padding:12px 14px;display:flex;gap:8px;align-items:flex-end;background:#fff}
+.pc-form textarea{flex:1;font-family:Inter,sans-serif;font-size:14px;line-height:1.4;resize:none;border:1px solid var(--line);
+  border-radius:10px;padding:9px 11px;min-height:42px;max-height:140px}
+.pc-form textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.pc-note{padding:14px 18px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);background:#fff}
+.pc-note a{color:var(--blue);font-weight:600}
+.pmsg{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:11.5px;font-weight:700;color:var(--muted);
+  padding:1px 8px;border-radius:20px;background:#eef3f6;vertical-align:2px}
+.pmsg.new{background:#E17F55;color:#fff}
+@media (max-width:860px){
+  .pm-wrap{grid-template-columns:1fr}
+  .pm-chat{border-left:0;border-top:1px solid var(--line);max-height:none;min-height:0}
+  .pc-list{max-height:340px}
+}
 @media (max-width:600px){
   .pm{padding:18px 16px}
   .pm-grid,.pm-event{grid-template-columns:1fr}
@@ -68,12 +99,15 @@
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
 <script src="ui.js"></script>
+<script src="account.js"></script>
 <script src="chat.js" defer></script>
 <script>
 /* ── project tracker ──────────────────────────────────────────────────────
    One shared list for the whole team, stored in Supabase through
-   /api/projects (see api/projects.js). The page asks for the team password
-   once and keeps it in this browser.
+   /api/projects (see api/projects.js). People sign in with their own
+   account (account.js / account.html); the old shared team password still
+   works as a fallback. Each project's popover carries a message thread
+   (/api/messages) — new messages ring everyone else's bell.
 
    L10 rocks come from data.js (the L10 object — last column is the current
    status). Edits made here to a rock (tick-off, importance, date) are stored
@@ -91,7 +125,9 @@ var OLD_META_KEY = 'src_projects_meta_v1';
 var MIGRATED_KEY = 'src_projects_migrated_v1';
 
 var ROWS = [];          /* rows from the server */
-var STATE = 'loading';  /* loading | password | error | ready */
+var STATE = 'loading';  /* loading | signin | password | error | ready */
+var MSGS = {};          /* ref → { total, unread } from /api/messages?summary=1 */
+var CHAT_POLL = null;   /* refreshes the open popover's thread */
 var ERROR = '';
 var BUSY = false;
 
@@ -103,7 +139,9 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* private m
 function api(method, query, body) {
   return fetch(API + (query || ''), {
     method: method,
-    headers: { 'Content-Type': 'application/json', 'X-Projects-Password': lsGet(PW_KEY) || '' },
+    credentials: 'same-origin',
+    headers: lsGet(PW_KEY) !== null ? { 'Content-Type': 'application/json', 'X-Projects-Password': lsGet(PW_KEY) }
+                                    : { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined
   }).then(function (r) {
     return r.json().catch(function () { return {}; }).then(function (j) {
@@ -113,10 +151,23 @@ function api(method, query, body) {
   });
 }
 function load() {
-  return api('GET').then(function (j) { ROWS = j.rows || []; STATE = 'ready'; });
+  return Promise.all([api('GET'), loadMsgSummary()]).then(function (r) { ROWS = r[0].rows || []; STATE = 'ready'; });
+}
+/* message counts per project — only for people signed in with an account */
+function loadMsgSummary() {
+  if (!SM.me) { MSGS = {}; return Promise.resolve(); }
+  return SM.api('GET', '/api/messages?summary=1').then(function (j) {
+    MSGS = {};
+    (j.summary || []).forEach(function (m) { MSGS[m.project_ref] = { total: +m.total, unread: +m.unread }; });
+  }, function () { MSGS = {}; });
 }
 function fail(e) {
-  if (e.code === 'password') { lsDel(PW_KEY); STATE = 'password'; ERROR = 'That password didn\'t work — check it and try again.'; }
+  if (e.code === 'password' || e.code === 'signin') {
+    var hadPw = lsGet(PW_KEY) !== null;
+    lsDel(PW_KEY);
+    STATE = 'signin';
+    ERROR = hadPw ? 'That team password didn\'t work — sign in with your account instead.' : '';
+  }
   else { STATE = 'error'; ERROR = e.message; }
   render();
 }
@@ -226,7 +277,10 @@ function rowsHtml(items) {
     var ref = esc(it.ref), done = isDone(it.status), dis = BUSY ? ' disabled' : '';
     var checkCell = '<input type="checkbox" class="donechk" data-ref="' + ref + '"' + (done ? ' checked' : '') + dis +
       ' aria-label="Mark ' + esc(it.title) + ' done">';
-    var item = '<button type="button" class="ptitle" data-edit="' + ref + '">' + esc(it.title) + '</button>';
+    var mc = MSGS[it.ref];
+    var item = '<button type="button" class="ptitle" data-edit="' + ref + '">' + esc(it.title) + '</button>' +
+      (mc && mc.total ? '<span class="pmsg' + (mc.unread ? ' new' : '') + '" title="' + mc.total + ' message' + (mc.total === 1 ? '' : 's') +
+        (mc.unread ? ', ' + mc.unread + ' new' : '') + '">💬 ' + (mc.unread ? mc.unread + ' new' : mc.total) + '</span>' : '');
     if (it.notes) { item += '<div class="pnotes">' + esc(it.notes) + '</div>'; }
     if (it.isEvent) {
       var invited = emailList(it.attendees).length;
@@ -320,6 +374,11 @@ function modalEl() {
     document.body.appendChild(d);
     /* click on the dimmed backdrop closes it */
     d.addEventListener('click', function (e) { if (e.target === d) { closeModal(); } });
+    /* however it closes (Esc, ×, save): stop refreshing the thread, update the badges */
+    d.addEventListener('close', function () {
+      clearInterval(CHAT_POLL); CHAT_POLL = null;
+      if (STATE === 'ready') { loadMsgSummary().then(function () { if (!BUSY) { render(); } }); }
+    });
   }
   return d;
 }
@@ -379,6 +438,9 @@ function openModal(ref) {
         '<button type="submit" class="btn" id="pm-save">' + (ref ? 'Save changes' : 'Add project') + '</button></div>' +
       '</div>' +
     '</form>';
+  /* existing projects get the message thread beside the form */
+  d.classList.toggle('wchat', !!ref);
+  if (ref) { d.innerHTML = '<div class="pm-wrap">' + d.innerHTML + chatPane(ref) + '</div>'; }
 
   document.getElementById('pm-e').addEventListener('change', function () {
     document.getElementById('pm-ev').hidden = !this.checked;
@@ -399,6 +461,80 @@ function openModal(ref) {
   }
   if (typeof d.showModal === 'function') { d.showModal(); } else { d.setAttribute('open', ''); }
   document.getElementById(seed ? 'pm-s' : 'pm-t').focus();
+  if (ref) { startChat(ref); }
+}
+
+/* ── the project's message thread ─────────────────────────────────────── */
+function chatPane(ref) {
+  return '<aside class="pm-chat" aria-label="Messages">' +
+    '<div class="pc-head"><h4>Messages</h4><span id="pc-count"></span></div>' +
+    '<div class="pc-list" id="pc-list" aria-live="polite">' +
+      (SM.me ? '<p class="pc-empty">Loading…</p>' : '<p class="pc-empty">Messages are for people with an account.</p>') + '</div>' +
+    (SM.me
+      ? '<form class="pc-form" id="pc-form"><label class="vh" for="pc-text">Message</label>' +
+          '<textarea id="pc-text" rows="1" maxlength="4000" placeholder="Message the team…"></textarea>' +
+          '<button class="btn" type="submit" id="pc-send">Send</button></form>'
+      : '<div class="pc-note"><a href="account.html?next=' + encodeURIComponent('projects.html#open=' + ref) + '">Sign in</a> to message the team about this project.</div>') +
+  '</aside>';
+}
+function msgTime(iso) {
+  var d = new Date(iso), today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+               : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function drawThread(list, myId) {
+  var box = document.getElementById('pc-list');
+  if (!box) { return; }
+  var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  document.getElementById('pc-count').textContent = list.length ? list.length + ' message' + (list.length === 1 ? '' : 's') : '';
+  box.innerHTML = list.length ? list.map(function (m) {
+    var mine = m.user_id === myId;
+    return '<div class="pc-m' + (mine ? ' me' : '') + '"><div class="pc-b">' + esc(m.body) + '</div>' +
+      '<div class="pc-meta"><span>' + (mine ? 'You' : esc(m.author_name)) + ' · ' + esc(msgTime(m.created_at)) + '</span>' +
+      (mine || (SM.me && SM.me.role === 'admin') ? '<button type="button" data-delmsg="' + esc(m.id) + '">Delete</button>' : '') + '</div></div>';
+  }).join('') : '<p class="pc-empty">No messages yet.<br>Start the conversation — everyone else gets an alert.</p>';
+  if (atBottom || box.getAttribute('data-first') !== '0') { box.scrollTop = box.scrollHeight; box.setAttribute('data-first', '0'); }
+  box.querySelectorAll('[data-delmsg]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!confirm('Delete this message for everyone?')) { return; }
+      SM.api('DELETE', '/api/messages?id=' + b.getAttribute('data-delmsg')).then(function () { fetchThread(MODAL_REF); });
+    });
+  });
+}
+var THREAD_SIG = '';
+function fetchThread(ref) {
+  return SM.api('GET', '/api/messages?ref=' + encodeURIComponent(ref)).then(function (j) {
+    if (MODAL_REF !== ref) { return; }
+    var sig = (j.messages || []).map(function (m) { return m.id; }).join();
+    if (sig !== THREAD_SIG) { THREAD_SIG = sig; drawThread(j.messages || [], j.me); SM.refreshBell(); }
+  }, function (e) {
+    var box = document.getElementById('pc-list');
+    if (box) { box.innerHTML = '<p class="pc-empty">' + esc(e.message) + '</p>'; }
+  });
+}
+function startChat(ref) {
+  clearInterval(CHAT_POLL); CHAT_POLL = null; THREAD_SIG = '';
+  if (!SM.me) { return; }
+  fetchThread(ref);
+  CHAT_POLL = setInterval(function () { if (document.visibilityState === 'visible') { fetchThread(ref); } }, 5000);
+  var form = document.getElementById('pc-form'), text = document.getElementById('pc-text');
+  /* Enter sends, Shift+Enter is a new line */
+  text.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+  });
+  text.addEventListener('input', function () { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 140) + 'px'; });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var body = text.value.trim();
+    if (!body) { return; }
+    var btn = document.getElementById('pc-send');
+    btn.disabled = true;
+    SM.api('POST', '/api/messages', { ref: ref, body: body }).then(function () {
+      text.value = ''; text.style.height = 'auto'; btn.disabled = false; text.focus();
+      document.getElementById('pc-list').setAttribute('data-first', '1');
+      return fetchThread(ref);
+    }, function (err) { btn.disabled = false; alert(err.message); });
+  });
 }
 function closeModal() {
   var d = document.getElementById('pmodal');
@@ -414,7 +550,7 @@ function modalWork(promise) {
   btn.disabled = true; btn.textContent = 'Saving…';
   modalError('');
   return promise.then(load).then(function () { closeModal(); render(); }, function (e) {
-    if (e.code === 'password') { closeModal(); fail(e); return; }
+    if (e.code === 'password' || e.code === 'signin') { closeModal(); fail(e); return; }
     btn.disabled = false; btn.textContent = MODAL_REF ? 'Save changes' : 'Add project';
     modalError(e.message);
   });
@@ -469,7 +605,22 @@ function passwordPanel() {
       '<div class="f"><label for="pw">Password</label><input type="password" id="pw" autocomplete="current-password" ' +
       'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
       '<button class="btn" type="submit">Open projects</button>' +
-    '</form></div></section>';
+    '</form></div><p class="sub"><a href="#" id="use-acct">Sign in with your account instead</a></p></section>';
+}
+function signinPanel() {
+  return '<section>' +
+    '<div class="eyebrow">Project tracker</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
+    '<p class="lead">Sign in with your account to see the project list, message the team on each project and get alerts.</p>' +
+    (ERROR ? '<div class="warn">' + esc(ERROR) + '</div>' : '') +
+    '<div class="card"><form class="addform" id="siform" style="grid-template-columns:1fr 1fr auto">' +
+      '<div class="f"><label for="si-email">Email</label><input type="email" id="si-email" autocomplete="username" ' +
+      'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
+      '<div class="f"><label for="si-pw">Password</label><input type="password" id="si-pw" autocomplete="current-password" ' +
+      'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
+      '<button class="btn" type="submit" id="si-go">Sign in</button>' +
+    '</form></div>' +
+    '<p class="sub">No account yet? Ask an admin. <a href="#" id="use-pw">Use the shared team password instead</a></p></section>';
 }
 function messagePanel(title, body) {
   return '<section><div class="eyebrow">Project tracker</div>' +
@@ -481,6 +632,8 @@ function render() {
   var body;
   if (STATE === 'loading') {
     body = messagePanel('Loading projects…', '<p class="lead">Fetching the shared list.</p>');
+  } else if (STATE === 'signin') {
+    body = signinPanel();
   } else if (STATE === 'password') {
     body = passwordPanel();
   } else if (STATE === 'error') {
@@ -496,14 +649,16 @@ function render() {
         '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
         '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus the team\'s own ' +
         'projects. Click a title or <b>Edit</b> to add notes, a due date or event details; tick the box to mark it done. ' +
-        'This list is shared — everyone with the team password sees the same items.' +
+        'Open a project to message the team about it — replies ring everyone\'s bell. This list is shared: everyone sees the same items.' +
         (BUSY ? ' <b>Saving…</b>' : '') + '</p>' +
         '<div class="ptools">' + chips(items) +
           '<button type="button" class="btn" id="np-open"' + (BUSY ? ' disabled' : '') + '>+ New project</button></div>' +
         '<div class="tw"><table class="ptable"><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th>' +
         '<th>Importance</th><th>Due</th><th><span class="vh">Edit</span></th></tr></thead>' +
         '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
-        '<p class="sub" style="margin-top:14px"><a href="#" id="signout">Forget the team password on this browser</a></p>' +
+        (lsGet(PW_KEY) !== null ? '<p class="sub" style="margin-top:14px">Using the shared team password — ' +
+          '<a href="account.html?next=projects.html">sign in with your account</a> to message and get alerts. ' +
+          '<a href="#" id="signout">Forget the team password on this browser</a></p>' : '') +
       '</section>';
   }
 
@@ -526,7 +681,18 @@ function wire() {
     ERROR = ''; STATE = 'loading'; render(); start();
   });
   on('#retry', 'click', function () { STATE = 'loading'; render(); start(); });
-  on('#signout', 'click', function (e) { e.preventDefault(); lsDel(PW_KEY); ERROR = ''; STATE = 'password'; render(); });
+  on('#signout', 'click', function (e) { e.preventDefault(); lsDel(PW_KEY); ERROR = ''; STATE = SM.me ? 'ready' : 'signin'; render(); });
+  on('#siform', 'submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('si-go');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    SM.login(document.getElementById('si-email').value.trim(), document.getElementById('si-pw').value).then(function (u) {
+      if (u.must_change_password) { location.href = 'account.html?next=projects.html#password'; return; }
+      ERROR = ''; STATE = 'loading'; render(); start();
+    }, function (err) { ERROR = err.message; render(); });
+  });
+  on('#use-pw', 'click', function (e) { e.preventDefault(); ERROR = ''; STATE = 'password'; render(); });
+  on('#use-acct', 'click', function (e) { e.preventDefault(); ERROR = ''; STATE = 'signin'; render(); });
 
   on('#np-open', 'click', function () { openModal(null); });
   on('[data-edit]', 'click', function () { openModal(this.getAttribute('data-edit')); });
@@ -545,9 +711,26 @@ function wire() {
 }
 
 function start() {
-  if (lsGet(PW_KEY) === null) { STATE = 'password'; render(); return; }
-  load().then(migrateOld).then(function () { render(); }, fail);
+  SM.ready.then(function (u) {
+    if (!u && lsGet(PW_KEY) === null) { STATE = 'signin'; render(); return; }
+    return load().then(migrateOld).then(function () { render(); openFromHash(); }, fail);
+  });
 }
+/* alerts link to projects.html#open=<ref> */
+function openFromHash() {
+  var m = /^#open=(.+)$/.exec(location.hash);
+  if (!m || STATE !== 'ready') { return; }
+  var ref = decodeURIComponent(m[1]);
+  history.replaceState(null, '', location.pathname);
+  if (itemByRef(ref)) { openModal(ref); }
+}
+addEventListener('hashchange', openFromHash);
+/* refresh the row badges when the bell rings for a message */
+setInterval(function () {
+  if (STATE === 'ready' && SM.me && document.visibilityState === 'visible' && !(document.getElementById('pmodal') || {}).open) {
+    loadMsgSummary().then(function () { if (!BUSY) { render(); } });
+  }
+}, 30000);
 render();
 start();
 </script>
