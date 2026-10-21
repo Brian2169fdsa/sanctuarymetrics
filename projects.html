@@ -613,6 +613,8 @@ function signinPanel() {
     '<h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
     '<p class="lead">Sign in with your account to see the project list, message the team on each project and get alerts.</p>' +
     (ERROR ? '<div class="warn">' + esc(ERROR) + '</div>' : '') +
+    (SM.microsoft ? '<p style="margin:0 0 16px">' + SM.msButton('projects.html' + location.hash) + '</p>' +
+      '<p class="sub" style="margin:0 0 8px">Or with an email and password:</p>' : '') +
     '<div class="card"><form class="addform" id="siform" style="grid-template-columns:1fr 1fr auto">' +
       '<div class="f"><label for="si-email">Email</label><input type="email" id="si-email" autocomplete="username" ' +
       'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +

@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      return sendJSON(res, 200, { user: pub(await A.currentUser(req)) });
+      return sendJSON(res, 200, { user: pub(await A.currentUser(req)), microsoft: A.microsoftEnabled() });
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');

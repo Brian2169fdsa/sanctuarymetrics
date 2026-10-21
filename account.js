@@ -91,6 +91,10 @@
     '#smpanel .al .m{font-size:11.5px;color:#6C7C86;margin-top:4px}' +
     '#smpanel .empty{padding:26px 16px;text-align:center;color:#6C7C86;font-size:13px}' +
     '#smpanel .ft{padding:10px 16px;text-align:center}#smpanel .ft a{color:#1C9AD6;font-size:12.5px;font-weight:600}' +
+    '.smms{display:inline-flex;align-items:center;gap:12px;height:41px;padding:0 14px;box-sizing:border-box;background:#fff;' +
+      'border:1px solid #8c8c8c;border-radius:4px;color:#5e5e5e;font:600 15px "Segoe UI",Inter,sans-serif;text-decoration:none;cursor:pointer}' +
+    '.smms:hover{background:#f3f3f3}.smms:focus-visible{outline:2px solid #1C9AD6;outline-offset:2px}' +
+    '.smms svg{width:21px;height:21px;flex:none}' +
     '#smnag{background:#fdf3e0;color:#7a4a24;font:500 13px Inter,sans-serif;padding:9px 20px;text-align:center}' +
     '#smnag a{color:#B23A1B;font-weight:700}';
   document.head.appendChild(css);
@@ -210,7 +214,14 @@
   setInterval(function () { if (document.visibilityState === 'visible') { SM.refreshBell(); } }, POLL_MS);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { SM.refreshBell(); } });
 
-  SM.ready = SM.api('GET', '/api/auth').then(function (j) { return j.user; }, function () { return null; })
+  SM.microsoft = false;
+  /* the Microsoft button: four squares, per Microsoft's sign-in branding */
+  SM.msButton = function (next, label) {
+    return '<a class="smms" href="/api/microsoft?start=1&next=' + encodeURIComponent(next || 'projects.html') + '">' +
+      '<svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/>' +
+      '<path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>' + h(label || 'Sign in with Microsoft') + '</a>';
+  };
+  SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.microsoft = !!j.microsoft; return j.user; }, function () { return null; })
     .then(function (u) { setUser(u); return u; });
   drawBar();
 })();
