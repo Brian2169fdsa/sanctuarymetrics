@@ -18,7 +18,7 @@
                          https://sanctuaryci.org,https://www.sanctuaryci.org
    ========================================================================== */
 
-const { sendJSON, supabase } = require('./projects').helpers;
+const { sendJSON, supabase } = require('../lib/db');
 
 const DEFAULT_ORIGINS = 'https://sanctuaryci.org,https://www.sanctuaryci.org';
 const TYPES = { pageview: 1, engage: 1, click: 1, form: 1, vital: 1 };

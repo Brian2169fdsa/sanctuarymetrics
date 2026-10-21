@@ -20,6 +20,7 @@
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
 <script src="ui.js"></script>
+<script src="account.js"></script>
 <script src="chat.js" defer></script>
 <script>
 /* ── sanctuaryci.org metrics ──────────────────────────────────────────────
@@ -105,7 +106,7 @@ function vitalNum(name, v) { return name === 'CLS' ? String(v) : (v < 1 ? Math.r
 
 function liveWebsite() {
   var head = sechead('Website', CHANNEL_META.website.color, 'sanctuaryci.org · first-party analytics (analytics.js → Supabase)', '');
-  if (lsGet(PW_KEY) === null || STATS_STATE === 'password') { return '<section>' + head + passwordForm() + '</section>'; }
+  if ((lsGet(PW_KEY) === null && !SM.me) || STATS_STATE === 'password') { return '<section>' + head + passwordForm() + '</section>'; }
   if (STATS_STATE === 'loading') { return '<section>' + head + periodChips() + '<p class="lead">Loading site analytics…</p></section>'; }
   if (STATS_STATE === 'error') {
     return '<section>' + head + periodChips() + '<div class="warn">' + esc(STATS_ERR) + '</div>' +
@@ -265,10 +266,10 @@ function render() {
 
 /* ── loading ──────────────────────────────────────────────────────────── */
 function loadStats() {
-  if (lsGet(PW_KEY) === null) { STATS_STATE = 'password'; render(); return; }
+  if (lsGet(PW_KEY) === null && !SM.me) { STATS_STATE = 'password'; render(); return; }
   STATS_STATE = 'loading'; render();
   fetch(STATS_API + '?site=' + encodeURIComponent(SITE) + '&days=' + DAYS, {
-    headers: { 'X-Projects-Password': lsGet(PW_KEY) || '' }, cache: 'no-store'
+    headers: lsGet(PW_KEY) !== null ? { 'X-Projects-Password': lsGet(PW_KEY) } : {}, cache: 'no-store', credentials: 'same-origin'
   }).then(function (r) {
     return r.json().catch(function () { return {}; }).then(function (j) {
       if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.code = j.error; throw e; }
@@ -296,7 +297,7 @@ function wire() {
   if (retry) { retry.addEventListener('click', loadStats); }
 }
 
-loadStats();
+SM.ready.then(loadStats);
 fetch(CI_SOURCE, { cache: 'no-store' })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) { if (d) { SOCIAL = d; render(); } })

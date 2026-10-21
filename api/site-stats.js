@@ -1,24 +1,25 @@
 /* ============================================================================
    /api/site-stats — the numbers behind the sanctuaryci.org page.
 
-   GET ?site=sanctuaryci.org&days=30   (needs the X-Projects-Password header)
+   GET ?site=sanctuaryci.org&days=30   (signed in, or the X-Projects-Password header)
 
    Calls the site_stats() function in Supabase (supabase/site-analytics.sql),
    which does all the counting in the database and returns one JSON object.
    ========================================================================== */
 
-const { sendJSON, passwordOk, supabase } = require('./projects').helpers;
+const { sendJSON, supabase } = require('../lib/db');
+const { authorize } = require('../lib/auth');
 
 const DAYS = [1, 7, 30, 90, 365];
 
 module.exports = async function handler(req, res) {
-  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PROJECTS_PASSWORD']
+  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Site analytics are not set up yet: missing ' + missing.join(', ') + '.' });
   }
-  if (!passwordOk(req.headers['x-projects-password'], process.env.PROJECTS_PASSWORD)) {
-    return sendJSON(res, 401, { error: 'password', message: 'Wrong or missing team password.' });
+  if (!(await authorize(req))) {
+    return sendJSON(res, 401, { error: 'password', message: 'Sign in, or enter the team password.' });
   }
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');

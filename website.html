@@ -86,6 +86,7 @@
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
 <script src="ui.js"></script>
+<script src="account.js"></script>
 <script src="website-pages.js"></script>
 <script src="chat.js" defer></script>
 <script>
@@ -195,7 +196,7 @@ function render() {
   wire();
 }
 function pwCard() {
-  if (lsGet(PW_KEY) !== null) { return ''; }
+  if (lsGet(PW_KEY) !== null || SM.me) { return ''; }
   return '<div class="card" id="pwcard"><form class="addform" id="pwform" style="grid-template-columns:2fr auto">' +
     '<div class="f"><label for="pw">Team password</label><input type="password" id="pw" autocomplete="current-password" ' +
     'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
@@ -261,13 +262,15 @@ function send(p) {
   var body = { kind: 'website_edit', page_url: p ? p.url : '', page_title: p ? pageName(p) : '',
                edit_type: v('wm-type'), priority: v('wm-pri'), current_text: v('wm-cur'), change: v('wm-chg'),
                requester_name: v('wm-by'), requester_email: v('wm-em'), needed_by: v('wm-need') };
-  if (lsGet(PW_KEY) === null) { err('Enter the team password on the page first.'); return; }
+  if (lsGet(PW_KEY) === null && !SM.me) { err('Sign in, or enter the team password on the page first.'); return; }
   if (!body.edit_type) { err('Pick what kind of change it is.'); document.getElementById('wm-type').focus(); return; }
   if (!body.change) { err('Describe the change you want.'); document.getElementById('wm-chg').focus(); return; }
   if (!body.requester_name) { err('Add your name so we know who asked.'); document.getElementById('wm-by').focus(); return; }
   var btn = document.getElementById('wm-go');
   btn.disabled = true; btn.textContent = 'Sending…';
-  fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Projects-Password': lsGet(PW_KEY) || '' },
+  fetch(API, { method: 'POST', credentials: 'same-origin',
+               headers: lsGet(PW_KEY) !== null ? { 'Content-Type': 'application/json', 'X-Projects-Password': lsGet(PW_KEY) }
+                                               : { 'Content-Type': 'application/json' },
                body: JSON.stringify(body) })
     .then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
@@ -324,6 +327,6 @@ function wire() {
 
 var start = decodeURIComponent(location.hash.slice(1));
 CUR = byPath(start) ? start : null;
-render();
+SM.ready.then(render);
 </script>
 </body></html>

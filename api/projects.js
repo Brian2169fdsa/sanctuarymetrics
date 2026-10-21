@@ -10,7 +10,8 @@
      SUPABASE_URL                required. e.g. https://abcd1234.supabase.co
      SUPABASE_SERVICE_ROLE_KEY   required. The secret (service_role / sb_secret_)
                                  key — server-side only, never sent to the page.
-     PROJECTS_PASSWORD           required. The word the page asks for once.
+     PROJECTS_PASSWORD           optional. The old shared team password, still
+                                 accepted as an alternative to signing in.
 
    It fails closed: any missing variable returns a clear message rather than
    running with an open table.
@@ -36,7 +37,8 @@
      seed_key = <title>   the page's edits to an L10 rock (status, importance,
                           due date) — the rock itself still comes from data.js
 
-   Routes (all need the X-Projects-Password header):
+   Routes (all need a signed-in account — see api/auth.js — or the old
+   X-Projects-Password header):
      GET                  list every row
      POST   {fields}      add a project
      PATCH  ?id=… {fields}        edit a project
@@ -44,46 +46,15 @@
      DELETE ?id=…         remove a project
    ========================================================================== */
 
-const crypto = require('crypto');
+const { sendJSON, readBody, supabase } = require('../lib/db');
+const { authorize } = require('../lib/auth');
 
-const TABLE = 'projects';
 /* the only columns the page may write, with their maximum lengths */
 const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, prev_status: 120, source: 200,
                  notes: 4000, event_date: 10, event_address: 300, event_time: 5, attendees: 4000 };
 const EMAIL = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[^\s@,;<>()]+$/;
 const MAX_ATTENDEES = 50;
 const DATE_FIELDS = { due: 1, event_date: 1 };
-
-function sendJSON(res, status, body) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
-  res.end(JSON.stringify(body));
-}
-
-function readBody(req) {
-  if (req.body) {
-    return Promise.resolve(typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
-  }
-  return new Promise(function (resolve, reject) {
-    let raw = '';
-    req.on('data', function (c) {
-      raw += c;
-      if (raw.length > 20000) { req.destroy(); reject(new Error('body too large')); }
-    });
-    req.on('end', function () {
-      try { resolve(raw ? JSON.parse(raw) : {}); } catch (e) { reject(e); }
-    });
-    req.on('error', reject);
-  });
-}
-
-/* constant-time compare so the password can't be guessed a character at a time */
-function passwordOk(given, expected) {
-  const a = crypto.createHash('sha256').update(String(given || '')).digest();
-  const b = crypto.createHash('sha256').update(String(expected)).digest();
-  return crypto.timingSafeEqual(a, b);
-}
 
 /* keep only known columns; empty strings become null so dates stay valid */
 function clean(input) {
@@ -123,34 +94,14 @@ function clean(input) {
   return out;
 }
 
-/* one call to Supabase's REST API (PostgREST); table defaults to projects */
-async function supabase(method, query, body, extraHeaders, table) {
-  const url = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + (table || TABLE) + (query || '');
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const headers = Object.assign({
-    apikey: key,
-    Authorization: 'Bearer ' + key,
-    'Content-Type': 'application/json',
-    Prefer: 'return=representation'
-  }, extraHeaders || {});
-  const r = await fetch(url, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined });
-  const text = await r.text();
-  if (!r.ok) {
-    const err = new Error('Supabase ' + r.status + ': ' + text.slice(0, 300));
-    err.status = r.status;
-    throw err;
-  }
-  return text ? JSON.parse(text) : null;
-}
-
 async function handler(req, res) {
-  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PROJECTS_PASSWORD']
+  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Shared projects are not set up yet: missing ' + missing.join(', ') + '.' });
   }
-  if (!passwordOk(req.headers['x-projects-password'], process.env.PROJECTS_PASSWORD)) {
-    return sendJSON(res, 401, { error: 'password', message: 'Wrong or missing team password.' });
+  if (!(await authorize(req))) {
+    return sendJSON(res, 401, { error: 'signin', message: 'Sign in to see the project list.' });
   }
 
   const id = new URL(req.url, 'http://x').searchParams.get('id');
@@ -228,5 +179,3 @@ async function handler(req, res) {
 }
 
 module.exports = handler;
-/* shared with api/requests.js, api/collect.js and api/site-stats.js */
-module.exports.helpers = { sendJSON: sendJSON, readBody: readBody, passwordOk: passwordOk, supabase: supabase };
