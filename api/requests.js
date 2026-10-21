@@ -20,14 +20,22 @@
 
    Route (signed in, or the X-Projects-Password header). Admins with an
    account get an alert for each new request:
-     POST {kind: 'business_cards' | 'flyer' | 'website_edit', …}   file one request
+     POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit', …}   file one request
+
+   A flyer request (flyer.html) can carry edits area by area — area_edits:
+   [{area, now, change}] — plus general edits, and a quantity of 0 when it's
+   edits only, no prints yet. A new_flyer request asks marketing for a design
+   that doesn't exist yet. Signed-in requests are filed under the account's
+   own name and email.
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const { authorize, admins, sendAlerts } = require('../lib/auth');
 
-const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [25, 50, 100, 250, 500, 1000] };
-const KINDS = { business_cards: 1, flyer: 1, website_edit: 1 };
+const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [0, 25, 50, 100, 250, 500, 1000],
+                     new_flyer: [0, 25, 50, 100, 250, 500, 1000] };
+const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1 };
+const MAX_AREA_EDITS = 30;
 const EDIT_TYPES = ['Change text', 'Page title / Google description', 'Images or video', 'Add a section',
                     'Remove something', 'Fix a link or button', 'New page', 'Other'];
 const SITE_URL = /^https:\/\/www\.sanctuaryrecoverycenters\.com(\/[^\s]*)?$/;
@@ -38,12 +46,13 @@ function str(v, max) { return v === null || v === undefined ? '' : String(v).tri
 function bad(message) { const e = new Error(message); e.bad = true; return e; }
 
 /* validate the request and turn it into a projects row */
-function toRow(body) {
+function toRow(body, user) {
   const kind = body.kind;
   if (!KINDS[kind]) { throw bad('Unknown request type.'); }
 
-  const by = str(body.requester_name, 120);
-  const byEmail = str(body.requester_email, 200);
+  /* a signed-in request is always filed as that person */
+  const by = user ? str(user.name, 120) : str(body.requester_name, 120);
+  const byEmail = user ? str(user.email, 200) : str(body.requester_email, 200);
   const deliver = str(body.deliver_to, 300);
   const notes = str(body.notes, 2000);
   const needed = str(body.needed_by, 10);
@@ -82,13 +91,33 @@ function toRow(body) {
     lines.push('WEBSITE EDIT — ' + type, 'Page: ' + (url || 'new page'));
     if (current) { lines.push('', 'Currently says:', current); }
     lines.push('', 'Change to / request:', change);
+  } else if (kind === 'new_flyer') {
+    const topic = str(body.topic, 160);
+    const audience = str(body.audience, 200);
+    const message = str(body.message, 2000);
+    const details = str(body.details, 3000);
+    if (!topic) { throw bad('Say what the flyer is for.'); }
+    if (!message) { throw bad('Say what the flyer should say or do.'); }
+    title = 'New flyer: ' + topic + (qty ? ' (' + qty + ')' : '');
+    lines.push('NEW FLYER — ' + topic, 'For: ' + (audience || '—'), 'Prints: ' + (qty ? qty : 'design only for now'),
+      '', 'What it should say / do:', message);
+    if (details) { lines.push('', 'Must include / photos / ideas:', details); }
   } else {
     const flyer = str(body.flyer, 120);
     const edits = str(body.edits, 3000);
     if (!flyer) { throw bad('Pick a flyer.'); }
-    title = (edits ? 'Edit + order flyer: ' : 'Order flyer: ') + flyer + ' (' + qty + ')';
-    lines.push('FLYER — ' + flyer + ' — ' + qty);
-    if (edits) { lines.push('', 'Requested edits:', edits); }
+    const areaEdits = (Array.isArray(body.area_edits) ? body.area_edits : []).slice(0, MAX_AREA_EDITS).map(function (a) {
+      return { area: str(a && a.area, 80), now: str(a && a.now, 600), change: str(a && a.change, 1500) };
+    }).filter(function (a) { return a.area && a.change; });
+    const anyEdits = !!(edits || areaEdits.length);
+    if (!qty && !anyEdits) { throw bad('Ask for at least one change, or pick how many to print.'); }
+    title = (anyEdits ? (qty ? 'Edit + order flyer: ' : 'Edit flyer: ') : 'Order flyer: ') + flyer + (qty ? ' (' + qty + ')' : '');
+    lines.push('FLYER — ' + flyer + ' — ' + (qty ? qty + ' prints' : 'edits only, no prints yet'));
+    areaEdits.forEach(function (a, i) {
+      lines.push('', (i + 1) + '. ' + a.area + (a.now ? ' — now: "' + a.now.slice(0, 200) + (a.now.length > 200 ? '…' : '') + '"' : ''),
+        '   Change to: ' + a.change);
+    });
+    if (edits) { lines.push('', areaEdits.length ? 'Also:' : 'Requested edits:', edits); }
   }
   lines.push('', 'Requested by: ' + by + (byEmail ? ' <' + byEmail + '>' : ''));
   if (deliver) { lines.push('Deliver to: ' + deliver); }
@@ -101,7 +130,7 @@ function toRow(body) {
     importance: str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
     due: needed || null,
     notes: lines.join('\n').slice(0, 4000),
-    source: (kind === 'website_edit' ? 'Website edit request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
+    source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
     seed_key: null
   };
 }
@@ -122,7 +151,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const row = toRow(await readBody(req));
+    const row = toRow(await readBody(req), who.user || null);
     const rows = await projectWrite('POST', '', Object.assign(row, addedBy(who.user)));
     /* let the admins know on the bell */
     try {

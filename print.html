@@ -38,16 +38,18 @@
 .po-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
 .po-ok{grid-column:1/-1;padding:12px 14px;border-radius:9px;background:#e9f5ee;color:#1f5a37;font-size:14px}
 .po-err[hidden],.po-ok[hidden]{display:none}
-/* ── flyer picker ── */
-.fl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin:6px 0 18px}
-.fl{position:relative;border:2px solid var(--line);border-radius:11px;background:#fff;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:8px}
-.fl:hover{border-color:#bcd3df}
-.fl input{position:absolute;opacity:0;pointer-events:none}
-.fl:has(input:checked){border-color:var(--blue);box-shadow:0 0 0 3px rgba(28,154,214,.18)}
-.fl:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
-.fl img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:7px;background:var(--paper)}
+/* ── flyer gallery: small tiles, each opens its editor (flyer.html) ── */
+.fl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:6px 0 18px}
+.fl{position:relative;border:1px solid var(--line);border-radius:11px;background:#fff;padding:8px;display:flex;flex-direction:column;gap:7px;
+  text-decoration:none;color:var(--ink);transition:border-color .12s,box-shadow .12s,transform .12s}
+.fl:hover{border-color:#bcd3df;box-shadow:0 8px 20px rgba(22,38,59,.12);transform:translateY(-2px)}
+.fl:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.fl img{width:100%;aspect-ratio:1545/1999;object-fit:cover;border-radius:7px;background:var(--paper);display:block}
 .fl b{font-size:13.5px;line-height:1.3}
-.fl a{font-size:12px;color:var(--blue)}
+.fl span{font-size:12px;color:var(--muted)}
+.fl .vers{position:absolute;top:14px;right:14px;background:#16263B;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px}
+.fl-new{border:1px dashed #b9cdd8;background:var(--paper);align-items:center;justify-content:center;text-align:center;min-height:220px}
+.fl-new .plus{width:42px;height:42px;border-radius:50%;background:#EE6A2C;color:#fff;font-size:26px;line-height:42px;font-weight:600}
 .fl-none{padding:26px 20px;text-align:center;color:var(--muted);border:1px dashed #cfdbe2;border-radius:11px;background:var(--paper)}
 @media (max-width:720px){
   .po-cards,.po-form{grid-template-columns:1fr}
@@ -58,6 +60,7 @@
 <script src="data.js"></script>
 <script src="ui.js"></script>
 <script src="account.js"></script>
+<script src="flyers.js"></script>
 <script src="chat.js" defer></script>
 <script>
 /* ── print orders ─────────────────────────────────────────────────────────
@@ -67,15 +70,14 @@
    off once ordered.
 
    Business cards: the design is fixed; people only fill in their details.
-   Flyers: the designs are fixed too; people pick one, say how many, and can
-   suggest edits, which come through as notes on the task.
+   Flyers: a small tile for each design (flyers.js). A tile opens the flyer
+   full size on flyer.html, where people click any part of it to ask for a
+   change and say how many to print. A design that doesn't exist yet is a
+   "new flyer" request, at the end of the flyers section.
 
-   To add a flyer: put the image in print/flyers/ and add a line to FLYERS. */
-var FLYERS = [
-  /* { id: 'iop-program', title: 'IOP Program', img: 'print/flyers/iop-program.png' }, */
-];
+   To add a flyer: see the top of flyers.js. */
 var CARD_QTY = [250, 500, 1000];
-var FLYER_QTY = [25, 50, 100, 250, 500, 1000];
+var FLYER_QTY = [0, 25, 50, 100, 250, 500, 1000];
 var API = '/api/requests';
 var PW_KEY = 'src_projects_pw';   /* same team password as the Projects page */
 var ME_KEY = 'src_print_me_v1';   /* remembers the requester's name/email */
@@ -124,11 +126,12 @@ function field(label, id, attrs, wide) {
 }
 function qtySelect(id, list, label) {
   return '<label class="po-f">' + label + '<select id="' + id + '">' +
-    list.map(function (n, i) { return '<option value="' + n + '"' + (i === 0 ? ' selected' : '') + '>' + fmt(n) + '</option>'; }).join('') +
+    list.map(function (n, i) { return '<option value="' + n + '"' + (i === 0 ? ' selected' : '') + '>' + (n ? fmt(n) : 'None yet — design first') + '</option>'; }).join('') +
     '</select></label>';
 }
 function requesterFields(pfx) {
-  var m = me();
+  /* signed in: requests are filed under the account anyway (api/requests.js) */
+  var m = SM.me ? { name: SM.me.name, email: SM.me.email } : me();
   return '<div class="po-sec">Who is asking</div>' +
     field('Your name', pfx + '-by', 'type="text" maxlength="120" autocomplete="name" value="' + esc(m.name || '') + '" required') +
     field('Your email', pfx + '-byemail', 'type="email" maxlength="200" autocomplete="email" value="' + esc(m.email || '') + '"') +
@@ -178,30 +181,39 @@ function cardsSection() {
     '</form></div></section>';
 }
 function flyerTile(f) {
-  return '<label class="fl"><input type="radio" name="fl-pick" value="' + esc(f.title) + '"' + (FLYERS.length === 1 ? ' checked' : '') + '>' +
-    '<img src="' + esc(f.img) + '" alt="' + esc(f.title) + ' flyer" loading="lazy">' +
-    '<b>' + esc(f.title) + '</b>' +
-    '<a href="' + esc(f.img) + '" target="_blank" rel="noopener">View full size</a></label>';
+  var v = f.versions[0];
+  return '<a class="fl" href="flyer.html?id=' + encodeURIComponent(f.id) + '">' +
+    '<img src="' + esc(flyerThumb(v)) + '" alt="" loading="lazy">' +
+    (f.versions.length > 1 ? '<em class="vers">' + f.versions.length + ' versions</em>' : '') +
+    '<b>' + esc(f.title) + '</b><span>' + esc(f.audience || '') + '</span></a>';
 }
 function flyersSection() {
-  var none = !FLYERS.length;
   return '<section id="flyers">' +
     '<div class="eyebrow">Flyers</div>' +
-    '<h2 style="font-size:26px;margin:6px 0 0">Request flyers</h2>' +
-    '<p class="lead">Pick a flyer, say how many you need, and suggest any changes. Designs aren\'t edited here — your ' +
-    'suggestions go to marketing with the request, and you\'ll hear back before anything prints.</p>' +
-    (none
-      ? '<div class="fl-none">Flyer designs are being added — check back soon.</div>'
-      : '<div class="fl-grid" role="radiogroup" aria-label="Flyers">' + FLYERS.map(flyerTile).join('') + '</div>' +
-        '<div class="card"><form class="po-form" id="fl-form" novalidate>' +
-          '<div class="po-sec" style="margin-top:0">The request</div>' +
-          qtySelect('fl-qty', FLYER_QTY, 'Quantity') + '<span></span>' +
-          '<label class="po-f po-wide">Suggested edits<textarea id="fl-edits" rows="4" maxlength="3000" ' +
-            'placeholder="e.g. Change the phone number to (480) 925-2451, add the Gilbert address. Leave blank to print as-is."></textarea></label>' +
-          requesterFields('fl') +
-          formFoot('fl', 'Submit flyer request') +
-        '</form></div>') +
-    '</section>';
+    '<h2 style="font-size:26px;margin:6px 0 0">Flyers</h2>' +
+    '<p class="lead">Open a flyer to see it full size. Click any part of it to ask for a change, and say how many to ' +
+    'print. Everything goes to marketing, and you\'ll hear back before anything prints.</p>' +
+    '<div class="fl-grid">' + FLYER_CATALOG.map(flyerTile).join('') +
+      '<a class="fl fl-new" href="#new-flyer"><div class="plus" aria-hidden="true">+</div><b>Request a new flyer</b>' +
+      '<span>For something none of these cover</span></a></div>' +
+    '</section>' + newFlyerSection();
+}
+function newFlyerSection() {
+  return '<section id="new-flyer">' +
+    '<div class="eyebrow">New flyer</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Request a new flyer</h2>' +
+    '<p class="lead">Tell marketing what it\'s for and what it needs to say. They\'ll design it and check it with you first.</p>' +
+    '<div class="card"><form class="po-form" id="nf-form" novalidate>' +
+      field('What it\'s for', 'nf-topic', 'type="text" maxlength="160" placeholder="e.g. Family weekend open house" required') +
+      field('Who it\'s for', 'nf-aud', 'type="text" maxlength="200" placeholder="e.g. Referral partners, parents, job seekers"') +
+      '<label class="po-f po-wide">What it should say or do<textarea id="nf-msg" rows="3" maxlength="2000" ' +
+        'placeholder="The main message, the call to action, dates, who to contact…"></textarea></label>' +
+      '<label class="po-f po-wide">Must include, photos or ideas<textarea id="nf-det" rows="3" maxlength="3000" ' +
+        'placeholder="Logos, the address, a photo of the house, a flyer you liked — or paste a link"></textarea></label>' +
+      qtySelect('nf-qty', FLYER_QTY, 'Prints') + '<span></span>' +
+      requesterFields('nf') +
+      formFoot('nf', 'Request the flyer') +
+    '</form></div></section>';
 }
 
 function render() {
@@ -212,6 +224,9 @@ function render() {
     pageFooter('print requests');
   refreshCard();
   wire();
+  /* the page draws after sign-in is checked, so jump to #flyers / #new-flyer by hand */
+  var at = location.hash && document.getElementById(location.hash.slice(1));
+  if (at) { at.scrollIntoView(); }
 }
 
 /* ── submitting ───────────────────────────────────────────────────────── */
@@ -269,16 +284,16 @@ function submitCard() {
     msg('bc', 'ok', 'Got it — ' + fmt(body.quantity) + ' cards for ' + c.name + ' are on the order list. You can submit another.');
   });
 }
-function submitFlyer() {
-  var pick = document.querySelector('input[name="fl-pick"]:checked');
-  if (!pick) { msg('fl', 'err', 'Pick a flyer above.'); return; }
-  if (!need('fl', 'fl-by', 'Add your name so we know who asked.')) { return; }
-  var body = Object.assign({ kind: 'flyer', flyer: pick.value, quantity: +document.getElementById('fl-qty').value,
-                             edits: document.getElementById('fl-edits').value.trim() }, requester('fl'));
-  send('fl', body, 'Submit flyer request', function () {
-    ['fl-edits', 'fl-need', 'fl-deliver', 'fl-notes'].forEach(function (id) { document.getElementById(id).value = ''; });
-    msg('fl', 'ok', 'Got it — your request for ' + fmt(body.quantity) + ' × ' + pick.value + ' is on the list' +
-      (body.edits ? ', with your suggested edits.' : '.'));
+function submitNewFlyer() {
+  if (!need('nf', 'nf-topic', 'Say what the flyer is for.') || !need('nf', 'nf-msg', 'Say what the flyer should say or do.') ||
+      !need('nf', 'nf-by', 'Add your name so we know who asked.')) { return; }
+  var v = function (id) { return document.getElementById(id).value.trim(); };
+  var body = Object.assign({ kind: 'new_flyer', topic: v('nf-topic'), audience: v('nf-aud'), message: v('nf-msg'),
+                             details: v('nf-det'), quantity: +v('nf-qty') }, requester('nf'));
+  send('nf', body, 'Request the flyer', function () {
+    ['nf-topic', 'nf-aud', 'nf-msg', 'nf-det', 'nf-need', 'nf-deliver', 'nf-notes'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('nf-qty').value = '0';
+    msg('nf', 'ok', 'Got it — "' + body.topic + '" is on the marketing list. You\'ll hear back before anything prints.');
   });
 }
 
@@ -297,11 +312,9 @@ function wire() {
   bc.addEventListener('input', function () { refreshCard(); msg('bc', 'err', ''); });
   document.getElementById('bc-phone').addEventListener('blur', function () { this.value = fmtPhone(this.value); refreshCard(); });
   bc.addEventListener('submit', function (e) { e.preventDefault(); submitCard(); });
-  var fl = document.getElementById('fl-form');
-  if (fl) {
-    fl.addEventListener('input', function () { msg('fl', 'err', ''); });
-    fl.addEventListener('submit', function (e) { e.preventDefault(); submitFlyer(); });
-  }
+  var nf = document.getElementById('nf-form');
+  nf.addEventListener('input', function () { msg('nf', 'err', ''); });
+  nf.addEventListener('submit', function (e) { e.preventDefault(); submitNewFlyer(); });
 }
 
 SM.ready.then(render);

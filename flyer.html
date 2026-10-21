@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Flyer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.fe-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
+.fe-back:hover{text-decoration:underline}
+.fe-vers{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+.fe-ver{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;
+  border:2px solid var(--line);border-radius:11px;background:#fff;font-size:13px;line-height:1.3}
+.fe-ver img{width:38px;height:49px;object-fit:cover;border-radius:5px;display:block}
+.fe-ver b{display:block;font-size:13.5px}
+.fe-ver span{color:var(--muted);font-size:12px}
+.fe-ver:hover{border-color:#bcd3df}
+.fe-ver[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 0 3px rgba(28,154,214,.18)}
+.fe-ver:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.fe{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:26px;align-items:start;margin-top:14px}
+/* the flyer, with a clickable box over each area */
+.fe-art{position:sticky;top:12px}
+.fe-img{position:relative;border-radius:10px;box-shadow:0 10px 30px rgba(22,38,59,.18);background:var(--paper);aspect-ratio:1545/1999}
+.fe-img img{width:100%;height:100%;display:block;border-radius:10px}
+.fe-hot{all:unset;position:absolute;box-sizing:border-box;cursor:pointer;border:2px solid transparent;border-radius:6px;transition:background .12s,border-color .12s}
+.fe-hot i{position:absolute;left:-8px;top:-8px;z-index:1;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:10px;
+  background:#16263B;color:#fff;font:700 11px/20px Inter,sans-serif;text-align:center;font-style:normal;opacity:.85;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.fe-hot:hover,.fe-hot:focus-visible,.fe-hot.on{border-color:#1C9AD6;background:rgba(28,154,214,.12)}
+.fe-hot.done i{background:#EE6A2C;opacity:1}
+.fe-hot.on i{background:#1C9AD6;opacity:1}
+.fe-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.fe-tools a{color:var(--blue)}
+.fe-tools label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.fe-art.nonum .fe-hot i{display:none}
+/* the edit list */
+.fe-panel h3{font-family:Fraunces,serif;font-size:20px;font-weight:600;margin:0 0 4px}
+.fe-panel .sub{margin:0 0 12px}
+.fe-areas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fe-a{border:1px solid var(--line);border-radius:11px;background:#fff;transition:border-color .12s,box-shadow .12s}
+.fe-a.on{border-color:#1C9AD6;box-shadow:0 0 0 3px rgba(28,154,214,.14)}
+.fe-a.done{border-color:#f0b597}
+.fe-ah{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:start;width:100%;padding:10px 12px}
+.fe-ah:focus-visible{outline:2px solid var(--blue);outline-offset:-2px;border-radius:10px}
+.fe-n{width:22px;height:22px;border-radius:11px;background:#16263B;color:#fff;font:700 11px/22px Inter,sans-serif;text-align:center;margin-top:1px}
+.fe-a.done .fe-n{background:#EE6A2C}
+.fe-a.on .fe-n{background:#1C9AD6}
+.fe-t b{display:block;font-size:14px}
+.fe-t span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fe-a.on .fe-t span{-webkit-line-clamp:unset;display:block}
+.fe-tag{font-size:11.5px;font-weight:700;color:var(--blue);white-space:nowrap;margin-top:2px}
+.fe-a.done .fe-tag{color:#c0572b}
+.fe-body{padding:0 12px 12px 46px}
+.fe-body[hidden]{display:none}
+.fe-body textarea,.fe-f textarea,.fe-f select,.fe-f input{width:100%;box-sizing:border-box;font:400 14px Inter,sans-serif;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;line-height:1.45}
+.fe-body textarea{resize:vertical;min-height:70px}
+.fe-body textarea:focus,.fe-f textarea:focus,.fe-f select:focus,.fe-f input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.fe-body .row{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px}
+.fe-body .row button{all:unset;cursor:pointer;color:var(--muted);text-decoration:underline}
+.fe-more{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.fe-f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.fe-f textarea{resize:vertical}
+.fe-f select,.fe-f input,.fe-f textarea{text-transform:none;letter-spacing:0}
+.fe-wide{grid-column:1/-1}
+.fe-sum{grid-column:1/-1;font-size:13px;color:var(--muted)}
+.fe-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
+.fe-ok{padding:14px 16px;border-radius:11px;background:#e9f5ee;color:#1f5a37;font-size:14px;line-height:1.5;margin-top:16px}
+.fe-ok a{color:#1f5a37;font-weight:700}
+.fe-err[hidden],.fe-ok[hidden]{display:none}
+.fe-foot{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fe-new{margin-top:28px;padding:16px 18px;border:1px dashed #cfdbe2;border-radius:12px;background:var(--paper);font-size:14px}
+.fe-new a{color:var(--blue);font-weight:600}
+@media (max-width:900px){
+  .fe{grid-template-columns:1fr}
+  .fe-art{position:static;max-width:520px}
+}
+@media (max-width:600px){
+  .fe-more{grid-template-columns:1fr}
+  .fe-body{padding-left:12px}
+}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="flyers.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ── one flyer: see it full size and ask for changes ──────────────────────
+   flyer.html?id=<flyer id>[&v=<version id>] — the flyers are in flyers.js.
+   Click an area on the flyer (or in the list) and write what it should say
+   instead; every change goes to marketing as one request (/api/requests →
+   a task on the Projects page), filed under the signed-in person's name.  */
+var Q = new URLSearchParams(location.search);
+var FLYER = FLYER_CATALOG.filter(function (f) { return f.id === Q.get('id'); })[0];
+var VERSION = null;
+var EDITS = {};          /* area name → requested change, kept per version */
+var OPEN = null;         /* area name whose editor is open */
+var QTY = [0, 25, 50, 100, 250, 500, 1000];
+
+function areas() { return flyerAreas(FLYER, VERSION); }
+function changes() {
+  return areas().filter(function (a) { return (EDITS[a.name] || '').trim(); })
+    .map(function (a) { return { area: a.name, now: a.now, change: EDITS[a.name].trim() }; });
+}
+function smallest(list) {
+  return list.slice().sort(function (a, b) { return a.box[2] * a.box[3] - b.box[2] * b.box[3]; });
+}
+
+function versionsHtml() {
+  if (FLYER.versions.length < 2) { return ''; }
+  return '<div class="fe-vers" role="group" aria-label="Versions">' + FLYER.versions.map(function (v) {
+    return '<button type="button" class="fe-ver" data-ver="' + esc(v.id) + '" aria-pressed="' + (v === VERSION) + '">' +
+      '<img src="' + esc(flyerThumb(v)) + '" alt="">' +
+      '<span><b>' + esc(v.label) + '</b>' + (v.note ? '<span>' + esc(v.note) + '</span>' : '') + '</span></button>';
+  }).join('') + '</div>';
+}
+function artHtml() {
+  var list = areas();
+  /* bigger boxes first so smaller ones sit on top and win the click */
+  var order = smallest(list).reverse();
+  return '<div class="fe-art" id="fe-art">' +
+    '<div class="fe-img"><img src="' + esc(flyerImg(VERSION)) + '" alt="' + esc(FLYER.title + ' — ' + VERSION.label) + ' flyer">' +
+    order.map(function (a) {
+      var i = list.indexOf(a), b = a.box;
+      return '<button type="button" class="fe-hot' + (EDITS[a.name] ? ' done' : '') + (OPEN === a.name ? ' on' : '') + '" ' +
+        'data-area="' + esc(a.name) + '" style="left:' + b[0] + '%;top:' + b[1] + '%;width:' + b[2] + '%;height:' + b[3] + '%" ' +
+        'aria-label="Ask for a change to: ' + esc(a.name) + '"><i>' + (i + 1) + '</i></button>';
+    }).join('') + '</div>' +
+    '<div class="fe-tools"><label><input type="checkbox" id="fe-num" checked> Show area numbers</label>' +
+      '<a href="' + esc(flyerImg(VERSION)) + '" target="_blank" rel="noopener">Open full size ↗</a></div>' +
+  '</div>';
+}
+function areaHtml(a, i) {
+  var done = !!(EDITS[a.name] || '').trim(), on = OPEN === a.name;
+  return '<li class="fe-a' + (done ? ' done' : '') + (on ? ' on' : '') + '" data-area="' + esc(a.name) + '">' +
+    '<button type="button" class="fe-ah" aria-expanded="' + on + '" aria-controls="fe-b' + i + '">' +
+      '<span class="fe-n" aria-hidden="true">' + (i + 1) + '</span>' +
+      '<span class="fe-t"><b>' + esc(a.name) + '</b><span>' + esc(a.now) + '</span></span>' +
+      '<span class="fe-tag">' + (done ? 'Change added ✓' : 'Ask for a change') + '</span></button>' +
+    '<div class="fe-body" id="fe-b' + i + '"' + (on ? '' : ' hidden') + '>' +
+      '<textarea data-edit="' + esc(a.name) + '" rows="3" maxlength="1500" aria-label="Change to ' + esc(a.name) + '" ' +
+        'placeholder="What should it say or show instead? e.g. new wording, a different photo, a new phone number…">' +
+        esc(EDITS[a.name] || '') + '</textarea>' +
+      '<div class="row"><span class="sub" style="margin:0">Saved as you type.</span>' +
+        (done ? '<button type="button" data-clear="' + esc(a.name) + '">Remove this change</button>' : '') + '</div>' +
+    '</div></li>';
+}
+function panelHtml() {
+  return '<div class="fe-panel">' +
+    '<h3>Ask for changes</h3>' +
+    '<p class="sub">Click any part of the flyer, or pick it below, and write what it should say or show instead. ' +
+    'Ask for as many changes as you like — they all go to marketing together.</p>' +
+    '<ol class="fe-areas" id="fe-areas">' + areas().map(areaHtml).join('') + '</ol>' +
+    '<form class="fe-more" id="fe-form" novalidate>' +
+      '<label class="fe-f fe-wide">Anything else about this flyer<textarea id="fe-gen" rows="3" maxlength="3000" ' +
+        'placeholder="e.g. Make a Spanish version, or a half-page size."></textarea></label>' +
+      '<label class="fe-f">Prints<select id="fe-qty">' + QTY.map(function (n) {
+        return '<option value="' + n + '">' + (n ? fmt(n) + ' copies' : 'No prints — just the changes') + '</option>';
+      }).join('') + '</select></label>' +
+      '<label class="fe-f">Needed by<input type="date" id="fe-need"></label>' +
+      '<label class="fe-f fe-wide">Deliver to<input type="text" id="fe-deliver" maxlength="300" placeholder="e.g. Roadrunner Home front office"></label>' +
+      '<div class="fe-sum" id="fe-sum"></div>' +
+      '<div class="fe-err" id="fe-err" role="alert" hidden></div>' +
+      '<div class="fe-foot"><button type="submit" class="btn" id="fe-go">Send to marketing</button>' +
+        '<span class="sub" style="margin:0">' + (SM.me ? 'Sent as ' + esc(SM.me.name) + '.' : '') + '</span></div>' +
+    '</form>' +
+    '<div class="fe-ok" id="fe-ok" role="status" hidden></div>' +
+    '<div class="fe-new">Need something this flyer can\'t become? <a href="print.html#new-flyer">Request a new flyer →</a></div>' +
+  '</div>';
+}
+
+function render() {
+  if (!FLYER) {
+    document.getElementById('sheet').innerHTML =
+      pageHeader('Flyer', 'Print orders', 'Internal', 'print') +
+      '<section><a class="fe-back" href="print.html#flyers">← All flyers</a>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">That flyer isn\'t here</h2>' +
+      '<p class="lead">It may have been renamed or retired. Pick one from the list.</p></section>' + pageFooter('flyer requests');
+    return;
+  }
+  VERSION = FLYER.versions.filter(function (v) { return v.id === Q.get('v'); })[0] || FLYER.versions[0];
+  document.title = 'Sanctuary Recovery Centers — ' + FLYER.title + ' flyer';
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Print Orders', 'Flyers &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
+    '<section><a class="fe-back" href="print.html#flyers">← All flyers</a>' +
+      '<div class="eyebrow">Flyer' + (FLYER.audience ? ' · ' + esc(FLYER.audience) : '') + '</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">' + esc(FLYER.title) + '</h2>' +
+      (FLYER.versions.length > 1 ? '<p class="lead" style="margin-bottom:0">' + FLYER.versions.length +
+        ' versions — pick the one you want to change or print.</p>' : '') +
+      versionsHtml() +
+      '<div class="fe" id="fe">' + artHtml() + panelHtml() + '</div>' +
+    '</section>' + pageFooter('flyer requests');
+  wire();
+  summary();
+}
+
+/* redraw just the flyer and the list (keeps the form below as typed) */
+function redraw() {
+  var art = document.getElementById('fe-art'), num = document.getElementById('fe-num').checked;
+  art.outerHTML = artHtml();
+  document.getElementById('fe-num').checked = num;
+  document.getElementById('fe-art').classList.toggle('nonum', !num);
+  document.getElementById('fe-areas').innerHTML = areas().map(areaHtml).join('');
+  wireAreas();
+  summary();
+}
+function openArea(name, fromArt) {
+  OPEN = OPEN === name && !fromArt ? null : name;
+  redraw();
+  if (!OPEN) { return; }
+  var li = document.querySelector('.fe-a[data-area="' + CSS.escape(OPEN) + '"]');
+  var ta = li && li.querySelector('textarea');
+  if (fromArt && li) { li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  if (ta) { ta.focus({ preventScroll: !fromArt }); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+function summary() {
+  var n = changes().length, q = +document.getElementById('fe-qty').value;
+  document.getElementById('fe-sum').textContent = (n ? n + ' change' + (n === 1 ? '' : 's') : 'No changes yet') +
+    ' · ' + (q ? fmt(q) + ' prints' : 'no prints') + ' · ' + VERSION.label;
+}
+function wireAreas() {
+  document.querySelectorAll('.fe-hot').forEach(function (b) {
+    b.addEventListener('click', function () { openArea(b.getAttribute('data-area'), true); });
+  });
+  document.querySelectorAll('.fe-ah').forEach(function (b) {
+    b.addEventListener('click', function () { openArea(b.parentNode.getAttribute('data-area'), false); });
+  });
+  document.querySelectorAll('[data-edit]').forEach(function (ta) {
+    ta.addEventListener('input', function () {
+      var name = ta.getAttribute('data-edit'), had = !!(EDITS[name] || '').trim();
+      EDITS[name] = ta.value;
+      var has = !!ta.value.trim();
+      if (had !== has) {
+        /* mark the area without a full redraw, so typing isn't interrupted */
+        var li = ta.closest('.fe-a');
+        li.classList.toggle('done', has);
+        li.querySelector('.fe-tag').textContent = has ? 'Change added ✓' : 'Ask for a change';
+        var hot = document.querySelector('.fe-hot[data-area="' + CSS.escape(name) + '"]');
+        if (hot) { hot.classList.toggle('done', has); }
+      }
+      summary();
+      document.getElementById('fe-err').hidden = true;
+    });
+  });
+  document.querySelectorAll('[data-clear]').forEach(function (b) {
+    b.addEventListener('click', function () { delete EDITS[b.getAttribute('data-clear')]; redraw(); });
+  });
+}
+function wire() {
+  document.querySelectorAll('.fe-ver').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = FLYER.versions.filter(function (x) { return x.id === b.getAttribute('data-ver'); })[0];
+      if (v === VERSION) { return; }
+      VERSION = v; OPEN = null;
+      history.replaceState(null, '', 'flyer.html?id=' + encodeURIComponent(FLYER.id) + '&v=' + encodeURIComponent(v.id));
+      document.querySelectorAll('.fe-ver').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      redraw();
+    });
+  });
+  document.getElementById('fe-num').addEventListener('change', function () {
+    document.getElementById('fe-art').classList.toggle('nonum', !this.checked);
+  });
+  wireAreas();
+  var form = document.getElementById('fe-form');
+  form.addEventListener('input', function () { summary(); document.getElementById('fe-err').hidden = true; });
+  form.addEventListener('submit', function (e) { e.preventDefault(); submit(); });
+}
+
+function fail(text) { var el = document.getElementById('fe-err'); el.textContent = text; el.hidden = false; }
+function submit() {
+  var list = changes(), gen = document.getElementById('fe-gen').value.trim(), qty = +document.getElementById('fe-qty').value;
+  if (!list.length && !gen && !qty) { fail('Click a part of the flyer to ask for a change, or pick how many to print.'); return; }
+  if (!SM.me) { fail('Sign in first — requests are sent under your name.'); return; }
+  var name = FLYER.title + (FLYER.versions.length > 1 ? ' — ' + VERSION.label : '');
+  var btn = document.getElementById('fe-go');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  SM.api('POST', '/api/requests', {
+    kind: 'flyer', flyer: name, version: VERSION.id, area_edits: list, edits: gen, quantity: qty,
+    needed_by: document.getElementById('fe-need').value, deliver_to: document.getElementById('fe-deliver').value.trim()
+  }).then(function () {
+    btn.disabled = false; btn.textContent = 'Send to marketing';
+    var ok = document.getElementById('fe-ok');
+    var what = [];
+    if (list.length) { what.push(list.length + ' change' + (list.length === 1 ? '' : 's')); }
+    else if (gen) { what.push('your notes'); }
+    if (qty) { what.push(fmt(qty) + ' prints'); }
+    ok.innerHTML = '<b>Sent.</b> ' + esc(name) + ' — ' + esc(what.join(', ')) + ' — is on the marketing list, and you\'ll hear back ' +
+      'before anything prints. <a href="print.html#flyers">Back to all flyers</a>';
+    ok.hidden = false;
+    EDITS = {}; OPEN = null;
+    formReset();
+    redraw();
+    ok.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, function (e) { btn.disabled = false; btn.textContent = 'Send to marketing'; fail(e.message); });
+}
+function formReset() {
+  ['fe-gen', 'fe-need', 'fe-deliver'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('fe-qty').value = '0';
+}
+
+SM.ready.then(render);
+</script>
+</body></html>
