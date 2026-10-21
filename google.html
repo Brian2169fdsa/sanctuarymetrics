@@ -10,7 +10,6 @@
 <style>
 .ms .g-empty{border:1px dashed #cbd5e1;border-radius:10px;padding:22px;background:var(--ms-band);color:var(--ms-ink2);font-size:14px;line-height:1.55}
 .ms .g-empty b{display:block;font-size:15px;margin-bottom:4px}
-.ms .g-empty code{background:#fff;border:1px solid var(--ms-line);border-radius:5px;padding:1px 6px;font-size:12.5px}
 .ms .need{color:var(--ms-warn);font-weight:600}
 .ms .kpi .num .need{font-family:Inter,sans-serif;font-size:19px;display:block;padding-top:8px}
 .ms ol.chk{list-style:none;padding:0;margin:0;display:grid;gap:10px}
@@ -20,9 +19,46 @@
 .ms ol.chk li.doing .n{background:#0f9d8a;border-color:#0f9d8a;color:#fff}
 .ms ol.chk b{color:var(--ms-ink2)}
 .ms ol.chk p{margin:4px 0 0;color:var(--ms-mute);font-size:13px}
-.ms .bar{height:8px;border-radius:4px;background:var(--ms-band);overflow:hidden;margin-top:6px}
-.ms .bar i{display:block;height:100%;background:#0f9d8a}
-.ms .gflag{font-size:11px;padding:3px 8px;white-space:nowrap}
+.ms .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;border:1px solid currentColor}
+.ms .p-ok{color:var(--ms-good)}.ms .p-warn{color:var(--ms-warn)}.ms .p-bad{color:var(--ms-bad)}.ms .p-mute{color:var(--ms-mute)}
+/* ── choose what to cut ── */
+.ms .pick{position:sticky;top:0;z-index:5;background:#fff;border:1px solid var(--ms-line);border-radius:12px;padding:14px 16px;margin-bottom:12px;
+  display:grid;grid-template-columns:1fr auto;gap:12px 18px;align-items:center;box-shadow:0 6px 18px rgba(15,23,42,.06)}
+.ms .presets{display:flex;gap:6px;flex-wrap:wrap}
+.ms .presets button,.ms .filt button{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--ms-line);color:var(--ms-ink2);background:#fff}
+.ms .presets button:hover,.ms .filt button:hover{background:var(--ms-band)}
+.ms .presets button:focus-visible,.ms .filt button:focus-visible{outline:2px solid var(--ms-s1);outline-offset:2px}
+.ms .filt button[aria-pressed="true"]{background:var(--ms-accent);border-color:var(--ms-accent);color:#fff}
+.ms .tally{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;font-size:13px;color:var(--ms-mute);grid-column:1/-1}
+.ms .tally b{font-family:'Playfair Display',Georgia,serif;font-size:24px;font-weight:600;color:var(--ms-good);font-variant-numeric:tabular-nums}
+.ms .tally b.n{color:var(--ms-ink)}
+.ms .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ms .btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;
+  padding:9px 16px;border-radius:8px;font:600 13.5px Inter,sans-serif;background:var(--ms-accent);color:#fff}
+.ms .btn:hover{background:#1e2d3c}
+.ms .btn:focus-visible{outline:2px solid var(--ms-s1);outline-offset:2px}
+.ms .btn.go{background:var(--ms-good)}.ms .btn.go:hover{background:#246650}
+.ms .btn.lt{background:#fff;color:var(--ms-ink2);border:1px solid var(--ms-line)}.ms .btn.lt:hover{background:var(--ms-band)}
+.ms .btn[disabled]{opacity:.45;cursor:default}
+.ms .msg{grid-column:1/-1;padding:9px 12px;border-radius:8px;font-size:13px}
+.ms .msg.err{background:#fbeeee;color:var(--ms-bad)}.ms .msg.ok{background:#ecf7f2;color:var(--ms-good)}
+.ms .filt{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.ms #acct{min-width:1500px}
+.ms #acct th{background:#fff}
+.ms #acct td{vertical-align:top}
+.ms #acct td.c{width:34px}
+.ms #acct input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--ms-good)}
+.ms #acct input[disabled]{cursor:not-allowed}
+.ms #acct tr.sel td{background:#f0faf5}
+.ms #acct tr.lock td{background:#fdf6f1}
+.ms #acct .who b{display:block;color:var(--ms-ink)}
+.ms #acct .who span{font-size:12px;color:var(--ms-mute)}
+.ms #acct .lockb{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:700;color:#b45309;letter-spacing:.02em}
+.ms #acct .why{min-width:260px;color:var(--ms-ink2);font-size:12.5px}
+.ms .mini{display:grid;gap:3px;min-width:120px}
+.ms .mini i{display:block;height:6px;border-radius:3px}
+.ms .lead-note{font-size:13.5px;color:var(--ms-ink2);margin:0 0 12px;line-height:1.5}
+@media (max-width:760px){.ms .pick{grid-template-columns:1fr;position:static}.ms .acts{justify-content:flex-start}}
 @media (max-width:640px){.ms ol.chk li{grid-template-columns:28px 1fr}.ms ol.chk li .status{grid-column:2}}
 </style>
 </head>
@@ -33,9 +69,22 @@
 
 <section>
 <h2>Where it stands</h2>
-<p class="sub">Same approach as Microsoft: find the seats nobody uses, get sign-off, remove them, then lower the paid seat count.</p>
+<p class="sub" id="lead"></p>
 <div class="grid g4" id="kpis"></div>
 <p class="fine" id="kpiNote"></p>
+</section>
+
+<section id="choose">
+<h2>Choose what to cut</h2>
+<p class="lead-note">Tick the Google accounts to cut, then send them for approval. Approving puts the task on Brian's project list.
+Every usage figure from both admin consoles is in the table (scroll sideways). <b>Ulonda is locked as must-keep.</b></p>
+<div id="pickArea"></div>
+</section>
+
+<section>
+<h2>What each step saves</h2>
+<p class="sub">Every account removed saves the full seat, suspended or not. With tax each Google account costs about <b id="perSeat"></b> a month.</p>
+<div id="steps"></div>
 </section>
 
 <section>
@@ -44,130 +93,285 @@
 </section>
 
 <section>
-<h2>Subscriptions</h2>
-<p class="sub">From Google Admin → Billing → Subscriptions. Seats you pay for vs. seats in use.</p>
-<div id="plans"></div>
+<h2>Where mail is delivered today</h2>
+<p class="sub">A domain still pointing at Google keeps receiving into Gmail. Cancel Google before moving it and that domain stops getting email.</p>
+<div id="domains"></div>
 </section>
 
 <section>
+<h2>What Microsoft 365 shows was moved</h2>
+<p class="sub">Every place in the 365 tenant a Google migration would leave a trace, checked Oct 21.</p>
+<div id="evidence"></div>
+</section>
+
+<section>
+<h2>Subscription &amp; invoices</h2>
+<div id="plans"></div>
+<div id="invoices" style="margin-top:14px"></div>
+</section>
+
+<section id="deptSec" hidden>
 <h2>Accounts by department</h2>
-<p class="sub">Who has a Google license in each department, and how many look unused.</p>
+<p class="sub">From the Google Admin user export.</p>
 <div id="depts"></div>
 </section>
 
-<section>
-<h2>Accounts to review</h2>
-<p class="sub">Suspended but still licensed, never signed in, or no sign-in for 90+ days. Shown by mailbox name only. Nothing is removed without sign-off.</p>
-<div id="users"></div>
-</section>
-
-<section>
-<h2>Invoices</h2>
-<div id="invoices"></div>
-</section>
-
-<footer>Google cost system · numbers from google-costs.js (hand-kept from the Google invoices) and google-users.js (built from the
-Google Admin user export by tools/build-google-js.py). Nothing on this page is estimated — anything missing says so.</footer>
+<footer>Google cost system · invoices and plan from google-costs.js; the accounts and the team's keep / cut choices from Supabase
+(google_accounts), visible only when signed in. Usage collected Oct 21, 2026 from the Google Admin apps usage report and the Microsoft 365
+mailbox usage report; it doesn't update on its own.</footer>
 </div>
+<script src="account.js"></script>
 <script>
 var G = GOOGLE_COSTS, U = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
-var V = costGoogle();
+var V = costGoogle(), SEAT = G.plans[0] ? G.plans[0].price : 16.80, TAX = G.taxRate || 0;
+var ACCTS = [], RECS = {}, SEL = {}, FILTER = 'All', BUSY = false, MSG = null;
 function $(id) { return document.getElementById(id); }
 function need(what) { return '<span class="need">' + cEsc(what) + ' needed</span>'; }
 function empty(title, body) { return '<div class="g-empty"><b>' + cEsc(title) + '</b>' + body + '</div>'; }
-var EXPORT_HOW = 'Google Admin → Directory → Users → <b>Download users</b> → All user info columns → CSV, then run ' +
-  '<code>python3 tools/build-google-js.py google_users.csv</code> and commit <code>google-users.js</code>.';
+function num(v) { return v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'); }
+function gb(mb) { return mb === null || mb === undefined ? '—' : (Number(mb) / 1024).toFixed(Number(mb) >= 1024 ? 1 : 2) + ' GB'; }
+function verdictPill(v) { return '<span class="pill ' + (v === 'Ready to cut' ? 'p-ok' : v === 'Verify' ? 'p-warn' : 'p-bad') + '">' + cEsc(v || '—') + '</span>'; }
 
 $('bar').innerHTML = costBar('google');
-$('asof').textContent = (G.asOf ? 'Updated ' + G.asOf : 'Ready for data') + (U ? ' · user export ' + U.built : '');
+$('asof').textContent = G.workspace + ' · reviewed ' + (G.review ? G.review.checkedOn : '—');
+$('perSeat').textContent = cMoney(SEAT * (1 + TAX), true);
 
-/* ── KPIs ── */
-var T = U ? U.totals : null;
-var kp = [
-  ['Monthly Google bill', V.bill !== null ? cMoney(V.bill, true) : need('Invoice'), V.billMonth ? cMonth(V.billMonth) + ' invoice' : 'add invoices to google-costs.js'],
-  ['Licensed accounts', T ? String(T.licensed) : need('Export'), T ? T.active30 + ' signed in within 30 days' : 'from the Google Admin user export'],
-  ['Flagged to review', T ? String(T.candidates) : need('Export'), T ? T.suspendedLicensed + ' suspended · ' + T.neverSignedIn + ' never signed in · ' + T.inactive90 + ' idle 90d+' : ''],
-  ['Could come off per month', V.identified !== null ? cMoney(V.identified, true) : need(T ? 'Plan prices' : 'Export + prices'),
-   V.identified !== null ? 'flagged accounts × their plan price' : 'flagged accounts × plan price, once both are in']
-];
-$('kpis').innerHTML = kp.map(function (k) {
-  return '<div class="card kpi"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] + '</div><div class="note">' + cEsc(k[2]) + '</div></div>';
-}).join('');
-$('kpiNote').textContent = V.realized ? cMoney(V.realized, true) + ' a month already confirmed on a Google invoice.' : 'Nothing confirmed on a Google invoice yet.';
-
-/* ── checklist ── */
-var label = { todo: ['To do', 'mute'], doing: ['In progress', 'warn'], done: ['Done', 'good'] };
-$('checklist').innerHTML = G.checklist.map(function (c, i) {
-  var l = label[c.status] || label.todo;
-  return '<li class="' + cEsc(c.status) + '"><span class="n">' + (c.status === 'done' ? '✓' : i + 1) + '</span>' +
-    '<div><b>' + cEsc(c.step) + '</b><p>' + cEsc(c.detail) + '</p></div><span class="status ' + l[1] + '">' + l[0] + '</span></li>';
-}).join('');
-
-/* ── plans ── */
-if (!G.plans.length && !U) {
-  $('plans').innerHTML = empty('No subscriptions recorded yet',
-    'Add each plan to <code>plans</code> in <code>google-costs.js</code>: name, seats paid for, price per seat, Flexible or Annual, renewal date.');
-} else {
-  var names = {};
-  G.plans.forEach(function (p) { names[p.name] = 1; });
-  if (U) { U.byPlan.forEach(function (p) { if (p.name !== 'No license') { names[p.name] = 1; } }); }
-  $('plans').innerHTML = '<div class="grid g3">' + Object.keys(names).map(function (n) {
-    var p = G.plans.filter(function (x) { return x.name === n; })[0] || {};
-    var u = U ? U.byPlan.filter(function (x) { return x.name === n; })[0] || { licensed: 0, active30: 0, candidates: 0 } : null;
-    return '<div class="card sub-card"><div class="sub-top"><h3>' + cEsc(n) + '</h3>' +
-      (p.term ? '<span class="status mute">' + cEsc(p.term) + '</span>' : '') + '</div>' +
-      '<div class="seats"><div><span>Paid for</span><b>' + (p.seats != null ? p.seats : '—') + '</b></div>' +
-      '<div><span>Assigned</span><b>' + (u ? u.licensed : '—') + '</b></div>' +
-      '<div><span>Used 30d</span><b>' + (u ? u.active30 : '—') + '</b></div></div>' +
-      '<p class="meta">' + (p.price ? cMoney(p.price, true) + ' per seat / month' : need('Price')) +
-      (p.renews ? ' · renews ' + cEsc(p.renews) : '') + '</p>' +
-      (u && u.candidates ? '<p class="next">' + u.candidates + ' flagged account' + (u.candidates === 1 ? '' : 's') +
-        (p.price ? ' · ' + cMoney(u.candidates * p.price, true) + '/mo if removed and seats reduced' : '') + '</p>' : '') +
-    '</div>';
-  }).join('') + '</div>';
+/* ── KPIs (public figures) ── */
+function drawKpis() {
+  var R = G.review || {}, last = G.invoices[G.invoices.length - 1];
+  $('lead').textContent = 'Google Workspace for ' + G.workspace + ': ' + (G.plans[0] ? G.plans[0].seats + ' ' + G.plans[0].name + ' seats at ' +
+    cMoney(SEAT, true) + ' each on the ' + G.plans[0].term + ' plan' : '') + '. ' + R.ready + ' accounts are ready to cut, ' + R.verify +
+    ' need their Drive files checked, ' + R.keep + ' stay for now.';
+  var kp = [
+    ['Monthly Google bill', last ? cMoney(last.total, true) : need('Invoice'), last ? cMonth(last.month) + ' · ' + cMoney(last.subtotal, true) + ' + tax' : ''],
+    ['A year at this rate', last ? cMoney(last.total * 12) : '—', 'including ' + Math.round(TAX * 1000) / 10 + '% tax'],
+    ['Data still in Google', R.googleGB ? R.googleGB.toFixed(1) + ' GB' : '—', R.driveNotInM365GB ? R.driveNotInM365GB + ' GB of Drive files not found in 365' : ''],
+    ['Cut everything but must-keep', cMoney((R.accounts - 1) * SEAT * (1 + TAX) * 12), 'a year with tax · ' + (R.accounts - 1) + ' of ' + R.accounts + ' seats']
+  ];
+  $('kpis').innerHTML = kp.map(function (k) {
+    return '<div class="card kpi"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] + '</div><div class="note">' + cEsc(k[2]) + '</div></div>';
+  }).join('');
+  $('kpiNote').textContent = V.realized ? cMoney(V.realized, true) + ' a month already confirmed on a Google invoice.' : 'Nothing confirmed on a Google invoice yet.';
 }
 
-/* ── departments ── */
-if (!U) {
-  $('depts').innerHTML = empty('Waiting for the user export', EXPORT_HOW);
-} else {
-  var max = Math.max.apply(null, U.byDept.map(function (d) { return d.users; }));
-  $('depts').innerHTML = '<div class="card scroll"><table><thead><tr><th>Department</th><th class="n">Accounts</th><th class="n">Licensed</th>' +
-    '<th class="n">Used 30d</th><th class="n">Flagged</th><th class="n">Storage</th></tr></thead><tbody>' +
-    U.byDept.map(function (d) {
-      return '<tr><td><b>' + cEsc(d.name) + '</b><div class="bar"><i style="width:' + Math.round(d.users / max * 100) + '%"></i></div></td>' +
-        '<td class="n">' + d.users + '</td><td class="n">' + d.licensed + '</td><td class="n">' + d.active30 + '</td>' +
-        '<td class="n">' + (d.candidates ? '<b style="color:var(--ms-s2)">' + d.candidates + '</b>' : '0') + '</td>' +
-        '<td class="n">' + d.storageGB + ' GB</td></tr>';
+/* ── choose what to cut (signed in) ── */
+function state(a) {
+  var r = a.cut_rec_id ? RECS[a.cut_rec_id] : null;
+  if (a.must_keep) { return { key: 'locked', html: '<span class="pill p-bad">Must keep</span>' }; }
+  if (a.decision === 'cut' && r && r.status === 'approved') {
+    return { key: 'approved', html: '<span class="pill p-ok">Cut approved</span>' +
+      (r.project_id ? '<div class="fine" style="margin:4px 0 0"><a href="projects.html#open=' + encodeURIComponent('row:' + r.project_id) + '">Open task</a></div>' : '') };
+  }
+  if (a.decision === 'cut') { return { key: 'sent', html: '<span class="pill p-warn">Sent for approval</span><div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name || '') + '</div>' }; }
+  if (a.decision === 'keep') { return { key: 'keep', html: '<span class="pill p-mute">Keep</span><div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name || '') + '</div>' }; }
+  return { key: 'open', html: '<span class="fine" style="margin:0">Not decided</span>' };
+}
+function selectable(a) { var k = state(a).key; return k === 'open' || k === 'keep'; }
+function selected() { return ACCTS.filter(function (a) { return SEL[a.account]; }); }
+
+function drawPick() {
+  if (!SM.me) {
+    $('pickArea').innerHTML = SM.signInCard('google.html#choose', 'The accounts list has staff names and usage, so it\'s for signed-in staff only. Sign in with your Sanctuary Microsoft account.');
+    return;
+  }
+  if (MSG && MSG.loadErr) { $('pickArea').innerHTML = '<div class="g-empty"><b>Couldn\'t load the accounts</b>' + cEsc(MSG.loadErr) + '</div>'; return; }
+  if (!ACCTS.length) {
+    $('pickArea').innerHTML = empty('No Google accounts loaded yet', 'Run the Google cutover insert in Supabase → SQL Editor (Brian has it), then reload.');
+    return;
+  }
+  var sel = selected(), n = sel.length, mo = n * SEAT;
+  /* seats still billed once this selection, and anything already sent or approved, is gone */
+  var gone = ACCTS.filter(function (a) { var k = state(a).key; return k === 'approved' || k === 'sent'; }).length;
+  var left = ACCTS.length - gone - n;
+  var counts = { all: ACCTS.length };
+  ['Ready to cut', 'Verify', 'Keep'].forEach(function (v) { counts[v] = ACCTS.filter(function (a) { return a.verdict === v; }).length; });
+  var rows = ACCTS.filter(function (a) { return FILTER === 'All' || a.verdict === FILTER; })
+    .sort(function (a, b) {
+      var o = { 'Ready to cut': 0, 'Verify': 1, 'Keep': 2 };
+      return (b.must_keep ? 1 : 0) - (a.must_keep ? 1 : 0) || o[a.verdict] - o[b.verdict] || b.google_total_mb - a.google_total_mb;
+    });
+  $('pickArea').innerHTML =
+    '<div class="pick">' +
+      '<div class="presets" role="group" aria-label="Quick select">' +
+        '<button type="button" data-pre="ready">Ready to cut</button>' +
+        '<button type="button" data-pre="ready+verify">Ready + verify</button>' +
+        '<button type="button" data-pre="all">Everything except must-keep</button>' +
+        '<button type="button" data-pre="none">Clear</button></div>' +
+      '<div class="acts"><button class="btn lt" id="mkKeep"' + (n ? '' : ' disabled') + '>Mark ' + n + ' as Keep</button>' +
+        '<button class="btn go" id="send"' + (n && !BUSY ? '' : ' disabled') + '>Send ' + n + ' for approval</button></div>' +
+      '<div class="tally" aria-live="polite"><span><b class="n">' + n + '</b> selected</span>' +
+        '<span><b>' + cMoney(mo, true) + '</b> a month</span><span><b>' + cMoney(mo * 12) + '</b> a year</span>' +
+        '<span>' + cMoney(mo * 12 * (1 + TAX)) + ' a year with tax</span>' +
+        '<span>Leaves ' + left + ' seat' + (left === 1 ? '' : 's') + ' (' + cMoney(left * SEAT, true) + '/mo)' +
+          (gone ? ' after the ' + gone + ' already sent or approved' : '') + '</span></div>' +
+      (MSG ? '<div class="msg ' + MSG.kind + '" role="status">' + MSG.html + '</div>' : '') +
+    '</div>' +
+    '<div class="filt" role="group" aria-label="Filter by review">' + ['All', 'Ready to cut', 'Verify', 'Keep'].map(function (f) {
+      return '<button type="button" data-f="' + f + '" aria-pressed="' + (FILTER === f) + '">' + f + ' (' + (f === 'All' ? counts.all : counts[f]) + ')</button>';
+    }).join('') + '</div>' +
+    '<div class="card scroll" style="padding:6px 10px"><table id="acct"><thead><tr>' +
+      '<th class="c"><input type="checkbox" id="selAll" aria-label="Tick every account shown that can be cut"></th>' +
+      '<th>Google account</th><th>Review says</th><th>Team choice</th><th>Google status</th><th>Last sign-in</th>' +
+      '<th class="n">Gmail</th><th class="n">Drive</th><th class="n">Photos</th><th class="n">Google total</th><th>Google vs 365</th>' +
+      '<th class="n">Emails in, 30d</th><th>Gmail last used</th><th>365 mailbox</th><th>365 type</th><th class="n">365 items</th>' +
+      '<th class="n">365 size</th><th>365 last activity</th><th>Why</th></tr></thead><tbody>' +
+    rows.map(function (a) {
+      var st = state(a), can = selectable(a), on = !!SEL[a.account];
+      var maxMb = Math.max(Number(a.google_total_mb) || 0, Number(a.m365_mb) || 0, 1);
+      return '<tr class="' + (a.must_keep ? 'lock' : on ? 'sel' : '') + '">' +
+        '<td class="c"><input type="checkbox" data-a="' + cEsc(a.account) + '"' + (on ? ' checked' : '') + (can ? '' : ' disabled') +
+          ' aria-label="' + (a.must_keep ? cEsc(a.account) + ' is locked as must-keep' : 'Cut ' + cEsc(a.account)) + '"></td>' +
+        '<td class="who"><b>' + cEsc(a.account) + '</b><span>' + cEsc(a.name || '') + '</span>' +
+          (a.must_keep ? '<div class="lockb">🔒 ' + cEsc(a.must_keep_reason || 'Must keep') + '</div>' : '') + '</td>' +
+        '<td>' + verdictPill(a.verdict) + '</td><td>' + st.html + '</td>' +
+        '<td>' + cEsc(a.google_status || '—') + '</td><td>' + cEsc(a.last_sign_in || '—') + '</td>' +
+        '<td class="n">' + gb(a.gmail_mb) + '</td><td class="n">' + gb(a.drive_mb) + '</td><td class="n">' + num(a.photos_mb) + ' MB</td>' +
+        '<td class="n"><b>' + gb(a.google_total_mb) + '</b></td>' +
+        '<td><div class="mini" title="Google ' + gb(a.google_total_mb) + ' · 365 ' + (a.m365_mb ? gb(a.m365_mb) : 'none') + '">' +
+          '<i style="width:' + Math.max(2, Math.round((a.google_total_mb || 0) / maxMb * 120)) + 'px;background:#0f9d8a"></i>' +
+          (a.m365_mb ? '<i style="width:' + Math.max(2, Math.round(a.m365_mb / maxMb * 120)) + 'px;background:#2563eb"></i>' : '<span class="fine" style="margin:0;color:var(--ms-bad)">no 365 mailbox</span>') + '</div></td>' +
+        '<td class="n">' + num(a.emails_30d) + '</td><td>' + cEsc(a.gmail_last_used || '—') + '</td>' +
+        '<td>' + cEsc(a.m365_mailbox || 'Not found') + '</td><td>' + cEsc(a.m365_type || '—') + '</td>' +
+        '<td class="n">' + num(a.m365_items) + '</td><td class="n">' + gb(a.m365_mb) + '</td><td>' + cEsc(a.m365_last_activity || '—') + '</td>' +
+        '<td class="why">' + cEsc(a.note || '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' +
-    '<p class="fine">Department comes from the Department field in Google Admin, or the user\'s organizational unit when that\'s blank.</p>';
+    '<p class="fine">Green bar: everything in Google (mail + Drive + Photos). Blue bar: the matching Microsoft 365 mailbox. ' +
+    'Ticks are only saved when you press a button. "Send for approval" files one cut covering every ticked account.</p>';
+  wirePick();
+}
+function wirePick() {
+  document.querySelectorAll('#acct [data-a]').forEach(function (c) {
+    c.addEventListener('change', function () { SEL[c.getAttribute('data-a')] = c.checked; MSG = null; drawPick(); });
+  });
+  var all = $('selAll');
+  if (all) {
+    all.addEventListener('change', function () {
+      ACCTS.filter(function (a) { return (FILTER === 'All' || a.verdict === FILTER) && selectable(a); })
+        .forEach(function (a) { SEL[a.account] = all.checked; });
+      MSG = null; drawPick();
+    });
+  }
+  document.querySelectorAll('[data-pre]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = b.getAttribute('data-pre');
+      SEL = {};
+      ACCTS.forEach(function (a) {
+        if (!selectable(a)) { return; }
+        if (p === 'ready' && a.verdict === 'Ready to cut') { SEL[a.account] = true; }
+        if (p === 'ready+verify' && (a.verdict === 'Ready to cut' || a.verdict === 'Verify')) { SEL[a.account] = true; }
+        if (p === 'all') { SEL[a.account] = true; }
+      });
+      MSG = null; drawPick();
+    });
+  });
+  document.querySelectorAll('[data-f]').forEach(function (b) {
+    b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); drawPick(); });
+  });
+  var send = $('send');
+  if (send) {
+    send.addEventListener('click', function () {
+      var list = selected().map(function (a) { return a.account; });
+      if (!confirm('Send ' + list.length + ' Google account' + (list.length === 1 ? '' : 's') + ' for approval?\n\n' + list.join('\n'))) { return; }
+      BUSY = true; drawPick();
+      SM.api('POST', '/api/cuts?scope=google', { accounts: list }).then(function (j) {
+        BUSY = false; SEL = {};
+        MSG = { kind: 'ok', html: 'Sent for approval: ' + cEsc(j.cut.title) + ' (' + cMoney(+j.cut.monthly_saving, true) +
+          '/mo). <a href="costs.html">Approve it on the Cost cutting page →</a>' };
+        load();
+      }, function (e) { BUSY = false; MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
+    });
+  }
+  var keep = $('mkKeep');
+  if (keep) {
+    keep.addEventListener('click', function () {
+      var list = selected().map(function (a) { return a.account; });
+      SM.api('PATCH', '/api/cuts?scope=google', { accounts: list, decision: 'keep' }).then(function () {
+        SEL = {}; MSG = { kind: 'ok', html: list.length + ' marked Keep.' }; load();
+      }, function (e) { MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
+    });
+  }
 }
 
-/* ── accounts to review ── */
-if (!U) {
-  $('users').innerHTML = empty('Waiting for the user export', EXPORT_HOW);
-} else {
-  var rows = U.users.filter(function (u) { return u.flag; });
-  $('users').innerHTML = rows.length ? '<div class="card scroll"><table style="min-width:760px"><thead><tr><th>Account</th><th>Department</th>' +
-    '<th>Plan</th><th>Why it\'s flagged</th><th>Last sign-in</th><th class="n">Storage</th></tr></thead><tbody>' +
-    rows.map(function (u) {
-      var cls = u.candidate ? 'bad' : 'warn';
-      return '<tr' + (u.candidate ? '' : ' class="muted"') + '><td><b>' + cEsc(u.who) + '</b></td><td>' + cEsc(u.dept) + '</td>' +
-        '<td>' + cEsc(u.plan || '—') + '</td><td><span class="status gflag ' + cls + '">' + cEsc(u.flag) + '</span></td>' +
-        '<td>' + (u.lastSignIn ? cEsc(u.lastSignIn) : 'never') + '</td><td class="n">' + (u.storageGB != null ? u.storageGB + ' GB' : '—') + '</td></tr>';
+/* ── savings by step ── */
+function drawSteps() {
+  var R = G.review, total = R.accounts, withTax = SEAT * (1 + TAX);
+  var steps = [
+    ['Remove the ' + R.ready + ' "ready to cut" now', R.ready],
+    ['Plus the ' + R.verify + ' "verify" accounts once their Drive files are moved', R.ready + R.verify],
+    ['Everything except must-keep (Ulonda stays)', total - 1]
+  ];
+  $('steps').innerHTML = '<div class="card scroll"><table><thead><tr><th>Step</th><th class="n">Accounts removed</th><th class="n">Monthly</th>' +
+    '<th class="n">Yearly</th><th class="n">Yearly with tax</th><th class="n">Still paying / month</th></tr></thead><tbody>' +
+    steps.map(function (s) {
+      return '<tr><td>' + cEsc(s[0]) + '</td><td class="n">' + s[1] + '</td><td class="n">' + cMoney(s[1] * SEAT, true) + '</td>' +
+        '<td class="n"><b style="color:var(--ms-good)">' + cMoney(s[1] * SEAT * 12, true) + '</b></td><td class="n">' + cMoney(s[1] * withTax * 12) + '</td>' +
+        '<td class="n">' + cMoney((total - s[1]) * SEAT, true) + ' <span class="fine">(' + (total - s[1]) + ' seat' + (total - s[1] === 1 ? '' : 's') + ')</span></td></tr>';
     }).join('') + '</tbody></table></div>' +
-    '<p class="fine">"Quiet" accounts (30–90 days) are shown for context but not counted as cuts. Before removing a license, move anything ' +
-    'the department still needs to SharePoint.</p>'
-    : empty('No accounts flagged', 'Every licensed account signed in within the last 30 days.');
+    '<p class="fine">Flexible plan: no contract, and billing for an account stops the day it\'s deleted. Removing the ' + R.ready +
+    ' ready accounts before Nov 1 saves ' + cMoney(R.ready * SEAT) + ' on that bill. Google can\'t be cancelled entirely while a must-keep account ' +
+    'is on it; that last seat costs ' + cMoney(SEAT, true) + ' a month (' + cMoney(withTax * 12) + ' a year with tax).</p>';
 }
 
-/* ── invoices ── */
-$('invoices').innerHTML = G.invoices.length ? '<div class="card scroll"><table><thead><tr><th>Month</th><th class="n">Billed (tax incl.)</th>' +
-  '<th class="n">Change</th></tr></thead><tbody>' + G.invoices.map(function (r, i) {
-    var prev = i ? G.invoices[i - 1].total : null, d = prev !== null ? r.total - prev : null;
-    return '<tr><td>' + cEsc(cMonth(r.month)) + '</td><td class="n">' + cMoney(r.total, true) + '</td><td class="n">' +
-      (d === null ? '' : (d < 0 ? '<b style="color:var(--ms-good)">−' + cMoney(-d, true) + '</b>' : '+' + cMoney(d, true))) + '</td></tr>';
-  }).join('') + '</tbody></table></div>'
-  : empty('No Google invoices recorded yet', 'Add one row per month to <code>invoices</code> in <code>google-costs.js</code> (Google Admin → Billing → Transactions).');
+/* ── static sections ── */
+function drawStatic() {
+  var label = { todo: ['To do', 'mute'], doing: ['In progress', 'warn'], done: ['Done', 'good'] };
+  $('checklist').innerHTML = G.checklist.map(function (c, i) {
+    var l = label[c.status] || label.todo;
+    return '<li class="' + cEsc(c.status) + '"><span class="n">' + (c.status === 'done' ? '✓' : i + 1) + '</span>' +
+      '<div><b>' + cEsc(c.step) + '</b><p>' + cEsc(c.detail) + '</p></div><span class="status ' + l[1] + '">' + l[0] + '</span></li>';
+  }).join('');
+  $('domains').innerHTML = '<div class="card scroll"><table><thead><tr><th>Domain</th><th>Google role</th><th>Mail goes to</th></tr></thead><tbody>' +
+    G.domains.map(function (d) {
+      return '<tr><td><b>' + cEsc(d.domain) + '</b></td><td>' + cEsc(d.role) + '</td><td><span class="pill ' +
+        (d.mailTo === 'Google' ? 'p-bad' : 'p-ok') + '">' + cEsc(d.mailTo) + '</span></td></tr>';
+    }).join('') + '</tbody></table></div>';
+  $('evidence').innerHTML = '<div class="card scroll"><table><thead><tr><th>Check</th><th>Result</th><th>What it means</th></tr></thead><tbody>' +
+    G.evidence.map(function (e) {
+      return '<tr><td><b>' + cEsc(e.check) + '</b></td><td style="white-space:nowrap">' + cEsc(e.result) + '</td><td>' + cEsc(e.finding) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="fine">Still in Google\'s shared drives: ' + cEsc(G.review.sharedDrives) + '. To confirm the email side, open one 365 mailbox ' +
+    '(Ulonda\'s is the best test) and look for messages dated before 365 went live.</p>';
+  var p = G.plans[0];
+  $('plans').innerHTML = p ? '<div class="grid g3"><div class="card sub-card"><div class="sub-top"><h3>' + cEsc(p.name) + '</h3>' +
+    '<span class="status mute">' + cEsc(p.term) + '</span></div><div class="seats"><div><span>Paid for</span><b>' + p.seats + '</b></div>' +
+    '<div><span>Per seat</span><b>' + cMoney(p.price, true) + '</b></div><div><span>With tax</span><b>' + cMoney(p.price * (1 + TAX), true) + '</b></div></div>' +
+    '<p class="meta">' + cEsc(p.renews) + ' · ' + cEsc(G.paidWith) + '</p><p class="fine">' + cEsc(p.note) + '</p></div></div>' : '';
+  $('invoices').innerHTML = '<div class="card scroll"><table><thead><tr><th>Billing period</th><th>Invoice #</th><th>Seats</th>' +
+    '<th class="n">Subtotal</th><th class="n">Tax</th><th class="n">Total paid</th><th class="n">Change</th></tr></thead><tbody>' +
+    G.invoices.map(function (r, i) {
+      var prev = i ? G.invoices[i - 1].total : null, d = prev !== null ? r.total - prev : null;
+      return '<tr><td>' + cEsc(cMonth(r.month)) + '</td><td>' + cEsc(r.invoice) + '</td><td>' + cEsc(r.seats) + '</td>' +
+        '<td class="n">' + cMoney(r.subtotal, true) + '</td><td class="n">' + cMoney(r.tax, true) + '</td><td class="n"><b>' + cMoney(r.total, true) + '</b></td>' +
+        '<td class="n">' + (d === null ? '' : (d < 0 ? '<b style="color:var(--ms-good)">−' + cMoney(-d, true) + '</b>' : '+' + cMoney(d, true))) + '</td></tr>';
+    }).join('') + '<tr class="tot"><td colspan="5">Three months</td><td class="n">' +
+      cMoney(G.invoices.reduce(function (t, r) { return t + r.total; }, 0), true) + '</td><td></td></tr></tbody></table></div>' +
+    '<p class="fine">Seats went from 11 to 13 over the summer. Tax is 5.6% state + 3.5% local.</p>';
+  if (U) {
+    $('deptSec').hidden = false;
+    $('depts').innerHTML = '<div class="card scroll"><table><thead><tr><th>Department</th><th class="n">Accounts</th><th class="n">Licensed</th>' +
+      '<th class="n">Flagged</th></tr></thead><tbody>' + U.byDept.map(function (d) {
+        return '<tr><td>' + cEsc(d.name) + '</td><td class="n">' + d.users + '</td><td class="n">' + d.licensed + '</td><td class="n">' + d.candidates + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+}
+
+function load() {
+  if (!SM.me) { drawPick(); return; }
+  SM.api('GET', '/api/cuts?scope=google').then(function (j) {
+    ACCTS = j.accounts || []; RECS = {};
+    (j.recs || []).forEach(function (r) { RECS[r.id] = r; });
+    if (j.seatPrice) { SEAT = +j.seatPrice; }
+    Object.keys(SEL).forEach(function (k) {
+      var a = ACCTS.filter(function (x) { return x.account === k; })[0];
+      if (!a || !selectable(a)) { delete SEL[k]; }
+    });
+    if (MSG && MSG.loadErr) { MSG = null; }
+    drawPick();
+  }, function (e) { MSG = { loadErr: e.message }; drawPick(); });
+}
+
+drawKpis(); drawSteps(); drawStatic();
+$('pickArea').innerHTML = '<p class="fine">Loading…</p>';
+SM.ready.then(load);
 </script>
 </body></html>

@@ -36,9 +36,11 @@ function costGoogle() {
   if (typeof GOOGLE_COSTS === 'undefined') { return null; }
   var G = GOOGLE_COSTS, U = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
   var last = G.invoices.length ? G.invoices[G.invoices.length - 1] : null;
-  /* flagged users × the price of their plan, when the plan's price is known */
-  var identified = null;
-  if (U && G.plans.length) {
+  /* the review's ready + verify accounts × seat price; else flagged export users × plan price */
+  var identified = null, seat = G.plans[0] && G.plans[0].price;
+  if (G.review && seat) {
+    identified = (G.review.ready + G.review.verify) * seat;
+  } else if (U && G.plans.length) {
     identified = U.users.filter(function (u) { return u.candidate; }).reduce(function (a, u) {
       var p = G.plans.filter(function (pl) { return pl.name === u.plan; })[0];
       return a + (p && p.price ? p.price : 0);
@@ -49,8 +51,9 @@ function costGoogle() {
     bill: last ? last.total : null, billMonth: last ? last.month : null,
     identified: identified, pending: null,
     realized: G.realized.reduce(function (a, r) { return a + (r.monthly || 0); }, 0),
-    candidates: U ? U.totals.candidates : null,
-    status: U ? U.totals.candidates + ' accounts flagged for review' : 'Waiting for the Google Admin export'
+    candidates: G.review ? G.review.ready + G.review.verify : (U ? U.totals.candidates : null),
+    status: G.review ? G.review.ready + ' ready to cut · ' + G.review.verify + ' to verify · ' + G.review.keep + ' kept (of ' + G.review.accounts + ')'
+      : U ? U.totals.candidates + ' accounts flagged for review' : 'Waiting for the Google Admin export'
   };
 }
 function costVendors() { return [costMicrosoft(), costGoogle()].filter(Boolean); }
