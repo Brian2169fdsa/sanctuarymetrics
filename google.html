@@ -43,7 +43,23 @@
 .ms .msg{grid-column:1/-1;padding:9px 12px;border-radius:8px;font-size:13px}
 .ms .msg.err{background:#fbeeee;color:var(--ms-bad)}.ms .msg.ok{background:#ecf7f2;color:var(--ms-good)}
 .ms .filt{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
-.ms #acct{min-width:1500px}
+.ms #acct{min-width:2050px}
+/* ── what's already in 365 ── */
+.ms .mbx{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.ms .mb h3{font-size:14.5px;margin:0;word-break:break-all}
+.ms .mb .meta{font-size:12.5px;color:var(--ms-mute);margin:4px 0 10px}
+.ms .mb .imp{border-radius:8px;padding:9px 11px;font-size:13px;margin:0 0 10px}
+.ms .mb .imp.yes{background:#ecf7f2;color:var(--ms-good)}
+.ms .mb .imp.no{background:var(--ms-band);color:var(--ms-mute)}
+.ms .mb .als{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}
+.ms .mb .als span{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--ms-band);border:1px solid var(--ms-line);word-break:break-all}
+.ms .mb details summary{margin-top:6px}
+.ms .mb table{font-size:12.5px;margin-top:8px}
+.ms .mb td,.ms .mb th{padding:5px 6px}
+.ms .mb tr.gm td{background:#f0faf5}
+.ms .mb tr.gm td:first-child{font-weight:600;color:var(--ms-good)}
+.ms .mbtools{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:13px;color:var(--ms-ink2)}
+.ms .mbtools label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .ms #acct th{background:#fff}
 .ms #acct td{vertical-align:top}
 .ms #acct td.c{width:34px}
@@ -79,6 +95,12 @@
 <p class="lead-note">Tick the Google accounts to cut, then send them for approval. Approving puts the task on Brian's project list.
 Every usage figure from both admin consoles is in the table (scroll sideways). <b>Ulonda is locked as must-keep.</b></p>
 <div id="pickArea"></div>
+</section>
+
+<section id="inm365">
+<h2>What's already in Microsoft 365</h2>
+<p class="sub">Every 365 mailbox the Google accounts map to, with all its addresses and folders. Green folders are the <b>[Gmail]</b> folders the import created — proof the Gmail history moved.</p>
+<div id="m365Area"></div>
 </section>
 
 <section>
@@ -124,7 +146,7 @@ mailbox usage report; it doesn't update on its own.</footer>
 <script>
 var G = GOOGLE_COSTS, U = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
 var V = costGoogle(), SEAT = G.plans[0] ? G.plans[0].price : 16.80, TAX = G.taxRate || 0;
-var ACCTS = [], RECS = {}, SEL = {}, FILTER = 'All', BUSY = false, MSG = null;
+var ACCTS = [], RECS = {}, SEL = {}, FILTER = 'All', BUSY = false, MSG = null, MAILBOXES = [], FOLDERS = [], ALLFOLDERS = false;
 function $(id) { return document.getElementById(id); }
 function need(what) { return '<span class="need">' + cEsc(what) + ' needed</span>'; }
 function empty(title, body) { return '<div class="g-empty"><b>' + cEsc(title) + '</b>' + body + '</div>'; }
@@ -141,7 +163,8 @@ function drawKpis() {
   var R = G.review || {}, last = G.invoices[G.invoices.length - 1];
   $('lead').textContent = 'Google Workspace for ' + G.workspace + ': ' + (G.plans[0] ? G.plans[0].seats + ' ' + G.plans[0].name + ' seats at ' +
     cMoney(SEAT, true) + ' each on the ' + G.plans[0].term + ' plan' : '') + '. ' + R.ready + ' accounts are ready to cut, ' + R.verify +
-    ' need their Drive files checked, ' + R.keep + ' stay for now.';
+    ' need their Drive files checked, ' + R.keep + ' stay for now.' +
+    (R.gmailImported ? ' Gmail history was imported into 365 for ' + R.gmailImported + ' accounts (' + R.gmailImportedWhen + ').' : '');
   var kp = [
     ['Monthly Google bill', last ? cMoney(last.total, true) : need('Invoice'), last ? cMonth(last.month) + ' · ' + cMoney(last.subtotal, true) + ' + tax' : ''],
     ['A year at this rate', last ? cMoney(last.total * 12) : '—', 'including ' + Math.round(TAX * 1000) / 10 + '% tax'],
@@ -211,10 +234,11 @@ function drawPick() {
     }).join('') + '</div>' +
     '<div class="card scroll" style="padding:6px 10px"><table id="acct"><thead><tr>' +
       '<th class="c"><input type="checkbox" id="selAll" aria-label="Tick every account shown that can be cut"></th>' +
-      '<th>Google account</th><th>Review says</th><th>Team choice</th><th>Google status</th><th>Last sign-in</th>' +
+      '<th>Google account</th><th>Review says</th><th>Team choice</th><th>Mail in 365?</th><th>Drive moved?</th><th>Google status</th><th>Last sign-in</th>' +
       '<th class="n">Gmail</th><th class="n">Drive</th><th class="n">Photos</th><th class="n">Google total</th><th>Google vs 365</th>' +
       '<th class="n">Emails in, 30d</th><th>Gmail last used</th><th>365 mailbox</th><th>365 type</th><th class="n">365 items</th>' +
-      '<th class="n">365 size</th><th>365 last activity</th><th>Why</th></tr></thead><tbody>' +
+      '<th class="n">365 size</th><th>365 last activity</th><th class="n">Gmail items imported</th><th class="n">Imported Gmail</th>' +
+      '<th>365 history from</th><th class="n">OneDrive</th><th>Why</th></tr></thead><tbody>' +
     rows.map(function (a) {
       var st = state(a), can = selectable(a), on = !!SEL[a.account];
       var maxMb = Math.max(Number(a.google_total_mb) || 0, Number(a.m365_mb) || 0, 1);
@@ -224,6 +248,7 @@ function drawPick() {
         '<td class="who"><b>' + cEsc(a.account) + '</b><span>' + cEsc(a.name || '') + '</span>' +
           (a.must_keep ? '<div class="lockb">🔒 ' + cEsc(a.must_keep_reason || 'Must keep') + '</div>' : '') + '</td>' +
         '<td>' + verdictPill(a.verdict) + '</td><td>' + st.html + '</td>' +
+        '<td>' + movedPill(a.mail_migrated) + '</td><td>' + movedPill(a.drive_migrated) + '</td>' +
         '<td>' + cEsc(a.google_status || '—') + '</td><td>' + cEsc(a.last_sign_in || '—') + '</td>' +
         '<td class="n">' + gb(a.gmail_mb) + '</td><td class="n">' + gb(a.drive_mb) + '</td><td class="n">' + num(a.photos_mb) + ' MB</td>' +
         '<td class="n"><b>' + gb(a.google_total_mb) + '</b></td>' +
@@ -233,6 +258,8 @@ function drawPick() {
         '<td class="n">' + num(a.emails_30d) + '</td><td>' + cEsc(a.gmail_last_used || '—') + '</td>' +
         '<td>' + cEsc(a.m365_mailbox || 'Not found') + '</td><td>' + cEsc(a.m365_type || '—') + '</td>' +
         '<td class="n">' + num(a.m365_items) + '</td><td class="n">' + gb(a.m365_mb) + '</td><td>' + cEsc(a.m365_last_activity || '—') + '</td>' +
+        '<td class="n">' + num(a.gmail_items_imported) + '</td><td class="n">' + (a.gmail_folders_gb != null ? Number(a.gmail_folders_gb).toFixed(2) + ' GB' : '—') + '</td>' +
+        '<td>' + cEsc(a.m365_history_starts || '—') + '</td><td class="n">' + gb(a.onedrive_mb) + '</td>' +
         '<td class="why">' + cEsc(a.note || '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' +
     '<p class="fine">Green bar: everything in Google (mail + Drive + Photos). Blue bar: the matching Microsoft 365 mailbox. ' +
@@ -290,6 +317,56 @@ function wirePick() {
       }, function (e) { MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
     });
   }
+}
+
+/* "Yes" green, "No…" red, "Possibly…" amber, "Nothing to move" grey */
+function movedPill(v) {
+  if (!v) { return '—'; }
+  var cls = /^yes/i.test(v) ? 'p-ok' : /^no\b|^no$|^no \(/i.test(v) ? 'p-bad' : /^possibly/i.test(v) ? 'p-warn' : 'p-mute';
+  return '<span class="pill ' + cls + '" title="' + cEsc(v) + '">' + cEsc(v.replace(/:.*$/, '').replace(/ \(.*\)$/, '')) + '</span>' +
+    (/[:(]/.test(v) ? '<div class="fine" style="margin:3px 0 0;max-width:180px">' + cEsc(v.replace(/^[^:(]*[:(]\s*/, '').replace(/\)$/, '')) + '</div>' : '');
+}
+
+/* ── what's already in 365 (signed in) ── */
+function drawM365() {
+  var el = $('m365Area');
+  if (!SM.me) { el.innerHTML = '<p class="fine" style="margin:0">Sign in (above) to see the mailboxes, their addresses and folders.</p>'; return; }
+  if (!MAILBOXES.length) {
+    el.innerHTML = empty('No mailbox details loaded yet', 'Run the latest Google cutover insert in Supabase (it adds the mailboxes and folders), then reload.');
+    return;
+  }
+  /* which Google account(s) each 365 mailbox stands in for */
+  var from = {};
+  ACCTS.forEach(function (a) { if (a.m365_mailbox) { (from[a.m365_mailbox] = from[a.m365_mailbox] || []).push(a); } });
+  var gmailOnly = !ALLFOLDERS;
+  el.innerHTML = '<div class="mbtools"><label><input type="checkbox" id="allF"' + (ALLFOLDERS ? ' checked' : '') + '> Show every folder, not just the imported [Gmail] ones</label>' +
+    '<span>' + FOLDERS.filter(function (f) { return f.from_gmail; }).length + ' imported [Gmail] folders across ' +
+    MAILBOXES.filter(function (m) { return FOLDERS.some(function (f) { return f.mailbox === m.mailbox && f.from_gmail; }); }).length + ' mailboxes</span></div>' +
+    '<div class="mbx">' + MAILBOXES.slice().sort(function (a, b) { return b.mb - a.mb; }).map(function (m) {
+      var fs = FOLDERS.filter(function (f) { return f.mailbox === m.mailbox; });
+      var gm = fs.filter(function (f) { return f.from_gmail; });
+      var gItems = gm.reduce(function (t, f) { return t + (f.items || 0); }, 0), gMb = gm.reduce(function (t, f) { return t + Number(f.mb || 0); }, 0);
+      var oldest = gm.map(function (f) { return f.oldest; }).filter(Boolean).sort()[0], newest = gm.map(function (f) { return f.newest; }).filter(Boolean).sort().pop();
+      var shown = gmailOnly ? gm : fs;
+      var accts = from[m.mailbox] || [];
+      return '<div class="card mb"><h3>' + cEsc(m.mailbox) + '</h3>' +
+        '<div class="meta">' + (accts.length ? 'For Google: ' + accts.map(function (a) { return cEsc(a.account); }).join(', ') + ' · ' : '') +
+          'created ' + cEsc(m.created || '—') + ' · ' + num(m.items) + ' items · ' + gb(m.mb) + '</div>' +
+        (gm.length ? '<div class="imp yes">✓ Imported from Gmail: ' + num(gItems) + ' items, ' + (gMb / 1024).toFixed(2) + ' GB' +
+            (oldest ? ', mail from ' + cEsc(oldest) + ' to ' + cEsc(newest) : '') + '</div>'
+          : '<div class="imp no">No [Gmail] folders in this mailbox</div>') +
+        (m.aliases && m.aliases.length ? '<div class="als">' + m.aliases.map(function (x) { return '<span>' + cEsc(x) + '</span>'; }).join('') + '</div>' : '') +
+        (shown.length ? '<details' + (gmailOnly && gm.length ? ' open' : '') + '><summary>' + shown.length + (gmailOnly ? ' imported [Gmail] folder' : ' folder') +
+          (shown.length === 1 ? '' : 's') + '</summary><div class="scroll"><table><thead><tr><th>Folder</th><th class="n">Items</th><th class="n">Size</th><th>Mail dated</th></tr></thead><tbody>' +
+          shown.map(function (f) {
+            return '<tr class="' + (f.from_gmail ? 'gm' : '') + '"><td>' + cEsc(f.folder) + '</td><td class="n">' + num(f.items) + '</td>' +
+              '<td class="n">' + (Number(f.mb) >= 1024 ? (f.mb / 1024).toFixed(2) + ' GB' : Number(f.mb).toFixed(1) + ' MB') + '</td>' +
+              '<td style="white-space:nowrap">' + (f.oldest ? cEsc(f.oldest) + ' – ' + cEsc(f.newest) : '—') + '</td></tr>';
+          }).join('') + '</tbody></table></div></details>' : '') +
+      '</div>';
+    }).join('') + '</div>';
+  var all = $('allF');
+  if (all) { all.addEventListener('change', function () { ALLFOLDERS = all.checked; drawM365(); }); }
 }
 
 /* ── savings by step ── */
@@ -356,9 +433,9 @@ function drawStatic() {
 }
 
 function load() {
-  if (!SM.me) { drawPick(); return; }
+  if (!SM.me) { drawPick(); drawM365(); return; }
   SM.api('GET', '/api/cuts?scope=google').then(function (j) {
-    ACCTS = j.accounts || []; RECS = {};
+    ACCTS = j.accounts || []; RECS = {}; MAILBOXES = j.mailboxes || []; FOLDERS = j.folders || [];
     (j.recs || []).forEach(function (r) { RECS[r.id] = r; });
     if (j.seatPrice) { SEAT = +j.seatPrice; }
     Object.keys(SEL).forEach(function (k) {
@@ -366,7 +443,7 @@ function load() {
       if (!a || !selectable(a)) { delete SEL[k]; }
     });
     if (MSG && MSG.loadErr) { MSG = null; }
-    drawPick();
+    drawPick(); drawM365();
   }, function (e) { MSG = { loadErr: e.message }; drawPick(); });
 }
 

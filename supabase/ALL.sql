@@ -360,7 +360,41 @@ create table if not exists public.google_accounts (
   updated_at         timestamptz not null default now()
 );
 
+-- Migration proof (Oct 21 follow-up): what actually reached Microsoft 365
+alter table public.google_accounts
+  add column if not exists onedrive_mb          numeric,
+  add column if not exists gmail_items_imported integer,
+  add column if not exists gmail_folders_gb     numeric,
+  add column if not exists m365_history_starts  date,
+  add column if not exists mail_migrated        text,       -- Yes | No | Nothing to move
+  add column if not exists drive_migrated       text;
+
 alter table public.google_accounts enable row level security;
+
+-- The Microsoft 365 mailboxes these accounts map to, with every address on them
+create table if not exists public.google_m365_mailboxes (
+  mailbox     text primary key,
+  created     date,
+  items       integer,
+  mb          numeric,
+  aliases     text[],
+  checked_on  date
+);
+alter table public.google_m365_mailboxes enable row level security;
+
+-- Every folder in those mailboxes; from_gmail marks the imported [Gmail] folders
+create table if not exists public.google_m365_folders (
+  mailbox     text not null,
+  folder      text not null,
+  items       integer,
+  mb          numeric,
+  oldest      date,
+  newest      date,
+  from_gmail  boolean not null default false,
+  checked_on  date,
+  primary key (mailbox, folder)
+);
+alter table public.google_m365_folders enable row level security;
 
 
 notify pgrst, 'reload schema';
