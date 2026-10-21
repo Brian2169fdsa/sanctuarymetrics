@@ -8,7 +8,9 @@
      GET    ?ref=…          that project's messages, oldest first; marks them
                             (and their alerts) read for you
      GET    ?summary=1      per project: total, unread, last message time
-     POST   {ref, body}     post a message; everyone else gets an alert
+     GET    ?people=1       everyone you can @tag: id and name
+     POST   {ref, body}     post a message as you; anyone @tagged gets a
+                            "tagged you" alert, everyone else the usual one
      DELETE ?id=…           remove a message (your own, or any as admin)
    ========================================================================== */
 
@@ -32,6 +34,25 @@ function markRead(me, ref) {
   ]);
 }
 
+/* who a message @tags: "@Full Name" for anyone, or "@First" when only one
+   person has that first name. Matching ignores case; a tag has to end at a
+   word boundary so "@Kim" doesn't catch "@Kimberly".                        */
+function tagged(text, people) {
+  const low = text.toLowerCase();
+  const ends = function (i) { return i >= low.length || !/[a-z0-9]/i.test(low[i]); };
+  const has = function (name) {
+    const t = '@' + name.toLowerCase();
+    for (let i = low.indexOf(t); i >= 0; i = low.indexOf(t, i + 1)) { if (ends(i + t.length)) { return true; } }
+    return false;
+  };
+  const firsts = {};
+  people.forEach(function (p) { const f = p.name.split(/\s+/)[0].toLowerCase(); firsts[f] = (firsts[f] || 0) + 1; });
+  return people.filter(function (p) {
+    const first = p.name.split(/\s+/)[0];
+    return has(p.name) || (firsts[first.toLowerCase()] === 1 && has(first));
+  });
+}
+
 module.exports = async function handler(req, res) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Accounts are not set up yet.' });
@@ -42,6 +63,10 @@ module.exports = async function handler(req, res) {
     const q = new URL(req.url, 'http://x').searchParams;
 
     if (req.method === 'GET') {
+      if (q.get('people')) {
+        const people = await supabase('GET', '?disabled=is.false&select=id,name&order=name.asc', null, null, 'app_users');
+        return sendJSON(res, 200, { people: people, me: me.id });
+      }
       if (q.get('summary')) {
         const rows = await supabase('POST', '', { p_user: me.id }, null, 'rpc/message_summary');
         return sendJSON(res, 200, { summary: rows });
@@ -65,13 +90,18 @@ module.exports = async function handler(req, res) {
       const rows = await supabase('POST', '', { project_ref: ref, user_id: me.id, author_name: me.name, body: text },
                                   null, 'project_messages');
       await markRead(me, ref);
-      /* small team: everyone else with an account hears about it */
-      const others = (await supabase('GET', '?disabled=is.false&select=id', null, null, 'app_users'))
-        .map(function (u) { return u.id; }).filter(function (id) { return id !== me.id; });
-      await A.sendAlerts(others, { from_user_id: me.id, kind: 'message', project_ref: ref,
-        title: me.name + ' · ' + title, body: text.length > 280 ? text.slice(0, 277) + '…' : text,
-        link: 'projects.html#open=' + encodeURIComponent(ref) });
-      return sendJSON(res, 201, { message: rows[0] });
+      /* small team: everyone else with an account hears about it — and
+         anyone @tagged gets an alert that says so */
+      const people = (await supabase('GET', '?disabled=is.false&select=id,name', null, null, 'app_users'))
+        .filter(function (u) { return u.id !== me.id; });
+      const tags = tagged(text, people);
+      const tagIds = tags.map(function (u) { return u.id; });
+      const alert = { from_user_id: me.id, project_ref: ref, body: text.length > 280 ? text.slice(0, 277) + '…' : text,
+                      link: 'projects.html#open=' + encodeURIComponent(ref) };
+      await A.sendAlerts(tagIds, Object.assign({ kind: 'mention', title: me.name + ' tagged you · ' + title }, alert));
+      await A.sendAlerts(people.map(function (u) { return u.id; }).filter(function (id) { return tagIds.indexOf(id) < 0; }),
+                         Object.assign({ kind: 'message', title: me.name + ' · ' + title }, alert));
+      return sendJSON(res, 201, { message: rows[0], tagged: tags.map(function (u) { return u.name; }) });
     }
 
     if (req.method === 'DELETE') {

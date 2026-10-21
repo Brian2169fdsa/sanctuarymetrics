@@ -93,6 +93,17 @@ $$;
 revoke all on function public.message_summary(uuid) from public, anon, authenticated;
 grant execute on function public.message_summary(uuid) to service_role;
 
+-- who added and who last changed each project on the Projects page
+do $$
+begin
+  if to_regclass('public.projects') is not null then
+    alter table public.projects
+      add column if not exists created_by      uuid references public.app_users (id) on delete set null,
+      add column if not exists created_by_name text,
+      add column if not exists updated_by_name text;
+  end if;
+end $$;
+
 
 
 -- ────────────────────────────── site-analytics.sql ──────────────────────────────

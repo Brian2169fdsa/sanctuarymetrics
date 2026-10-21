@@ -26,7 +26,7 @@
    PRINT_OWNER, then "Brian Reinhart".
    ========================================================================== */
 
-const { sendJSON, readBody, supabase } = require('../lib/db');
+const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const A = require('../lib/auth');
 
 const VENDORS = ['Microsoft', 'Google', 'Other'];
@@ -183,10 +183,10 @@ module.exports = async function handler(req, res) {
         note ? 'Note: ' + note : null].filter(function (l) { return l !== null; });
       let project;
       try {
-        project = (await supabase('POST', '', {
+        project = (await projectWrite('POST', '', Object.assign({
           title: ('Cost cut: ' + cut.title).slice(0, 300), owner: owner(), status: 'New', importance: 'Hot',
           notes: lines.join('\n').replace(/\n{3,}/g, '\n\n').slice(0, 4000),
-          source: 'Cost cutting · approved by ' + me.name.slice(0, 120), seed_key: null }))[0];
+          source: 'Cost cutting · approved by ' + me.name.slice(0, 120), seed_key: null }, addedBy(me))))[0];
       } catch (e) {
         /* no task, no approval: put it back so it can be approved again */
         await supabase('PATCH', '?id=eq.' + id, { status: 'proposed', decided_by: null, decided_by_name: null, decided_at: null,
