@@ -204,6 +204,7 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '>Projects</a>' +
       '<a href="print.html"' + (current === 'print' ? ' aria-current="page"' : '') + '>Print orders</a>' +
       '<a href="website.html"' + (current === 'website' ? ' aria-current="page"' : '') + '>Website edits</a>' +
+      '<a href="presentations.html"' + (current === 'presentations' ? ' aria-current="page"' : '') + '>Presentations</a>' +
       '<a href="sanctuaryci.html"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
       '<a class="navbtn" href="costs.html">Cost cutting</a>' +
     '</nav><hr class="phoenix">';
