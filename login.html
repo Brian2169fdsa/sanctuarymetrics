@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Sanctuary Recovery Centers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* One sign-in page for the whole site. Every "Sign in" button links here
+   (account.js → SM.signInUrl). Brand: the navy and phoenix of the business
+   card; the Microsoft button follows Microsoft's sign-in branding.        */
+:root{--navy:#01173B;--navy2:#16263B;--orange:#EE6A2C;--blue:#1C9AD6;--ink:#22323B;--muted:#6C7C86;--line:#E4EBEF;--paper:#F6F9FB}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--navy);min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}
+.brand{position:relative;overflow:hidden;background:var(--navy) url(print/business-card-blank.png) right center/cover no-repeat;
+  display:flex;flex-direction:column;justify-content:space-between;padding:48px 56px;color:#fff;min-height:100vh}
+.brand .lockup{margin:auto 0;width:min(400px,78%)}
+.brand .logo{width:100%;height:auto;display:block;filter:drop-shadow(0 8px 24px rgba(0,0,0,.35))}
+.brand .rc{margin:10px 0 0 14%;display:inline-block;padding:3px 14px;background:#e8f2fb;color:#1C9AD6;font-size:clamp(10px,1.3vw,14px);
+  font-weight:600;letter-spacing:.32em;text-transform:uppercase;transform:skewX(-12deg)}
+.brand .tag{font-family:Fraunces,serif;font-size:22px;font-weight:500;line-height:1.35;max-width:420px}
+.brand .tag span{display:block;font-family:Inter,sans-serif;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin-bottom:10px}
+.brand .foot{font-size:12.5px;color:rgba(255,255,255,.55)}
+.side{background:#fff;display:flex;align-items:center;justify-content:center;padding:48px 32px}
+.box{width:100%;max-width:400px}
+.box .mark{width:84px;height:auto;display:block;margin-bottom:22px}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--orange)}
+h1{font-family:Fraunces,serif;font-size:32px;font-weight:600;line-height:1.15;margin:8px 0 10px;color:var(--navy2)}
+.lead{font-size:15px;line-height:1.55;color:var(--muted);margin:0 0 28px}
+.ms{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:48px;padding:0 16px;background:#fff;
+  border:1px solid #8c8c8c;border-radius:6px;color:#5e5e5e;font:600 16px "Segoe UI",Inter,sans-serif;text-decoration:none;cursor:pointer;
+  transition:background .15s,box-shadow .15s}
+.ms:hover{background:#f3f3f3;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.ms:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.ms svg{width:21px;height:21px;flex:none}
+.ms[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.hint{font-size:13px;color:var(--muted);line-height:1.5;margin:14px 0 0}
+.hint b{color:var(--ink);font-weight:600}
+.alert{border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:0 0 20px}
+.alert.err{background:#fbeae6;color:#8f2f1b}
+.alert.info{background:#fdf3e0;color:#7a4a24}
+.or{display:flex;align-items:center;gap:12px;margin:26px 0 18px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+form{display:grid;gap:12px}
+label{display:grid;gap:6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+input{font:400 15px Inter,sans-serif;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 12px;text-transform:none;letter-spacing:0}
+input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.go{all:unset;box-sizing:border-box;cursor:pointer;text-align:center;height:44px;border-radius:8px;background:var(--navy2);color:#fff;font-weight:700;font-size:14.5px}
+.go:hover{background:#0f1b2b}.go:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.go[disabled]{opacity:.6;cursor:default}
+.small{font-size:12.5px;color:var(--muted);margin-top:22px;line-height:1.5}
+.small a{color:var(--blue)}
+[hidden]{display:none!important}
+.loading{color:var(--muted);font-size:14px}
+@media (max-width:860px){
+  body{grid-template-columns:1fr;background:#fff}
+  .brand{min-height:auto;padding:28px 24px 30px;background-position:right top}
+  .brand .lockup{width:200px;margin:8px 0 16px}
+  .brand .tag{font-size:18px}
+  .brand .foot{display:none}
+  .side{padding:32px 20px 48px;align-items:flex-start}
+  .box .mark{display:none}
+}
+</style>
+</head>
+<body>
+<aside class="brand">
+  <div class="tag"><span>Team portal</span>Reports, projects, approvals and alerts for the Sanctuary team.</div>
+  <div class="lockup"><img class="logo" src="print/sanctuary-logo.png" alt="Sanctuary Recovery Centers"><div class="rc">Recovery Centers</div></div>
+  <div class="foot">Sanctuary Recovery Centers · True Healing &amp; Continued Care™ · Phoenix, AZ</div>
+</aside>
+<main class="side">
+  <div class="box">
+    <img class="mark" src="print/sanctuary-logo.png" alt="" aria-hidden="true">
+    <div class="eyebrow">Sanctuary Recovery Centers</div>
+    <h1>Sign in</h1>
+    <p class="lead">Use your Sanctuary Microsoft account — the same login as Outlook and Teams.</p>
+    <div id="msg" role="alert"></div>
+    <a class="ms" id="msBtn" href="/api/microsoft?start=1">
+      <svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/>
+      <path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>Sign in with Microsoft</a>
+    <p class="hint">Only <b>@sanctuaryrecoverycenters.com</b> and <b>@sanctuaryrc.com</b> work accounts. No account yet? Ask an admin to add you.</p>
+
+    <div id="pwArea" hidden>
+      <div class="or">or with a password</div>
+      <form id="pwForm" novalidate>
+        <label>Email<input id="email" type="email" autocomplete="username" required></label>
+        <label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
+        <button class="go" id="pwGo" type="submit">Sign in</button>
+      </form>
+      <p class="small">Forgot it? Ask an admin to reset it. Master admin setting up for the first time?
+        <a id="setup" href="account.html?password=1">First-time setup</a></p>
+    </div>
+    <p class="loading" id="loading">Checking…</p>
+  </div>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  /* only ever send people back to a page on this site */
+  var next = /^[a-z0-9-]+\.html(#[\w=:%.\-]*)?$/i.test(q.get('next') || '') ? q.get('next') : 'projects.html';
+  var ERRORS = {
+    noaccount: 'There\'s no account for {email} yet. Ask an admin to add you, then sign in again.',
+    disabled: 'The account for {email} is turned off. Ask an admin to turn it back on.',
+    domain: '{email} isn\'t a Sanctuary work account. Use your @sanctuaryrecoverycenters.com or @sanctuaryrc.com login.',
+    cancelled: 'Microsoft sign-in was cancelled.',
+    expired: 'That sign-in took too long or was opened in another browser. Please try again.',
+    noemail: 'Microsoft didn\'t share an email address for that login. Try your work account.',
+    microsoft: 'Microsoft couldn\'t complete the sign-in. Please try again.',
+    storage: 'Signed in with Microsoft, but the accounts database didn\'t answer. Try again shortly.',
+    notsetup: 'Microsoft sign-in isn\'t switched on yet — an admin still needs to add MS_CLIENT_ID and MS_CLIENT_SECRET in Vercel. Use your password for now.'
+  };
+  function $(id) { return document.getElementById(id); }
+  function show(kind, text) {
+    $('msg').innerHTML = text ? '<div class="alert ' + kind + '"></div>' : '';
+    if (text) { $('msg').firstChild.textContent = text; }
+  }
+  $('msBtn').href = '/api/microsoft?start=1&next=' + encodeURIComponent(next);
+  $('setup').href = 'account.html?password=1&next=' + encodeURIComponent(next);
+  var code = q.get('ms_error');
+  if (code) { show(code === 'notsetup' ? 'info' : 'err', (ERRORS[code] || ERRORS.microsoft).replace('{email}', q.get('email') || 'that email')); }
+
+  fetch('/api/auth', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+    if (j.user) { location.replace(next); return; }
+    $('loading').hidden = true;
+    /* the password form is only for when Microsoft isn't set up, or an admin's ?password=1 */
+    if (!j.microsoft || q.get('password') === '1') {
+      $('pwArea').hidden = false;
+      if (!j.microsoft) {
+        $('msBtn').setAttribute('aria-disabled', 'true');
+        if (!code) { show('info', ERRORS.notsetup); }
+      }
+    }
+  }, function () { $('loading').textContent = 'Couldn\'t reach the site. Check your connection and reload.'; });
+
+  $('pwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = $('pwGo');
+    if (!$('email').value.trim() || !$('pw').value) { show('err', 'Enter your email and password.'); return; }
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    fetch('/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email: $('email').value.trim(), password: $('pw').value }) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw new Error(j.message || 'Sign-in failed.'); } return j; }); })
+      .then(function (j) {
+        location.replace(j.user.must_change_password ? 'account.html?next=' + encodeURIComponent(next) + '#password' : next);
+      }, function (err) { btn.disabled = false; btn.textContent = 'Sign in'; show('err', err.message); });
+  });
+})();
+</script>
+</body></html>

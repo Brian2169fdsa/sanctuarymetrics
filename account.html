@@ -87,6 +87,13 @@ function msError() {
    reachable at account.html?password=1 for an admin if Microsoft is down. */
 var PASSWORD_BACKDOOR = new URLSearchParams(location.search).get('password') === '1';
 function signedOut() {
+  /* signing in happens on login.html; this page keeps only the admin's ?password=1 fallback */
+  if (!PASSWORD_BACKDOOR) {
+    var q = new URLSearchParams(location.search);
+    location.replace('login.html?next=' + encodeURIComponent(safeNext() === 'projects.html' && !NEXT ? 'account.html' : safeNext()) +
+      (q.get('ms_error') ? '&ms_error=' + encodeURIComponent(q.get('ms_error')) + '&email=' + encodeURIComponent(q.get('email') || '') : ''));
+    return '';
+  }
   var head = '<section><div class="eyebrow">Account</div><h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
     '<p class="lead">Sign in to see projects, message the team on each one, and get alerts.</p>' + msError();
   var notSetup = new URLSearchParams(location.search).get('ms_error') === 'notsetup' || !SM.msConfigured;
@@ -206,7 +213,7 @@ function adminSection(me) {
 }
 function tempBox(name, email, temp, isReset) {
   if (SM.msConfigured && !isReset) {
-    var msg = 'Go to ' + location.origin + '/projects.html and click Sign in with Microsoft, using your work login (' + email + ').';
+    var msg = 'Go to ' + location.origin + '/login.html and click Sign in with Microsoft, using your work login (' + email + ').';
     return '<div class="ac-temp" role="status"><b>Account ready for ' + SM.h(name) + '.</b> Send them this:<br><br>' + SM.h(msg) +
       ' <button class="btn sm lt" type="button" data-copy="' + SM.h(msg) + '">Copy</button>' +
       '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">Backup password (only if Microsoft is down)</summary>' +
@@ -215,9 +222,9 @@ function tempBox(name, email, temp, isReset) {
   }
   return '<div class="ac-temp" role="status"><b>' + (isReset ? 'New temporary password for ' : 'Account ready for ') + SM.h(name) + '.</b> ' +
     'Send them this — it\'s only shown once:<br><br>' +
-    'Sign in at <b>' + SM.h(location.origin) + '/account.html</b><br>Email: <b>' + SM.h(email) + '</b><br>' +
+    'Sign in at <b>' + SM.h(location.origin) + '/login.html</b><br>Email: <b>' + SM.h(email) + '</b><br>' +
     'Temporary password: <code>' + SM.h(temp) + '</code> <button class="btn sm lt" type="button" data-copy="' + SM.h(
-      'Sign in at ' + location.origin + '/account.html\nEmail: ' + email + '\nTemporary password: ' + temp) + '">Copy</button><br><br>' +
+      'Sign in at ' + location.origin + '/login.html\nEmail: ' + email + '\nTemporary password: ' + temp) + '">Copy</button><br><br>' +
     'They\'ll be asked to choose their own password after signing in.</div>';
 }
 

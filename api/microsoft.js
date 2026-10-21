@@ -40,8 +40,9 @@ function b64url(buf) { return Buffer.from(buf).toString('base64url'); }
 function redirect(res, to) { res.statusCode = 302; res.setHeader('Location', to); res.setHeader('Cache-Control', 'no-store'); res.end(); }
 function safeNext(n) { return /^[a-z0-9-]+\.html(#[\w=:%.\-]*)?$/i.test(String(n || '')) ? n : 'projects.html'; }
 function fail(res, code, email) {
+  const next = res._next ? '&next=' + encodeURIComponent(res._next) : '';
   A.addCookie(res, STATE_COOKIE + '=; Path=/api/microsoft; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
-  redirect(res, '/account.html?ms_error=' + encodeURIComponent(code) + (email ? '&email=' + encodeURIComponent(email) : ''));
+  redirect(res, '/login.html?ms_error=' + encodeURIComponent(code) + (email ? '&email=' + encodeURIComponent(email) : '') + next);
 }
 function redirectUri(req) {
   if (process.env.MS_REDIRECT_URI) { return process.env.MS_REDIRECT_URI; }
@@ -54,7 +55,7 @@ module.exports = async function handler(req, res) {
   if (!A.microsoftEnabled() || !GUID.test(A.msTenant())) {
     /* keys not in Vercel yet: say so on the account page instead of a bare error */
     const next = safeNext(new URL(req.url, 'http://x').searchParams.get('next'));
-    return redirect(res, '/account.html?ms_error=notsetup&next=' + encodeURIComponent(next));
+    return redirect(res, '/login.html?ms_error=notsetup&next=' + encodeURIComponent(next));
   }
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return sendJSON(res, 405, { error: 'method' }); }
   const q = new URL(req.url, 'http://x').searchParams;
@@ -78,6 +79,7 @@ module.exports = async function handler(req, res) {
   if (q.get('error')) { return fail(res, q.get('error') === 'access_denied' ? 'cancelled' : 'microsoft'); }
   let st;
   try { st = JSON.parse(Buffer.from(A.cookies(req)[STATE_COOKIE] || '', 'base64url').toString()); } catch (e) { st = null; }
+  if (st && st.next) { res._next = st.next; }
   if (!st || !q.get('code') || q.get('state') !== st.s) { return fail(res, 'expired'); }
 
   let claims;

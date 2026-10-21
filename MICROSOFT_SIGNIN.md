@@ -27,7 +27,7 @@ Everyone else sees "There's no account for … yet. Ask an admin to add you."
 
 Once Microsoft sign-in is on, every **Sign in** button on the site goes to
 Microsoft and the password forms are hidden. If Microsoft is ever down, an
-admin can still use the password form at `/account.html?password=1`.
+admin can still use the password form at `/login.html?password=1`.
 
 The app only learns who signed in: name and email. It can't read mail, files
 or anything else.
