@@ -1,13 +1,22 @@
 # Sign in with Microsoft
 
 People can sign in to the metrics site with their Sanctuary Microsoft 365
-account, the same login as Outlook and Teams. Email-and-password sign-in still
-works alongside it.
+account, the same login as Outlook and Teams. Once it's set up, it's the way
+everyone signs in.
 
-**Who can get in.** Only people in the Sanctuary tenant, and only if one of
-these is true:
+**Who can get in.** Only Sanctuary work accounts:
 
-- An admin has added their work email on **Account → People**.
+- Sign-in is pinned to the Sanctuary Recovery Centers tenant,
+  `d2b75006-002d-467c-9718-c57a492f182a`. Microsoft's own sign-in metadata for
+  both `sanctuaryrecoverycenters.com` and `sanctuaryrc.com` points to it. The
+  code uses it by default, so `MS_TENANT_ID` isn't needed.
+- The email must be on one of those two domains.
+
+Within that, one of these must also be true:
+
+- An admin has added their work email on **Account → People**. Either domain
+  matches, and after the first sign-in the account is tied to that person's
+  Microsoft ID.
 - They're the master admin (`ADMIN_EMAILS`, which defaults to
   `breinhart@sanctuaryrecoverycenters.com`). The first time that person signs
   in, the admin account is created for them.
@@ -15,6 +24,10 @@ these is true:
   **member**, and the admins get an alert when someone joins.
 
 Everyone else sees "There's no account for … yet. Ask an admin to add you."
+
+Once Microsoft sign-in is on, every **Sign in** button on the site goes to
+Microsoft and the password forms are hidden. If Microsoft is ever down, an
+admin can still use the password form at `/account.html?password=1`.
 
 The app only learns who signed in: name and email. It can't read mail, files
 or anything else.
@@ -30,7 +43,7 @@ Install-Module Microsoft.Graph -Scope CurrentUser   # first time only
 ./tools/register-signin-app.ps1 -Tenant sanctuaryrecoverycenters.com
 ```
 
-The script prints `MS_TENANT_ID`, `MS_CLIENT_ID` and `MS_CLIENT_SECRET`.
+The script prints `MS_CLIENT_ID` and `MS_CLIENT_SECRET`, plus the tenant ID so you can confirm it's the Sanctuary one.
 
 ### Option B: Azure portal
 
@@ -38,9 +51,9 @@ The script prints `MS_TENANT_ID`, `MS_CLIENT_ID` and `MS_CLIENT_SECRET`.
    - Name: `Sanctuary Metrics sign-in`
    - Supported account types: **Accounts in this organizational directory only**
    - Redirect URI: platform **Web**, `https://sanctuarymetrics.vercel.app/api/microsoft`
-2. On the **Overview** page, copy:
-   - **Application (client) ID** → `MS_CLIENT_ID`
-   - **Directory (tenant) ID** → `MS_TENANT_ID`
+2. On the **Overview** page:
+   - Copy the **Application (client) ID** → `MS_CLIENT_ID`.
+   - Check that **Directory (tenant) ID** reads `d2b75006-002d-467c-9718-c57a492f182a`. If it doesn't, you're in the wrong tenant.
 3. Go to **Certificates & secrets → New client secret** (24 months). Copy the **Value**, not the ID → `MS_CLIENT_SECRET`.
 4. Go to **API permissions**. `User.Read` is there by default; add **Microsoft Graph → Delegated → openid, profile, email**. Then click **Grant admin consent**.
 5. Optional: under **Token configuration → Add optional claim → ID → email**.
@@ -49,14 +62,12 @@ The script prints `MS_TENANT_ID`, `MS_CLIENT_ID` and `MS_CLIENT_SECRET`.
 
 Go to **sanctuarymetrics → Settings → Environment Variables (Production)**. Add:
 
-- `MS_TENANT_ID`
 - `MS_CLIENT_ID`
 - `MS_CLIENT_SECRET`
 
 Optionally add `MS_AUTO_CREATE=true`.
 
-Redeploy. The **Sign in with Microsoft** button appears on the sign-in screens
-once all three are set.
+Redeploy. Once both are set, the **Sign in with Microsoft** button appears and every sign-in goes through Microsoft.
 
 **Custom domain.** If the site moves to its own domain, add that domain's
 `/api/microsoft` as another redirect URI on the app. Also set `MS_REDIRECT_URI`

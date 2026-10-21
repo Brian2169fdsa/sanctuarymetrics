@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cost Cutting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="microsoft.css">
+<script src="microsoft-costs.js"></script>
+<script src="microsoft-cleanup.js"></script>
+<script src="google-costs.js"></script>
+<script src="google-users.js"></script>
+<script src="cost-ui.js"></script>
+<style>
+/* ── hub ── */
+.ms .hero-k .num{font-size:34px}
+.ms .hero-k.save .num{color:var(--ms-good)}
+.ms .vendors{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.ms .vcard{display:flex;flex-direction:column;gap:12px;text-decoration:none;color:inherit;border-top:4px solid var(--c)}
+.ms .vcard:hover{border-color:#cbd5e1;border-top-color:var(--c);box-shadow:0 6px 18px rgba(15,23,42,.06)}
+.ms .vcard h3{font-family:'Playfair Display',Georgia,serif;font-size:20px;margin:0;display:flex;justify-content:space-between;align-items:baseline}
+.ms .vcard h3 span{font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:var(--ms-s1)}
+.ms .vrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ms .vrow div{background:var(--ms-band);border-radius:8px;padding:8px 10px}
+.ms .vrow span{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ms-mute)}
+.ms .vrow b{font-family:'Playfair Display',Georgia,serif;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.ms .vcard .st{font-size:13px;color:var(--ms-ink2);margin:0}
+.ms .need{color:var(--ms-warn);font-weight:600;font-family:Inter,sans-serif;font-size:14px;font-style:normal;letter-spacing:0;text-transform:none}
+/* recommendations */
+.ms .recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ms .rec{display:flex;flex-direction:column;gap:10px;border-left:4px solid var(--ms-s2)}
+.ms .rec .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ms .rec .tag{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ms-mute)}
+.ms .rec h3{font-size:15.5px;line-height:1.35;margin:4px 0 0}
+.ms .rec .top>div:first-child{flex:1;min-width:0}
+.ms .rec .amt{flex:none;font-family:'Playfair Display',Georgia,serif;font-size:24px;font-weight:600;color:var(--ms-good);white-space:nowrap;text-align:right;line-height:1.1}
+.ms .rec .amt small{display:block;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--ms-mute)}
+.ms .rec p{margin:0;font-size:13px;color:var(--ms-ink2);white-space:pre-line}
+.ms .rec .acts{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.ms .btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;
+  padding:9px 16px;border-radius:8px;font:600 13.5px Inter,sans-serif;background:var(--ms-accent);color:#fff}
+.ms .btn:hover{background:#1e2d3c}
+.ms .btn:focus-visible{outline:2px solid var(--ms-s1);outline-offset:2px}
+.ms .btn.go{background:var(--ms-good)}
+.ms .btn.go:hover{background:#246650}
+.ms .btn.lt{background:#fff;color:var(--ms-ink2);border:1px solid var(--ms-line)}
+.ms .btn.lt:hover{background:var(--ms-band)}
+.ms .btn.sm{min-height:32px;padding:6px 11px;font-size:12.5px}
+.ms .btn[disabled]{opacity:.55;cursor:default}
+.ms .sugg{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--ms-line)}
+.ms .sugg:last-child{border-bottom:0}
+.ms .sugg b{color:var(--ms-ink2)}
+.ms .sugg .fine{margin:2px 0 0}
+.ms .empty{border:1px dashed #cbd5e1;border-radius:10px;padding:20px;background:var(--ms-band);color:var(--ms-ink2);font-size:14px}
+.ms .warnbox{padding:12px 14px;border-radius:10px;background:#fdf3e7;color:#7a4a14;font-size:13.5px;margin:0 0 14px}
+.ms .barcell{display:flex;align-items:center;gap:10px}
+.ms .barcell i{display:block;height:8px;border-radius:4px;background:var(--ms-good);min-width:2px}
+.ms [hidden]{display:none!important}
+/* recommend dialog */
+#recdlg{border:0;padding:0;border-radius:14px;width:min(560px,calc(100vw - 32px));box-shadow:0 24px 60px rgba(15,23,42,.3)}
+#recdlg::backdrop{background:rgba(15,23,42,.45)}
+.rd{padding:22px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-family:Inter,sans-serif}
+.rd h2{grid-column:1/-1;font-family:'Playfair Display',Georgia,serif;font-size:22px;margin:0;color:#2d3e50}
+.rd label{display:flex;flex-direction:column;gap:6px;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280}
+.rd input,.rd select,.rd textarea{font:400 14px Inter,sans-serif;color:#1f2937;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;text-transform:none;letter-spacing:0}
+.rd input:focus,.rd select:focus,.rd textarea:focus{outline:2px solid #2563eb;outline-offset:1px;border-color:transparent}
+.rd .w{grid-column:1/-1}
+.rd .err{grid-column:1/-1;background:#fbeeee;color:#9b2c2c;border-radius:8px;padding:9px 12px;font-size:13px}
+.rd .ft{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+@media (max-width:640px){.ms .vendors{grid-template-columns:1fr}.rd{grid-template-columns:1fr}.ms .vrow b{font-size:16px}}
+
+/* ── the thank-you: money animation ── */
+#thanks{border:0;padding:0;background:transparent;width:min(520px,calc(100vw - 32px));overflow:visible}
+#thanks::backdrop{background:rgba(9,25,20,.55);backdrop-filter:blur(3px)}
+.ty{position:relative;background:linear-gradient(160deg,#ffffff 0%,#f0fbf6 100%);border-radius:20px;padding:34px 30px 26px;text-align:center;
+  font-family:Inter,sans-serif;color:#1f2937;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}
+.ty .rain{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.ty>*:not(.rain){position:relative;z-index:1}
+.ty .rain span{position:absolute;top:-60px;will-change:transform;animation:fall linear forwards}
+.ty .rain .coin{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b0,#f2c230 45%,#c8920f 100%);
+  box-shadow:inset 0 0 0 3px #e0a919,0 2px 4px rgba(0,0,0,.18);display:grid;place-items:center;font:800 15px Georgia,serif;color:#9a6b05}
+.ty .rain .bill{width:54px;height:26px;border-radius:4px;background:linear-gradient(135deg,#7fd3a5,#3f9e6f);border:2px solid #2f7f57;
+  display:grid;place-items:center;font:800 14px Georgia,serif;color:#e9fff2;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+@keyframes fall{0%{transform:translate3d(0,0,0) rotate(0deg);opacity:0}8%{opacity:1}
+  100%{transform:translate3d(var(--dx),620px,0) rotate(var(--rot));opacity:.9}}
+.ty .burst{position:relative;width:96px;height:96px;margin:0 auto 6px}
+.ty .burst .ring{position:absolute;inset:0;border-radius:50%;border:3px solid #2d7a5f;opacity:0;animation:ring 1.2s ease-out .15s}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.7);opacity:0}}
+.ty .burst .jar{position:absolute;inset:8px;border-radius:50%;background:#2d7a5f;display:grid;place-items:center;
+  animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
+.ty .burst svg{width:44px;height:44px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.ty .burst path{stroke-dasharray:40;stroke-dashoffset:40;animation:tick .45s ease-out .45s forwards}
+@keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+@keyframes tick{to{stroke-dashoffset:0}}
+.ty h2{font-family:'Playfair Display',Georgia,serif;font-size:27px;font-weight:600;margin:6px 0 4px;color:#1e3a2f}
+.ty .what{margin:0 auto;max-width:380px;font-size:14px;color:#4b5563;line-height:1.45}
+.ty .saved{margin:18px auto 4px;font-family:'Playfair Display',Georgia,serif;font-size:52px;font-weight:700;color:#2d7a5f;
+  font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
+.ty .per{font-size:13px;font-weight:600;color:#6b7280;letter-spacing:.04em;text-transform:uppercase}
+.ty .task{display:flex;align-items:center;justify-content:center;gap:10px;margin:22px auto 0;padding:12px 16px;border-radius:12px;
+  background:#16263B;color:#fff;font-size:14.5px;font-weight:600;max-width:360px;opacity:0;transform:translateY(12px);
+  transition:opacity .45s ease,transform .45s ease}
+.ty .task.show{opacity:1;transform:none}
+.ty .task i{width:24px;height:24px;border-radius:50%;background:#2d7a5f;display:grid;place-items:center;font-style:normal;font-size:14px}
+.ty .ft{display:flex;justify-content:center;gap:10px;margin-top:18px;opacity:0;transition:opacity .4s ease .2s}
+.ty .ft.show{opacity:1}
+.ty .ft a,.ty .ft button{all:unset;cursor:pointer;padding:9px 16px;border-radius:8px;font-weight:600;font-size:13.5px}
+.ty .ft a{background:#2d7a5f;color:#fff}
+.ty .ft button{border:1px solid #d1d5db;color:#374151;background:#fff}
+.ty .ft a:focus-visible,.ty .ft button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){
+  .ty .rain{display:none}
+  .ty .burst .ring,.ty .burst .jar,.ty .burst path{animation:none;stroke-dashoffset:0}
+  .ty .task,.ty .ft{transition:none}
+}
+</style>
+</head>
+<body class="ms"><div class="wrap">
+<div id="bar"></div>
+<header><img src="microsoft-logo.png" alt="Sanctuary Recovery Centers">
+<div class="t"><h1>Cost cutting</h1><p id="asof"></p></div></header>
+
+<!-- ── Overview ── -->
+<div id="p-overview">
+<section>
+<h2>All cost cutting, one place</h2>
+<p class="sub">Every vendor we're cutting, what's been found, what's approved, and what has actually come off an invoice.</p>
+<div class="grid g4" id="kpis"></div>
+<p class="fine" id="kpiNote"></p>
+</section>
+
+<section>
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+  <div><h2>Recommended cuts</h2><p class="sub" style="margin:0">Approve a cut and it goes straight onto <span id="ownerName">Brian</span>'s project list.</p></div>
+  <button class="btn" id="newRec" hidden>+ Recommend a cut</button>
+</div>
+<div id="signinNote"></div>
+<div id="recs"></div>
+</section>
+
+<section id="suggestSec" hidden>
+<h2>Suggested from the data</h2>
+<p class="sub">Savings already found in the Microsoft review that still need sign-off. Send one for approval in a click.</p>
+<div class="card" id="suggest"></div>
+</section>
+
+<section>
+<h2>By vendor</h2>
+<div class="vendors" id="vendors"></div>
+</section>
+
+<section>
+<h2>Decisions</h2>
+<p class="sub">Every approved or declined cut, with who decided and the task it created.</p>
+<div id="decided"></div>
+</section>
+</div>
+
+<!-- ── By department ── -->
+<div id="p-departments" hidden>
+<section>
+<h2>Cost cutting by department</h2>
+<p class="sub">Recommended and approved cuts, grouped by the department they come from.</p>
+<div id="deptTable"></div>
+</section>
+<section>
+<h2>Google accounts flagged, by department</h2>
+<p class="sub">From the Google Admin user export.</p>
+<div id="deptGoogle"></div>
+</section>
+<section>
+<h2>Microsoft</h2>
+<div class="card"><p style="margin:0;font-size:14px;line-height:1.55">The Microsoft license cleanup log doesn't record departments, so its
+<b id="msFreed"></b> a month isn't split by department here. Give a recommended cut a department and it shows above.
+The full Microsoft detail is on the <a href="microsoft-savings.html">Microsoft</a> tab.</p></div>
+</section>
+</div>
+
+<footer>Cost cutting · Microsoft from microsoft-costs.js and the Oct 15 cleanup log; Google from google-costs.js and the Google Admin
+export; recommendations and approvals live in Supabase. Approved cuts become tasks on the <a href="projects.html">Projects</a> page.</footer>
+</div>
+
+<dialog id="recdlg" aria-labelledby="rd-h"></dialog>
+<dialog id="thanks" aria-labelledby="ty-h"></dialog>
+
+<script src="account.js"></script>
+<script>
+var CUTS = [], OWNER = 'Brian Reinhart', LOAD_ERR = '';
+var VEND = costVendors();
+var GU = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
+function $(id) { return document.getElementById(id); }
+function first(name) { return String(name || '').split(' ')[0]; }
+function dt(iso) { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function sum(list, f) { return list.reduce(function (a, x) { return a + (f(x) || 0); }, 0); }
+
+/* ── tabs: Overview and By department live on this page ── */
+function tab() {
+  var t = location.hash === '#departments' ? 'departments' : 'overview';
+  $('bar').innerHTML = costBar(t);
+  $('p-overview').hidden = t !== 'overview';
+  $('p-departments').hidden = t !== 'departments';
+}
+addEventListener('hashchange', tab);
+
+/* ── overview ── */
+function drawKpis() {
+  var bills = VEND.filter(function (v) { return v.bill !== null; });
+  var approved = CUTS.filter(function (c) { return c.status === 'approved'; });
+  var proposed = CUTS.filter(function (c) { return c.status === 'proposed'; });
+  var found = sum(VEND, function (v) { return v.identified; });
+  var realized = sum(VEND, function (v) { return v.realized; });
+  var k = [
+    ['Monthly bills tracked', cMoney(sum(bills, function (v) { return v.bill; }), true),
+     bills.map(function (v) { return v.name + ' ' + cMonth(v.billMonth); }).join(' · ') +
+     (bills.length < VEND.length ? ' · Google invoice needed' : ''), ''],
+    ['Found in license reviews', cMoney(found, true), 'per month · licenses freed or flagged', 'save'],
+    ['Approved cuts', cMoney(sum(approved, function (c) { return +c.monthly_saving; }), true),
+     approved.length + ' approved · ' + proposed.length + ' awaiting approval', 'save'],
+    ['Off the invoice so far', cMoney(realized, true), realized ? 'per month, confirmed on invoices' : 'seats not yet reduced — nothing on an invoice yet', '']
+  ];
+  $('kpis').innerHTML = k.map(function (x) {
+    return '<div class="card kpi hero-k ' + x[3] + '"><div class="lab">' + x[0] + '</div><div class="num">' + x[1] + '</div><div class="note">' + cEsc(x[2]) + '</div></div>';
+  }).join('');
+  var yr = (found + sum(approved, function (c) { return +c.monthly_saving; })) * 12;
+  $('kpiNote').textContent = 'Found + approved comes to about ' + cMoney(yr) + ' a year once it all comes off the invoices. ' +
+    'Before tax; the two can overlap where an approved cut is one of the found savings.';
+}
+
+function recCard(c) {
+  var can = SM.me, admin = SM.me && SM.me.role === 'admin';
+  return '<div class="card rec" data-id="' + c.id + '"><div class="top"><div><div class="tag">' + cEsc(c.vendor) +
+    (c.department ? ' · ' + cEsc(c.department) : '') + '</div><h3>' + cEsc(c.title) + '</h3></div>' +
+    (c.monthly_saving !== null ? '<div class="amt">' + cMoney(+c.monthly_saving, true) + '<small>per month</small></div>' : '') + '</div>' +
+    (c.detail ? '<p>' + cEsc(c.detail) + '</p>' : '') +
+    '<div class="acts">' + (can
+      ? '<button class="btn go" data-approve="' + c.id + '">✓ Approve this cut</button><button class="btn lt" data-decline="' + c.id + '">Not now</button>'
+      : '<a class="btn" href="' + cEsc(SM.signInUrl('costs.html')) + '">Sign in to approve</a>') +
+    (admin ? '<button class="btn lt sm" data-del="' + c.id + '" title="Remove this recommendation" style="margin-left:auto">Remove</button>' : '') +
+    '</div></div>';
+}
+function drawRecs() {
+  var open = CUTS.filter(function (c) { return c.status === 'proposed'; });
+  $('ownerName').textContent = first(OWNER);
+  $('newRec').hidden = !(SM.me && SM.me.role === 'admin');
+  $('signinNote').innerHTML = SM.me ? '' : '<div class="warnbox">Approvals are recorded by name — sign in with your Sanctuary Microsoft account to approve.</div>';
+  $('recs').innerHTML = LOAD_ERR ? '<div class="warnbox">' + cEsc(LOAD_ERR) + '</div>'
+    : open.length ? '<div class="recs">' + open.map(recCard).join('') + '</div>'
+    : '<div class="empty">Nothing waiting for approval.' + (SM.me && SM.me.role === 'admin' ? ' Use <b>Recommend a cut</b>, or send one of the suggestions below.' : '') + '</div>';
+}
+/* pending Microsoft seat reductions not yet sent for approval */
+function suggestions() {
+  if (typeof MS_CLEANUP === 'undefined') { return []; }
+  var taken = {};
+  CUTS.forEach(function (c) { taken[c.title] = 1; });
+  return MS_CLEANUP.subscriptions.filter(function (s) { return s.status === 'PENDING' && s.pendingMonthly > 0; }).map(function (s) {
+    return { vendor: 'Microsoft', department: '', title: 'Reduce ' + s.product + ' seats ' + s.before + ' → ' + s.target,
+             monthly_saving: s.pendingMonthly, detail: s.action + '. ' + s.notes };
+  }).filter(function (s) { return !taken[s.title]; });
+}
+function drawSuggestions() {
+  var list = SM.me && SM.me.role === 'admin' && !LOAD_ERR ? suggestions() : [];
+  $('suggestSec').hidden = !list.length;
+  $('suggest').innerHTML = list.map(function (s, i) {
+    return '<div class="sugg"><div><b>' + cEsc(s.title) + '</b><p class="fine">' + cMoney(s.monthly_saving, true) + ' / month · ' + cEsc(s.detail) + '</p></div>' +
+      '<button class="btn lt sm" data-sugg="' + i + '">Send for approval</button></div>';
+  }).join('');
+  $('suggest').querySelectorAll('[data-sugg]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      SM.api('POST', '/api/cuts', list[+b.getAttribute('data-sugg')]).then(load, function (e) { b.disabled = false; alert(e.message); });
+    });
+  });
+}
+function drawVendors() {
+  $('vendors').innerHTML = VEND.map(function (v) {
+    return '<a class="card vcard" href="' + v.href + '" style="--c:' + v.color + '"><h3>' + cEsc(v.name) + '<span>Open →</span></h3>' +
+      '<div class="vrow"><div><span>Monthly bill</span><b>' + (v.bill !== null ? cMoney(v.bill) : '<em class="need">needed</em>') + '</b></div>' +
+      '<div><span>Found / mo</span><b>' + (v.identified !== null ? cMoney(v.identified) : '<em class="need">needed</em>') + '</b></div>' +
+      '<div><span>On invoice</span><b>' + cMoney(v.realized) + '</b></div></div>' +
+      '<p class="st">' + cEsc(v.status) + '</p></a>';
+  }).join('');
+}
+function drawDecided() {
+  var done = CUTS.filter(function (c) { return c.status !== 'proposed'; });
+  $('decided').innerHTML = done.length ? '<div class="card scroll"><table style="min-width:680px"><thead><tr><th>Cut</th><th>Vendor</th>' +
+    '<th class="n">Per month</th><th>Decision</th><th>Task</th></tr></thead><tbody>' + done.map(function (c) {
+      return '<tr><td><b>' + cEsc(c.title) + '</b>' + (c.decision_note ? '<div class="fine" style="margin:2px 0 0">' + cEsc(c.decision_note) + '</div>' : '') + '</td>' +
+        '<td>' + cEsc(c.vendor) + (c.department ? ' · ' + cEsc(c.department) : '') + '</td>' +
+        '<td class="n">' + (c.monthly_saving !== null ? cMoney(+c.monthly_saving, true) : '—') + '</td>' +
+        '<td><span class="status ' + (c.status === 'approved' ? 'good' : 'mute') + '" style="font-size:11px;padding:3px 8px">' +
+          (c.status === 'approved' ? 'Approved' : 'Not now') + '</span> <span class="fine">' + cEsc(c.decided_by_name || '') + ' · ' + dt(c.decided_at) + '</span></td>' +
+        '<td>' + (c.project_id ? '<a href="projects.html#open=' + encodeURIComponent('row:' + c.project_id) + '">Open task</a>' : '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div>'
+    : '<div class="empty">No decisions yet.</div>';
+}
+
+/* ── by department ── */
+function drawDepartments() {
+  var by = {};
+  CUTS.forEach(function (c) {
+    if (c.status === 'declined') { return; }
+    var d = c.department || 'No department set';
+    var t = by[d] = by[d] || { name: d, proposed: 0, approved: 0, n: 0 };
+    t.n += 1;
+    t[c.status === 'approved' ? 'approved' : 'proposed'] += +c.monthly_saving || 0;
+  });
+  var rows = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return (b.approved + b.proposed) - (a.approved + a.proposed); });
+  var max = Math.max.apply(null, rows.map(function (r) { return r.approved + r.proposed; }).concat([1]));
+  $('deptTable').innerHTML = rows.length ? '<div class="card scroll"><table><thead><tr><th>Department</th><th class="n">Cuts</th>' +
+    '<th class="n">Awaiting approval</th><th class="n">Approved</th><th style="width:30%"><span class="vh" style="position:absolute;left:-9999px">Share</span></th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      return '<tr><td><b>' + cEsc(r.name) + '</b></td><td class="n">' + r.n + '</td><td class="n">' + cMoney(r.proposed, true) + '</td>' +
+        '<td class="n"><b style="color:var(--ms-good)">' + cMoney(r.approved, true) + '</b></td>' +
+        '<td><div class="barcell"><i style="width:' + Math.round((r.approved + r.proposed) / max * 100) + '%"></i></div></td></tr>';
+    }).join('') + '</tbody></table></div>'
+    : '<div class="empty">No recommended cuts yet. Each one you recommend can carry a department.</div>';
+  $('deptGoogle').innerHTML = GU ? '<div class="card scroll"><table><thead><tr><th>Department</th><th class="n">Licensed</th>' +
+    '<th class="n">Flagged</th></tr></thead><tbody>' + GU.byDept.map(function (d) {
+      return '<tr><td>' + cEsc(d.name) + '</td><td class="n">' + d.licensed + '</td><td class="n">' + (d.candidates || 0) + '</td></tr>';
+    }).join('') + '</tbody></table></div>'
+    : '<div class="empty">Waiting for the Google Admin user export — see the <a href="google.html">Google</a> tab.</div>';
+  var ms = costMicrosoft();
+  $('msFreed').textContent = ms ? cMoney(ms.identified, true) : '—';
+}
+
+/* ── recommend a cut (admins) ── */
+function openRecommend() {
+  var d = $('recdlg');
+  d.innerHTML = '<form class="rd" id="rdf" novalidate><h2 id="rd-h">Recommend a cut</h2>' +
+    '<label>Vendor<select id="rd-v"><option>Microsoft</option><option>Google</option><option>Other</option></select></label>' +
+    '<label>Department<input id="rd-d" maxlength="80" placeholder="e.g. Billing"></label>' +
+    '<label class="w">The cut<input id="rd-t" maxlength="200" placeholder="e.g. Cancel the 2 unused Zoom licenses"></label>' +
+    '<label>Saves per month ($)<input id="rd-m" inputmode="decimal" placeholder="0.00"></label><span></span>' +
+    '<label class="w">Details<textarea id="rd-x" rows="4" maxlength="3000" placeholder="What changes, who it affects, anything the approver should know"></textarea></label>' +
+    '<div class="err" id="rd-e" hidden></div>' +
+    '<div class="ft"><button type="button" class="btn lt" id="rd-c">Cancel</button><button class="btn" id="rd-go">Send for approval</button></div></form>';
+  d.showModal();
+  $('rd-t').focus();
+  $('rd-c').addEventListener('click', function () { d.close(); });
+  $('rdf').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var m = $('rd-m').value.replace(/[$,\s]/g, '');
+    if (!$('rd-t').value.trim()) { $('rd-e').textContent = 'Say what the cut is.'; $('rd-e').hidden = false; return; }
+    if (m && !/^\d+(\.\d{1,2})?$/.test(m)) { $('rd-e').textContent = 'Monthly saving should be a dollar amount, like 52.80.'; $('rd-e').hidden = false; return; }
+    $('rd-go').disabled = true;
+    SM.api('POST', '/api/cuts', { vendor: $('rd-v').value, department: $('rd-d').value, title: $('rd-t').value,
+                                  monthly_saving: m || null, detail: $('rd-x').value })
+      .then(function () { d.close(); load(); }, function (err) { $('rd-go').disabled = false; $('rd-e').textContent = err.message; $('rd-e').hidden = false; });
+  });
+}
+
+/* ── approve → thank you ── */
+function approve(id, btn) {
+  var cut = CUTS.filter(function (c) { return c.id === id; })[0];
+  btn.disabled = true; btn.textContent = 'Approving…';
+  SM.api('POST', '/api/cuts?id=' + id, { action: 'approve' }).then(function (j) {
+    thankYou(cut, j.task);
+    load();
+  }, function (e) { btn.disabled = false; btn.textContent = '✓ Approve this cut'; alert(e.message); load(); });
+}
+function decline(id) {
+  var note = prompt('Not now — want to add a reason? (optional)');
+  if (note === null) { return; }
+  SM.api('POST', '/api/cuts?id=' + id, { action: 'decline', note: note }).then(load, function (e) { alert(e.message); load(); });
+}
+function thankYou(cut, task) {
+  var d = $('thanks'), monthly = cut.monthly_saving !== null ? +cut.monthly_saving : null;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var rain = '';
+  if (!reduce) {
+    for (var i = 0; i < 26; i++) {
+      var bill = i % 3 === 0;
+      rain += '<span class="' + (bill ? 'bill' : 'coin') + '" style="left:' + (Math.random() * 100).toFixed(1) + '%;' +
+        'animation-duration:' + (1.8 + Math.random() * 1.6).toFixed(2) + 's;animation-delay:' + (Math.random() * 1.1).toFixed(2) + 's;' +
+        '--dx:' + Math.round(Math.random() * 120 - 60) + 'px;--rot:' + Math.round(Math.random() * 720 - 360) + 'deg">$</span>';
+    }
+  }
+  d.innerHTML = '<div class="ty" role="status"><div class="rain" aria-hidden="true">' + rain + '</div>' +
+    '<div class="burst" aria-hidden="true"><div class="ring"></div><div class="jar"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div></div>' +
+    '<h2 id="ty-h">Thank you for approving the cut!</h2>' +
+    '<p class="what">' + cEsc(cut.title) + '</p>' +
+    (monthly !== null ? '<div class="saved" id="ty-n">$0</div><div class="per">saved per year · ' + cMoney(monthly, true) + ' a month</div>' : '') +
+    '<div class="task" id="ty-task"><i>✓</i> Task added to ' + cEsc(first(task && task.owner || OWNER)) + '\'s projects</div>' +
+    '<div class="ft" id="ty-ft">' + (task ? '<a href="projects.html#open=' + encodeURIComponent('row:' + task.id) + '">See the task</a>' : '') +
+      '<button type="button" id="ty-x">Done</button></div></div>';
+  d.showModal();
+  $('ty-x').addEventListener('click', function () { d.close(); });
+  d.addEventListener('click', function (e) { if (e.target === d) { d.close(); } }, { once: true });
+  /* count the yearly saving up from $0 */
+  if (monthly !== null) {
+    var target = monthly * 12, el = $('ty-n'), t0 = performance.now(), dur = reduce ? 0 : 1600;
+    (function step(now) {
+      var p = dur ? Math.min(1, (now - t0) / dur) : 1, ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = cMoney(target * ease);
+      if (p < 1) { requestAnimationFrame(step); }
+    })(t0);
+  }
+  setTimeout(function () { $('ty-task').classList.add('show'); $('ty-ft').classList.add('show'); $('ty-x').focus(); }, reduce ? 0 : 1700);
+}
+
+/* ── load + wire ── */
+function draw() {
+  drawKpis(); drawRecs(); drawSuggestions(); drawVendors(); drawDecided(); drawDepartments();
+  document.querySelectorAll('[data-approve]').forEach(function (b) { b.addEventListener('click', function () { approve(b.getAttribute('data-approve'), b); }); });
+  document.querySelectorAll('[data-decline]').forEach(function (b) { b.addEventListener('click', function () { decline(b.getAttribute('data-decline')); }); });
+  document.querySelectorAll('[data-del]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (confirm('Remove this recommendation?')) { SM.api('DELETE', '/api/cuts?id=' + b.getAttribute('data-del')).then(load, function (e) { alert(e.message); }); }
+    });
+  });
+}
+function load() {
+  return SM.api('GET', '/api/cuts').then(function (j) { CUTS = j.cuts || []; OWNER = j.owner || OWNER; LOAD_ERR = ''; draw(); },
+    function (e) { CUTS = []; LOAD_ERR = e.code === 'signin' ? '' : e.message; draw(); });
+}
+$('newRec').addEventListener('click', openRecommend);
+$('asof').textContent = 'Microsoft as of ' + (typeof MS_COSTS !== 'undefined' ? MS_COSTS.asOf : '—') +
+  ' · Google ' + (GOOGLE_COSTS.asOf ? 'as of ' + GOOGLE_COSTS.asOf : 'waiting for data');
+tab();
+draw();
+SM.ready.then(load);
+</script>
+</body></html>

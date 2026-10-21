@@ -474,7 +474,7 @@ function chatPane(ref) {
       ? '<form class="pc-form" id="pc-form"><label class="vh" for="pc-text">Message</label>' +
           '<textarea id="pc-text" rows="1" maxlength="4000" placeholder="Message the team…"></textarea>' +
           '<button class="btn" type="submit" id="pc-send">Send</button></form>'
-      : '<div class="pc-note"><a href="account.html?next=' + encodeURIComponent('projects.html#open=' + ref) + '">Sign in</a> to message the team about this project.</div>') +
+      : '<div class="pc-note"><a href="' + esc(SM.signInUrl('projects.html#open=' + encodeURIComponent(ref))) + '">Sign in</a> to message the team about this project.</div>') +
   '</aside>';
 }
 function msgTime(iso) {
@@ -613,16 +613,15 @@ function signinPanel() {
     '<h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
     '<p class="lead">Sign in with your account to see the project list, message the team on each project and get alerts.</p>' +
     (ERROR ? '<div class="warn">' + esc(ERROR) + '</div>' : '') +
-    (SM.microsoft ? '<p style="margin:0 0 16px">' + SM.msButton('projects.html' + location.hash) + '</p>' +
-      '<p class="sub" style="margin:0 0 8px">Or with an email and password:</p>' : '') +
-    '<div class="card"><form class="addform" id="siform" style="grid-template-columns:1fr 1fr auto">' +
+    (SM.microsoft ? SM.signInCard('projects.html' + location.hash) + '<p class="sub">No account yet? Ask an admin to add you.</p></section>' : '') +
+    (SM.microsoft ? '' : '<div class="card"><form class="addform" id="siform" style="grid-template-columns:1fr 1fr auto">' +
       '<div class="f"><label for="si-email">Email</label><input type="email" id="si-email" autocomplete="username" ' +
       'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
       '<div class="f"><label for="si-pw">Password</label><input type="password" id="si-pw" autocomplete="current-password" ' +
       'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
       '<button class="btn" type="submit" id="si-go">Sign in</button>' +
     '</form></div>' +
-    '<p class="sub">No account yet? Ask an admin. <a href="#" id="use-pw">Use the shared team password instead</a></p></section>';
+    '<p class="sub">No account yet? Ask an admin. <a href="#" id="use-pw">Use the shared team password instead</a></p></section>');
 }
 function messagePanel(title, body) {
   return '<section><div class="eyebrow">Project tracker</div>' +
@@ -659,7 +658,7 @@ function render() {
         '<th>Importance</th><th>Due</th><th><span class="vh">Edit</span></th></tr></thead>' +
         '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
         (lsGet(PW_KEY) !== null ? '<p class="sub" style="margin-top:14px">Using the shared team password — ' +
-          '<a href="account.html?next=projects.html">sign in with your account</a> to message and get alerts. ' +
+          '<a href="' + esc(SM.signInUrl('projects.html')) + '">sign in with your account</a> to message and get alerts. ' +
           '<a href="#" id="signout">Forget the team password on this browser</a></p>' : '') +
       '</section>';
   }

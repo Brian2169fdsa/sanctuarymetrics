@@ -20,6 +20,9 @@ create table if not exists public.app_users (
   created_at           timestamptz not null default now()
 );
 
+-- Microsoft sign-in links an account to its Entra object ID on first use
+alter table public.app_users add column if not exists ms_oid text unique;
+
 create table if not exists public.app_sessions (
   token_hash  text primary key,             -- sha256 of the cookie token, never the token itself
   user_id     uuid not null references public.app_users (id) on delete cascade,

@@ -23,3 +23,7 @@ __pycache__/
 # M365 cleanup log: raw CSV holds full staff emails. The page ships only
 # the trimmed microsoft-cleanup.js built from it by tools/build-cleanup-js.py.
 sanctuary_m365_license_cleanup_*.csv
+
+# Google Admin user exports: raw CSVs hold full names and emails. The page
+# ships only the trimmed google-users.js built by tools/build-google-js.py.
+google_users*.csv

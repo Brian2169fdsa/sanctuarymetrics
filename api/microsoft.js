@@ -8,16 +8,22 @@
                                          we swap the code for their ID token,
                                          match it to an account, sign them in
 
+   Only Sanctuary work accounts: the sign-in page is the Sanctuary tenant's
+   (d2b75006-…, see lib/auth.js), the token must come from that tenant, and
+   the email must be on a Sanctuary domain (sanctuaryrecoverycenters.com or
+   sanctuaryrc.com; MS_ALLOWED_DOMAINS overrides).
+
    Who gets in:
-     - anyone with an account (app_users) whose email matches their Microsoft
-       email — accounts are still created by an admin on account.html
+     - anyone with an account (app_users) matching their Microsoft identity —
+       linked by Microsoft's object ID after the first sign-in, before that by
+       email (either Sanctuary domain). Accounts are created by an admin.
      - the master admin (ADMIN_EMAILS); their account is created on first sign-in
      - with MS_AUTO_CREATE=true, anyone else in the tenant, as a member
 
    Environment (Vercel → Settings → Environment Variables):
-     MS_TENANT_ID       the directory (tenant) ID of the Sanctuary Microsoft 365
      MS_CLIENT_ID       the sign-in app's application (client) ID
      MS_CLIENT_SECRET   its client secret
+     MS_TENANT_ID       optional; defaults to the Sanctuary tenant
      MS_REDIRECT_URI    optional; defaults to https://<this host>/api/microsoft
      MS_AUTO_CREATE     optional; "true" lets anyone in the tenant in as a member
    Setup steps: tools/register-signin-app.ps1, or MICROSOFT_SIGNIN.md.
@@ -42,12 +48,12 @@ function redirectUri(req) {
   const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
   return 'https://' + host + '/api/microsoft';
 }
-function authority() { return 'https://login.microsoftonline.com/' + process.env.MS_TENANT_ID + '/oauth2/v2.0'; }
+function authority() { return 'https://login.microsoftonline.com/' + A.msTenant() + '/oauth2/v2.0'; }
 
 module.exports = async function handler(req, res) {
-  if (!A.microsoftEnabled() || !GUID.test(process.env.MS_TENANT_ID)) {
+  if (!A.microsoftEnabled() || !GUID.test(A.msTenant())) {
     return sendJSON(res, 503, { error: 'not_configured',
-      message: 'Microsoft sign-in is not set up yet: add MS_TENANT_ID, MS_CLIENT_ID and MS_CLIENT_SECRET.' });
+      message: 'Microsoft sign-in is not set up yet: add MS_CLIENT_ID and MS_CLIENT_SECRET.' });
   }
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return sendJSON(res, 405, { error: 'method' }); }
   const q = new URL(req.url, 'http://x').searchParams;
@@ -90,7 +96,7 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     return fail(res, 'microsoft');
   }
-  const tenant = process.env.MS_TENANT_ID.toLowerCase();
+  const tenant = A.msTenant();
   if (claims.aud !== process.env.MS_CLIENT_ID || String(claims.tid).toLowerCase() !== tenant ||
       claims.iss !== 'https://login.microsoftonline.com/' + claims.tid + '/v2.0' ||
       claims.nonce !== st.n || !(claims.exp * 1000 > Date.now())) {
@@ -99,9 +105,23 @@ module.exports = async function handler(req, res) {
 
   const email = String(claims.email || claims.preferred_username || '').trim().toLowerCase();
   if (!email || email.indexOf('@') < 0) { return fail(res, 'noemail'); }
+  const local = email.split('@')[0], domains = A.msDomains();
+  if (domains.indexOf(email.split('@')[1]) < 0) { return fail(res, 'domain', email); }
+  const oid = GUID.test(claims.oid || '') ? claims.oid.toLowerCase() : null;
 
   try {
-    let u = (await supabase('GET', '?email=eq.' + encodeURIComponent(email) + '&select=' + A.USER_COLS, null, null, 'app_users'))[0];
+    const find = function (filter) {
+      return supabase('GET', '?' + filter + '&select=' + A.USER_COLS + '&limit=2', null, null, 'app_users');
+    };
+    /* 1. the account already linked to this Microsoft identity */
+    let u = null;
+    if (oid) { try { u = (await find('ms_oid=eq.' + oid))[0]; } catch (e) { /* ms_oid column not added yet */ } }
+    /* 2. the exact email, then the same name on the other Sanctuary domain */
+    if (!u) { u = (await find('email=eq.' + encodeURIComponent(email)))[0]; }
+    if (!u) {
+      const alias = await find('email=in.(' + domains.map(function (d) { return encodeURIComponent('"' + local + '@' + d + '"'); }).join(',') + ')');
+      if (alias.length === 1) { u = alias[0]; }
+    }
     if (!u) {
       const isAdmin = A.adminEmails().indexOf(email) >= 0;
       if (!isAdmin && process.env.MS_AUTO_CREATE !== 'true') { return fail(res, 'noaccount', email); }
@@ -114,6 +134,10 @@ module.exports = async function handler(req, res) {
     }
     if (u.disabled) { return fail(res, 'disabled', email); }
     const fields = { last_login_at: new Date().toISOString(), failed_logins: 0, locked_until: null };
+    if (oid) {
+      try { await supabase('PATCH', '?id=eq.' + u.id + '&ms_oid=is.null', { ms_oid: oid }, { Prefer: 'return=minimal' }, 'app_users'); }
+      catch (e) { /* ms_oid column not added yet — email matching still works */ }
+    }
     /* a temporary password nobody needs any more: drop it */
     if (u.must_change_password) { Object.assign(fields, { password_hash: null, must_change_password: false }); }
     await supabase('PATCH', '?id=eq.' + u.id, fields, { Prefer: 'return=minimal' }, 'app_users');

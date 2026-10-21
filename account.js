@@ -114,7 +114,7 @@
     var u = SM.me;
     if (!u) {
       bar.innerHTML = here() === 'account.html' ? '' :
-        '<a href="account.html?next=' + encodeURIComponent(here() + location.hash) + '">Sign in</a>';
+        '<a href="' + h(SM.signInUrl()) + '">Sign in</a>';
     } else {
       bar.innerHTML =
         '<span class="who">' + h(u.name) + (u.role === 'admin' ? '<span class="role">Admin</span>' : '') + '</span>' +
@@ -220,6 +220,17 @@
     return '<a class="smms" href="/api/microsoft?start=1&next=' + encodeURIComponent(next || 'projects.html') + '">' +
       '<svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/>' +
       '<path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>' + h(label || 'Sign in with Microsoft') + '</a>';
+  };
+  /* every "Sign in" goes to Microsoft once it's set up; account.html until then */
+  SM.signInUrl = function (next) {
+    next = next || (here() + location.hash);
+    return SM.microsoft ? '/api/microsoft?start=1&next=' + encodeURIComponent(next) : 'account.html?next=' + encodeURIComponent(next);
+  };
+  /* the card a page shows in place of its own password box */
+  SM.signInCard = function (next, why) {
+    return '<div class="card"><h3>Sign in to continue</h3>' +
+      '<p style="margin:0 0 14px;font-size:14px;line-height:1.5">' + h(why || 'Use your Sanctuary Microsoft account — the same login as Outlook and Teams.') + '</p>' +
+      SM.msButton(next || (here() + location.hash)) + '</div>';
   };
   SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.microsoft = !!j.microsoft; return j.user; }, function () { return null; })
     .then(function (u) { setUser(u); return u; });

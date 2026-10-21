@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Cost Cut</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="microsoft.css">
+<script src="google-costs.js"></script>
+<script src="google-users.js"></script>
+<script src="cost-ui.js"></script>
+<style>
+.ms .g-empty{border:1px dashed #cbd5e1;border-radius:10px;padding:22px;background:var(--ms-band);color:var(--ms-ink2);font-size:14px;line-height:1.55}
+.ms .g-empty b{display:block;font-size:15px;margin-bottom:4px}
+.ms .g-empty code{background:#fff;border:1px solid var(--ms-line);border-radius:5px;padding:1px 6px;font-size:12.5px}
+.ms .need{color:var(--ms-warn);font-weight:600}
+.ms .kpi .num .need{font-family:Inter,sans-serif;font-size:19px;display:block;padding-top:8px}
+.ms ol.chk{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.ms ol.chk li{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:start;border:1px solid var(--ms-line);border-radius:10px;padding:12px 14px;background:#fff}
+.ms ol.chk .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--ms-band);color:var(--ms-ink2);border:1px solid var(--ms-line)}
+.ms ol.chk li.done .n{background:var(--ms-good);border-color:var(--ms-good);color:#fff}
+.ms ol.chk li.doing .n{background:#0f9d8a;border-color:#0f9d8a;color:#fff}
+.ms ol.chk b{color:var(--ms-ink2)}
+.ms ol.chk p{margin:4px 0 0;color:var(--ms-mute);font-size:13px}
+.ms .bar{height:8px;border-radius:4px;background:var(--ms-band);overflow:hidden;margin-top:6px}
+.ms .bar i{display:block;height:100%;background:#0f9d8a}
+.ms .gflag{font-size:11px;padding:3px 8px;white-space:nowrap}
+@media (max-width:640px){.ms ol.chk li{grid-template-columns:28px 1fr}.ms ol.chk li .status{grid-column:2}}
+</style>
+</head>
+<body class="ms"><div class="wrap">
+<div id="bar"></div>
+<header><img src="microsoft-logo.png" alt="Sanctuary Recovery Centers">
+<div class="t"><h1>Google Workspace cost cut</h1><p id="asof"></p></div></header>
+
+<section>
+<h2>Where it stands</h2>
+<p class="sub">Same approach as Microsoft: find the seats nobody uses, get sign-off, remove them, then lower the paid seat count.</p>
+<div class="grid g4" id="kpis"></div>
+<p class="fine" id="kpiNote"></p>
+</section>
+
+<section>
+<h2>Plan to cut Google costs</h2>
+<ol class="chk" id="checklist"></ol>
+</section>
+
+<section>
+<h2>Subscriptions</h2>
+<p class="sub">From Google Admin → Billing → Subscriptions. Seats you pay for vs. seats in use.</p>
+<div id="plans"></div>
+</section>
+
+<section>
+<h2>Accounts by department</h2>
+<p class="sub">Who has a Google license in each department, and how many look unused.</p>
+<div id="depts"></div>
+</section>
+
+<section>
+<h2>Accounts to review</h2>
+<p class="sub">Suspended but still licensed, never signed in, or no sign-in for 90+ days. Shown by mailbox name only. Nothing is removed without sign-off.</p>
+<div id="users"></div>
+</section>
+
+<section>
+<h2>Invoices</h2>
+<div id="invoices"></div>
+</section>
+
+<footer>Google cost system · numbers from google-costs.js (hand-kept from the Google invoices) and google-users.js (built from the
+Google Admin user export by tools/build-google-js.py). Nothing on this page is estimated — anything missing says so.</footer>
+</div>
+<script>
+var G = GOOGLE_COSTS, U = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
+var V = costGoogle();
+function $(id) { return document.getElementById(id); }
+function need(what) { return '<span class="need">' + cEsc(what) + ' needed</span>'; }
+function empty(title, body) { return '<div class="g-empty"><b>' + cEsc(title) + '</b>' + body + '</div>'; }
+var EXPORT_HOW = 'Google Admin → Directory → Users → <b>Download users</b> → All user info columns → CSV, then run ' +
+  '<code>python3 tools/build-google-js.py google_users.csv</code> and commit <code>google-users.js</code>.';
+
+$('bar').innerHTML = costBar('google');
+$('asof').textContent = (G.asOf ? 'Updated ' + G.asOf : 'Ready for data') + (U ? ' · user export ' + U.built : '');
+
+/* ── KPIs ── */
+var T = U ? U.totals : null;
+var kp = [
+  ['Monthly Google bill', V.bill !== null ? cMoney(V.bill, true) : need('Invoice'), V.billMonth ? cMonth(V.billMonth) + ' invoice' : 'add invoices to google-costs.js'],
+  ['Licensed accounts', T ? String(T.licensed) : need('Export'), T ? T.active30 + ' signed in within 30 days' : 'from the Google Admin user export'],
+  ['Flagged to review', T ? String(T.candidates) : need('Export'), T ? T.suspendedLicensed + ' suspended · ' + T.neverSignedIn + ' never signed in · ' + T.inactive90 + ' idle 90d+' : ''],
+  ['Could come off per month', V.identified !== null ? cMoney(V.identified, true) : need(T ? 'Plan prices' : 'Export + prices'),
+   V.identified !== null ? 'flagged accounts × their plan price' : 'flagged accounts × plan price, once both are in']
+];
+$('kpis').innerHTML = kp.map(function (k) {
+  return '<div class="card kpi"><div class="lab">' + k[0] + '</div><div class="num">' + k[1] + '</div><div class="note">' + cEsc(k[2]) + '</div></div>';
+}).join('');
+$('kpiNote').textContent = V.realized ? cMoney(V.realized, true) + ' a month already confirmed on a Google invoice.' : 'Nothing confirmed on a Google invoice yet.';
+
+/* ── checklist ── */
+var label = { todo: ['To do', 'mute'], doing: ['In progress', 'warn'], done: ['Done', 'good'] };
+$('checklist').innerHTML = G.checklist.map(function (c, i) {
+  var l = label[c.status] || label.todo;
+  return '<li class="' + cEsc(c.status) + '"><span class="n">' + (c.status === 'done' ? '✓' : i + 1) + '</span>' +
+    '<div><b>' + cEsc(c.step) + '</b><p>' + cEsc(c.detail) + '</p></div><span class="status ' + l[1] + '">' + l[0] + '</span></li>';
+}).join('');
+
+/* ── plans ── */
+if (!G.plans.length && !U) {
+  $('plans').innerHTML = empty('No subscriptions recorded yet',
+    'Add each plan to <code>plans</code> in <code>google-costs.js</code>: name, seats paid for, price per seat, Flexible or Annual, renewal date.');
+} else {
+  var names = {};
+  G.plans.forEach(function (p) { names[p.name] = 1; });
+  if (U) { U.byPlan.forEach(function (p) { if (p.name !== 'No license') { names[p.name] = 1; } }); }
+  $('plans').innerHTML = '<div class="grid g3">' + Object.keys(names).map(function (n) {
+    var p = G.plans.filter(function (x) { return x.name === n; })[0] || {};
+    var u = U ? U.byPlan.filter(function (x) { return x.name === n; })[0] || { licensed: 0, active30: 0, candidates: 0 } : null;
+    return '<div class="card sub-card"><div class="sub-top"><h3>' + cEsc(n) + '</h3>' +
+      (p.term ? '<span class="status mute">' + cEsc(p.term) + '</span>' : '') + '</div>' +
+      '<div class="seats"><div><span>Paid for</span><b>' + (p.seats != null ? p.seats : '—') + '</b></div>' +
+      '<div><span>Assigned</span><b>' + (u ? u.licensed : '—') + '</b></div>' +
+      '<div><span>Used 30d</span><b>' + (u ? u.active30 : '—') + '</b></div></div>' +
+      '<p class="meta">' + (p.price ? cMoney(p.price, true) + ' per seat / month' : need('Price')) +
+      (p.renews ? ' · renews ' + cEsc(p.renews) : '') + '</p>' +
+      (u && u.candidates ? '<p class="next">' + u.candidates + ' flagged account' + (u.candidates === 1 ? '' : 's') +
+        (p.price ? ' · ' + cMoney(u.candidates * p.price, true) + '/mo if removed and seats reduced' : '') + '</p>' : '') +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* ── departments ── */
+if (!U) {
+  $('depts').innerHTML = empty('Waiting for the user export', EXPORT_HOW);
+} else {
+  var max = Math.max.apply(null, U.byDept.map(function (d) { return d.users; }));
+  $('depts').innerHTML = '<div class="card scroll"><table><thead><tr><th>Department</th><th class="n">Accounts</th><th class="n">Licensed</th>' +
+    '<th class="n">Used 30d</th><th class="n">Flagged</th><th class="n">Storage</th></tr></thead><tbody>' +
+    U.byDept.map(function (d) {
+      return '<tr><td><b>' + cEsc(d.name) + '</b><div class="bar"><i style="width:' + Math.round(d.users / max * 100) + '%"></i></div></td>' +
+        '<td class="n">' + d.users + '</td><td class="n">' + d.licensed + '</td><td class="n">' + d.active30 + '</td>' +
+        '<td class="n">' + (d.candidates ? '<b style="color:var(--ms-s2)">' + d.candidates + '</b>' : '0') + '</td>' +
+        '<td class="n">' + d.storageGB + ' GB</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="fine">Department comes from the Department field in Google Admin, or the user\'s organizational unit when that\'s blank.</p>';
+}
+
+/* ── accounts to review ── */
+if (!U) {
+  $('users').innerHTML = empty('Waiting for the user export', EXPORT_HOW);
+} else {
+  var rows = U.users.filter(function (u) { return u.flag; });
+  $('users').innerHTML = rows.length ? '<div class="card scroll"><table style="min-width:760px"><thead><tr><th>Account</th><th>Department</th>' +
+    '<th>Plan</th><th>Why it\'s flagged</th><th>Last sign-in</th><th class="n">Storage</th></tr></thead><tbody>' +
+    rows.map(function (u) {
+      var cls = u.candidate ? 'bad' : 'warn';
+      return '<tr' + (u.candidate ? '' : ' class="muted"') + '><td><b>' + cEsc(u.who) + '</b></td><td>' + cEsc(u.dept) + '</td>' +
+        '<td>' + cEsc(u.plan || '—') + '</td><td><span class="status gflag ' + cls + '">' + cEsc(u.flag) + '</span></td>' +
+        '<td>' + (u.lastSignIn ? cEsc(u.lastSignIn) : 'never') + '</td><td class="n">' + (u.storageGB != null ? u.storageGB + ' GB' : '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="fine">"Quiet" accounts (30–90 days) are shown for context but not counted as cuts. Before removing a license, move anything ' +
+    'the department still needs to SharePoint.</p>'
+    : empty('No accounts flagged', 'Every licensed account signed in within the last 30 days.');
+}
+
+/* ── invoices ── */
+$('invoices').innerHTML = G.invoices.length ? '<div class="card scroll"><table><thead><tr><th>Month</th><th class="n">Billed (tax incl.)</th>' +
+  '<th class="n">Change</th></tr></thead><tbody>' + G.invoices.map(function (r, i) {
+    var prev = i ? G.invoices[i - 1].total : null, d = prev !== null ? r.total - prev : null;
+    return '<tr><td>' + cEsc(cMonth(r.month)) + '</td><td class="n">' + cMoney(r.total, true) + '</td><td class="n">' +
+      (d === null ? '' : (d < 0 ? '<b style="color:var(--ms-good)">−' + cMoney(-d, true) + '</b>' : '+' + cMoney(d, true))) + '</td></tr>';
+  }).join('') + '</tbody></table></div>'
+  : empty('No Google invoices recorded yet', 'Add one row per month to <code>invoices</code> in <code>google-costs.js</code> (Google Admin → Billing → Transactions).');
+</script>
+</body></html>
