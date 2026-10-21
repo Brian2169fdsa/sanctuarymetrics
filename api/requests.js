@@ -23,7 +23,7 @@
      POST {kind: 'business_cards' | 'flyer' | 'website_edit', …}   file one request
    ========================================================================== */
 
-const { sendJSON, readBody, supabase } = require('../lib/db');
+const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const { authorize, admins, sendAlerts } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [25, 50, 100, 250, 500, 1000] };
@@ -123,7 +123,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const row = toRow(await readBody(req));
-    const rows = await supabase('POST', '', row);
+    const rows = await projectWrite('POST', '', Object.assign(row, addedBy(who.user)));
     /* let the admins know on the bell */
     try {
       const ref = 'row:' + rows[0].id;

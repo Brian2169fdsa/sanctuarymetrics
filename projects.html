@@ -16,6 +16,7 @@
 .ptitle:hover{color:var(--blue);text-decoration:underline}
 .ptitle:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
 .pnotes{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.pby{font-size:11.5px;color:var(--muted);margin-top:4px}
 .pevent{font-size:12.5px;margin-top:6px}
 .pevent a{color:var(--blue)}
 .pdone{opacity:.6}
@@ -74,6 +75,21 @@
 .pc-meta{font-size:11px;color:var(--muted);margin:3px 4px 0;display:flex;gap:8px}
 .pc-m.me .pc-meta{justify-content:flex-end}
 .pc-meta button{all:unset;cursor:pointer;color:var(--muted);text-decoration:underline}
+.pc-tag{font-weight:700;color:#1C6E9A;background:#e4f1f8;border-radius:4px;padding:0 3px}
+.pc-m.me .pc-tag{color:#fff;background:rgba(255,255,255,.18)}
+.pc-m.atme .pc-b{border-color:#E17F55;box-shadow:0 0 0 2px rgba(225,127,85,.18)}
+.pc-form{position:relative}
+.pc-at{all:unset;box-sizing:border-box;cursor:pointer;height:38px;min-width:38px;padding:0 10px;border:1px solid var(--line);border-radius:8px;
+  font-weight:700;color:var(--muted);text-align:center;font-size:15px}
+.pc-at:hover{color:var(--blue);border-color:var(--blue)}
+.pc-at:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.pc-pick{position:absolute;left:14px;right:14px;bottom:calc(100% - 4px);background:#fff;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 24px rgba(1,23,59,.14);padding:4px;margin:0;list-style:none;max-height:220px;overflow:auto;z-index:5}
+.pc-pick li{padding:7px 10px;border-radius:7px;font-size:13.5px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.pc-pick li[aria-selected="true"],.pc-pick li:hover{background:#eef5f9}
+.pc-pick .av{width:22px;height:22px;border-radius:50%;background:#2C5468;color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;flex:none}
+.pc-pick .none{color:var(--muted);cursor:default;background:none!important}
+.pc-sent{font-size:12px;color:#1d7a4d;padding:0 16px 10px;background:#fff}
 .pc-form{border-top:1px solid var(--line);padding:12px 14px;display:flex;gap:8px;align-items:flex-end;background:#fff}
 .pc-form textarea{flex:1;font-family:Inter,sans-serif;font-size:14px;line-height:1.4;resize:none;border:1px solid var(--line);
   border-radius:10px;padding:9px 11px;min-height:42px;max-height:140px}
@@ -212,8 +228,19 @@ function l10Status(title) {
 }
 function extras(r) {
   r = r || {};
-  return { notes: r.notes || '', isEvent: !!r.is_event, eventDate: r.event_date || '', eventAddress: r.event_address || '',
-           eventTime: r.event_time || '', eventDuration: r.event_duration || 60, attendees: r.attendees || '' };
+  var who = { addedBy: r.created_by_name || '', addedAt: r.created_at || '', editedBy: r.updated_by_name || '', editedAt: r.updated_at || '' };
+  return Object.assign(who, { notes: r.notes || '', isEvent: !!r.is_event, eventDate: r.event_date || '', eventAddress: r.event_address || '',
+           eventTime: r.event_time || '', eventDuration: r.event_duration || 60, attendees: r.attendees || '' });
+}
+/* "Added by Kim Aycock · Oct 21 · last change by Brian Reinhart, 2:14 PM" */
+function whoLine(it, short) {
+  var bits = [];
+  if (it.addedBy && !it.seed) { bits.push('Added by ' + it.addedBy + (it.addedAt ? ' · ' + msgTime(it.addedAt) : '')); }
+  var changed = it.editedBy && it.editedAt && Math.abs(Date.parse(it.editedAt) - Date.parse(it.addedAt || 0)) > 60000;
+  if (changed && (it.seed || !short || it.editedBy !== it.addedBy)) {
+    bits.push((bits.length ? 'last change by ' : 'Last change by ') + it.editedBy + (short ? '' : ', ' + msgTime(it.editedAt)));
+  }
+  return bits.join(short ? ' · ' : ' — ');
 }
 function seedItems() {
   return L10.rows.map(function (r) {
@@ -282,6 +309,8 @@ function rowsHtml(items) {
       (mc && mc.total ? '<span class="pmsg' + (mc.unread ? ' new' : '') + '" title="' + mc.total + ' message' + (mc.total === 1 ? '' : 's') +
         (mc.unread ? ', ' + mc.unread + ' new' : '') + '">💬 ' + (mc.unread ? mc.unread + ' new' : mc.total) + '</span>' : '');
     if (it.notes) { item += '<div class="pnotes">' + esc(it.notes) + '</div>'; }
+    var by = whoLine(it, true);
+    if (by) { item += '<div class="pby">' + esc(by) + '</div>'; }
     if (it.isEvent) {
       var invited = emailList(it.attendees).length;
       item += '<div class="pevent"><span class="tag eq">Event' + (it.eventDate ? ' · ' + esc(fmtDate(it.eventDate)) : '') +
@@ -397,6 +426,7 @@ function openModal(ref) {
       '<div class="pm-head"><h3 id="pm-title">' + (ref ? 'Edit project' : 'New project') + '</h3>' +
         '<button type="button" class="pm-x" id="pm-close" aria-label="Close">×</button></div>' +
       (seed ? '<p class="pm-sub">L10 rock · ' + esc(it.source) + '. The title and owner come from the L10 dashboard.</p>' : '') +
+      (ref && whoLine(it) ? '<p class="pm-sub">' + esc(whoLine(it)) + '</p>' : '') +
       '<div class="pm-grid">' +
         '<label class="pm-f pm-wide">Project / item' +
           '<input type="text" id="pm-t" maxlength="300" value="' + esc(it.title) + '"' + (seed ? ' readonly' : '') +
@@ -472,8 +502,12 @@ function chatPane(ref) {
       (SM.me ? '<p class="pc-empty">Loading…</p>' : '<p class="pc-empty">Messages are for people with an account.</p>') + '</div>' +
     (SM.me
       ? '<form class="pc-form" id="pc-form"><label class="vh" for="pc-text">Message</label>' +
-          '<textarea id="pc-text" rows="1" maxlength="4000" placeholder="Message the team…"></textarea>' +
-          '<button class="btn" type="submit" id="pc-send">Send</button></form>'
+          '<textarea id="pc-text" rows="1" maxlength="4000" placeholder="Message — type @ to tag" ' +
+            'role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pc-pick"></textarea>' +
+          '<button type="button" class="pc-at" id="pc-at" title="Tag someone" aria-label="Tag someone">@</button>' +
+          '<button class="btn" type="submit" id="pc-send">Send</button>' +
+          '<ul class="pc-pick" id="pc-pick" role="listbox" aria-label="People to tag" hidden></ul></form>' +
+        '<div class="pc-sent" id="pc-sent" role="status" hidden></div>'
       : '<div class="pc-note"><a href="' + esc(SM.signInUrl('projects.html#open=' + encodeURIComponent(ref))) + '">Sign in</a> to message the team about this project.</div>') +
   '</aside>';
 }
@@ -488,11 +522,11 @@ function drawThread(list, myId) {
   var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
   document.getElementById('pc-count').textContent = list.length ? list.length + ' message' + (list.length === 1 ? '' : 's') : '';
   box.innerHTML = list.length ? list.map(function (m) {
-    var mine = m.user_id === myId;
-    return '<div class="pc-m' + (mine ? ' me' : '') + '"><div class="pc-b">' + esc(m.body) + '</div>' +
+    var mine = m.user_id === myId, body = withTags(m.body);
+    return '<div class="pc-m' + (mine ? ' me' : '') + (!mine && body.me ? ' atme' : '') + '"><div class="pc-b">' + body.html + '</div>' +
       '<div class="pc-meta"><span>' + (mine ? 'You' : esc(m.author_name)) + ' · ' + esc(msgTime(m.created_at)) + '</span>' +
       (mine || (SM.me && SM.me.role === 'admin') ? '<button type="button" data-delmsg="' + esc(m.id) + '">Delete</button>' : '') + '</div></div>';
-  }).join('') : '<p class="pc-empty">No messages yet.<br>Start the conversation — everyone else gets an alert.</p>';
+  }).join('') : '<p class="pc-empty">No messages yet.<br>Start the conversation — everyone else gets an alert.<br>Type @ to tag someone directly.</p>';
   if (atBottom || box.getAttribute('data-first') !== '0') { box.scrollTop = box.scrollHeight; box.setAttribute('data-first', '0'); }
   box.querySelectorAll('[data-delmsg]').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -512,12 +546,115 @@ function fetchThread(ref) {
     if (box) { box.innerHTML = '<p class="pc-empty">' + esc(e.message) + '</p>'; }
   });
 }
+/* ── @tagging ─────────────────────────────────────────────────────────────
+   Typing @ (or pressing the @ button) lists everyone with an account; picking
+   one writes "@Full Name" into the message. The server finds the tags in the
+   text and sends those people a "tagged you" alert (api/messages.js).     */
+var PEOPLE = null;      /* [{id, name}] from /api/messages?people=1 */
+function loadPeople() {
+  if (PEOPLE) { return Promise.resolve(PEOPLE); }
+  return SM.api('GET', '/api/messages?people=1').then(function (j) { PEOPLE = j.people || []; return PEOPLE; },
+                                                      function () { return []; });
+}
+function reEsc(t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+/* the message as HTML with each @tag highlighted; .me = it tags the reader */
+function withTags(text) {
+  var html = esc(text), me = false;
+  if (!PEOPLE || !PEOPLE.length) { return { html: html, me: false }; }
+  var firsts = {};
+  PEOPLE.forEach(function (p) { var f = p.name.split(/\s+/)[0].toLowerCase(); firsts[f] = (firsts[f] || 0) + 1; });
+  var names = [];
+  PEOPLE.forEach(function (p) {
+    names.push({ t: p.name, id: p.id });
+    var f = p.name.split(/\s+/)[0];
+    if (firsts[f.toLowerCase()] === 1 && f !== p.name) { names.push({ t: f, id: p.id }); }
+  });
+  names.sort(function (a, b) { return b.t.length - a.t.length; });
+  var byText = {};
+  names.forEach(function (n) { byText[esc(n.t).toLowerCase()] = n.id; });
+  var re = new RegExp('@(' + names.map(function (n) { return reEsc(esc(n.t)); }).join('|') + ')(?![A-Za-z0-9])', 'gi');
+  html = html.replace(re, function (all, name) {
+    if (SM.me && byText[name.toLowerCase()] === SM.me.id) { me = true; }
+    return '<span class="pc-tag">' + all + '</span>';
+  });
+  return { html: html, me: me };
+}
+function initials(name) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join('');
+}
+function setupTagging(text) {
+  var pick = document.getElementById('pc-pick'), at = document.getElementById('pc-at');
+  var list = [], sel = 0, start = -1;
+  function close() { pick.hidden = true; text.setAttribute('aria-expanded', 'false'); text.removeAttribute('aria-activedescendant'); start = -1; }
+  function draw() {
+    pick.innerHTML = list.length ? list.map(function (p, i) {
+      return '<li role="option" id="pc-o' + i + '" data-i="' + i + '" aria-selected="' + (i === sel) + '">' +
+        '<span class="av" aria-hidden="true">' + esc(initials(p.name)) + '</span>' + esc(p.name) + '</li>';
+    }).join('') : '<li class="none" role="option" aria-disabled="true">No one by that name has an account</li>';
+    pick.hidden = false;
+    text.setAttribute('aria-expanded', 'true');
+    if (list.length) { text.setAttribute('aria-activedescendant', 'pc-o' + sel); }
+  }
+  /* the "@query" just before the caret, if there is one */
+  function check() {
+    var before = text.value.slice(0, text.selectionStart);
+    var m = before.match(/(^|\s)@([^\s@]{0,30}(?: [^\s@]{0,30})?)$/);
+    if (!m) { close(); return; }
+    var q = m[2].toLowerCase();
+    loadPeople().then(function (people) {
+      list = people.filter(function (p) {
+        if (SM.me && p.id === SM.me.id) { return false; }
+        var n = p.name.toLowerCase();
+        return !q || n.indexOf(q) === 0 || n.split(/\s+/).some(function (w) { return w.indexOf(q) === 0; });
+      }).slice(0, 8);
+      if (!list.length && q.indexOf(' ') > 0) { close(); return; }   /* "@kim and…" — they've moved on */
+      start = before.length - m[2].length - 1;
+      sel = 0; draw();
+    });
+  }
+  function choose(i) {
+    var p = list[i];
+    if (!p || start < 0) { return; }
+    var after = text.value.slice(text.selectionStart);
+    var ins = '@' + p.name + ' ';
+    text.value = text.value.slice(0, start) + ins + after.replace(/^[^\s@]*/, '').replace(/^ /, '');
+    var pos = start + ins.length;
+    text.setSelectionRange(pos, pos);
+    close(); text.focus();
+    text.dispatchEvent(new Event('input'));
+  }
+  text.addEventListener('input', check);
+  text.addEventListener('click', check);
+  text.addEventListener('blur', function () { setTimeout(close, 150); });
+  text.addEventListener('keydown', function (e) {
+    if (pick.hidden || !list.length) { if (e.key === 'Escape' && !pick.hidden) { e.preventDefault(); e.stopPropagation(); close(); } return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; draw();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault(); e.stopImmediatePropagation(); choose(sel);
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation(); close();   /* close the list, not the popover */
+    }
+  });
+  pick.addEventListener('mousedown', function (e) {
+    var li = e.target.closest('li[data-i]');
+    if (li) { e.preventDefault(); choose(+li.getAttribute('data-i')); }
+  });
+  at.addEventListener('click', function () {
+    var pos = text.selectionStart, v = text.value;
+    var ins = (pos > 0 && !/\s/.test(v[pos - 1]) ? ' ' : '') + '@';
+    text.value = v.slice(0, pos) + ins + v.slice(pos);
+    text.focus(); text.setSelectionRange(pos + ins.length, pos + ins.length);
+    check();
+  });
+}
 function startChat(ref) {
   clearInterval(CHAT_POLL); CHAT_POLL = null; THREAD_SIG = '';
   if (!SM.me) { return; }
-  fetchThread(ref);
+  loadPeople().then(function () { THREAD_SIG = ''; fetchThread(ref); });
   CHAT_POLL = setInterval(function () { if (document.visibilityState === 'visible') { fetchThread(ref); } }, 5000);
   var form = document.getElementById('pc-form'), text = document.getElementById('pc-text');
+  setupTagging(text);
   /* Enter sends, Shift+Enter is a new line */
   text.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
@@ -529,8 +666,14 @@ function startChat(ref) {
     if (!body) { return; }
     var btn = document.getElementById('pc-send');
     btn.disabled = true;
-    SM.api('POST', '/api/messages', { ref: ref, body: body }).then(function () {
+    SM.api('POST', '/api/messages', { ref: ref, body: body }).then(function (j) {
       text.value = ''; text.style.height = 'auto'; btn.disabled = false; text.focus();
+      var sent = document.getElementById('pc-sent'), t = (j && j.tagged) || [];
+      if (sent) {
+        sent.textContent = t.length ? 'Tagged ' + t.join(', ') + ' — ' + (t.length === 1 ? 'they\'ve' : 'they\'ve each') + ' been alerted.' : '';
+        sent.hidden = !t.length;
+        clearTimeout(sent._t); sent._t = setTimeout(function () { sent.hidden = true; }, 6000);
+      }
       document.getElementById('pc-list').setAttribute('data-first', '1');
       return fetchThread(ref);
     }, function (err) { btn.disabled = false; alert(err.message); });

@@ -175,7 +175,7 @@
       p.innerHTML = '<div class="hd"><b>Alerts</b>' + (j.unread ? '<button type="button" id="small">Mark all read</button>' : '') + '</div>' +
         (list.length ? list.map(function (a) {
           return '<button type="button" class="al' + (a.read_at ? '' : ' new') + '" data-id="' + h(a.id) + '" data-link="' + h(a.link || '') + '">' +
-            '<div class="t">' + (a.kind === 'message' ? '💬 ' : a.kind === 'request' ? '📝 ' : '') + h(a.title) + '</div>' +
+            '<div class="t">' + (a.kind === 'message' ? '💬 ' : a.kind === 'mention' ? '📣 ' : a.kind === 'request' ? '📝 ' : '') + h(a.title) + '</div>' +
             (a.body ? '<div class="b">' + h(a.body) + '</div>' : '') +
             '<div class="m">' + (a.from && a.from.name ? h(a.from.name) + ' · ' : '') + ago(a.created_at) + '</div></button>';
         }).join('') : '<div class="empty">No alerts yet.</div>') +

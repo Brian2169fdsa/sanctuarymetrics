@@ -32,6 +32,13 @@
        add column if not exists attendees      text;      -- comma-separated emails
      notify pgrst, 'reload schema';
 
+   and for who added / last changed a project (also in supabase/accounts.sql):
+
+     alter table public.projects
+       add column if not exists created_by      uuid references public.app_users (id) on delete set null,
+       add column if not exists created_by_name text,
+       add column if not exists updated_by_name text;
+
    Two kinds of row share the table:
      seed_key = null      a project added on the page
      seed_key = <title>   the page's edits to an L10 rock (status, importance,
@@ -46,7 +53,7 @@
      DELETE ?id=…         remove a project
    ========================================================================== */
 
-const { sendJSON, readBody, supabase } = require('../lib/db');
+const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const { authorize } = require('../lib/auth');
 
 /* the only columns the page may write, with their maximum lengths */
@@ -100,9 +107,11 @@ async function handler(req, res) {
   if (missing.length) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Shared projects are not set up yet: missing ' + missing.join(', ') + '.' });
   }
-  if (!(await authorize(req))) {
+  const who = await authorize(req);
+  if (!who) {
     return sendJSON(res, 401, { error: 'signin', message: 'Sign in to see the project list.' });
   }
+  const me = who.user || null;
 
   const id = new URL(req.url, 'http://x').searchParams.get('id');
   const now = new Date().toISOString();
@@ -116,7 +125,9 @@ async function handler(req, res) {
     if (req.method === 'POST') {
       const fields = clean(await readBody(req));
       if (!fields.title) { return sendJSON(res, 400, { error: 'title', message: 'A project needs a title.' }); }
-      const rows = await supabase('POST', '', Object.assign(fields, { seed_key: null }));
+      /* who did it is stamped here from the signed-in account, never taken from the page */
+      Object.assign(fields, addedBy(me));
+      const rows = await projectWrite('POST', '', Object.assign(fields, { seed_key: null }));
       return sendJSON(res, 201, { row: rows[0] });
     }
 
@@ -125,7 +136,8 @@ async function handler(req, res) {
       const fields = clean(await readBody(req));
       delete fields.title;   /* titles are fixed once added */
       fields.updated_at = now;
-      const rows = await supabase('PATCH', '?id=eq.' + id, fields);
+      if (me) { fields.updated_by_name = me.name; }
+      const rows = await projectWrite('PATCH', '?id=eq.' + id, fields);
       if (!rows.length) { return sendJSON(res, 404, { error: 'not_found', message: 'That project no longer exists.' }); }
       return sendJSON(res, 200, { row: rows[0] });
     }
@@ -140,17 +152,18 @@ async function handler(req, res) {
          means "no override — show the L10 status", so null is stored as ''. */
       if ('status' in fields && fields.status === null) { fields.status = ''; }
       fields.updated_at = now;
+      if (me) { fields.updated_by_name = me.name; }
       const key = '?seed_key=eq.' + encodeURIComponent(seedKey);
-      let rows = await supabase('PATCH', key, fields);
+      let rows = await projectWrite('PATCH', key, fields);
       if (!rows.length) {
         /* first edit to this rock: insert, without letting the table's
            'On-track' default override the L10 status */
-        const row = Object.assign({ seed_key: seedKey, title: seedKey, source: 'L10 edit', status: '' }, fields);
+        const row = Object.assign({ seed_key: seedKey, title: seedKey, source: 'L10 edit', status: '' }, addedBy(me), fields);
         try {
-          rows = await supabase('POST', '', row);
+          rows = await projectWrite('POST', '', row);
         } catch (e) {
           if (e.status !== 409) { throw e; }
-          rows = await supabase('PATCH', key, fields);   /* another tab inserted it first */
+          rows = await projectWrite('PATCH', key, fields);   /* another tab inserted it first */
         }
       }
       return sendJSON(res, 200, { row: rows[0] });
