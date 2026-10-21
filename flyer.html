@@ -175,7 +175,7 @@ function render() {
   if (!FLYER) {
     document.getElementById('sheet').innerHTML =
       pageHeader('Flyer', 'Print orders', 'Internal', 'print') +
-      '<section><a class="fe-back" href="print.html#flyers">← All flyers</a>' +
+      '<section><a class="fe-back" href="print.html">← Print shop</a>' +
       '<h2 style="font-size:26px;margin:6px 0 0">That flyer isn\'t here</h2>' +
       '<p class="lead">It may have been renamed or retired. Pick one from the list.</p></section>' + pageFooter('flyer requests');
     return;
@@ -184,7 +184,7 @@ function render() {
   document.title = 'Sanctuary Recovery Centers — ' + FLYER.title + ' flyer';
   document.getElementById('sheet').innerHTML =
     pageHeader('Print Orders', 'Flyers &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
-    '<section><a class="fe-back" href="print.html#flyers">← All flyers</a>' +
+    '<section><a class="fe-back" href="print.html">← Print shop</a>' +
       '<div class="eyebrow">Flyer' + (FLYER.audience ? ' · ' + esc(FLYER.audience) : '') + '</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">' + esc(FLYER.title) + '</h2>' +
       (FLYER.versions.length > 1 ? '<p class="lead" style="margin-bottom:0">' + FLYER.versions.length +
@@ -287,7 +287,7 @@ function submit() {
     else if (gen) { what.push('your notes'); }
     if (qty) { what.push(fmt(qty) + ' prints'); }
     ok.innerHTML = '<b>Sent.</b> ' + esc(name) + ' — ' + esc(what.join(', ')) + ' — is on the marketing list, and you\'ll hear back ' +
-      'before anything prints. <a href="print.html#flyers">Back to all flyers</a>';
+      'before anything prints. <a href="print.html">Back to the print shop</a>';
     ok.hidden = false;
     EDITS = {}; OPEN = null;
     formReset();

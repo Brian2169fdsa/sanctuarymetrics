@@ -38,21 +38,52 @@
 .po-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
 .po-ok{grid-column:1/-1;padding:12px 14px;border-radius:9px;background:#e9f5ee;color:#1f5a37;font-size:14px}
 .po-err[hidden],.po-ok[hidden]{display:none}
-/* ── flyer gallery: small tiles, each opens its editor (flyer.html) ── */
-.fl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:6px 0 18px}
-.fl{position:relative;border:1px solid var(--line);border-radius:11px;background:#fff;padding:8px;display:flex;flex-direction:column;gap:7px;
-  text-decoration:none;color:var(--ink);transition:border-color .12s,box-shadow .12s,transform .12s}
-.fl:hover{border-color:#bcd3df;box-shadow:0 8px 20px rgba(22,38,59,.12);transform:translateY(-2px)}
-.fl:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-.fl img{width:100%;aspect-ratio:1545/1999;object-fit:cover;border-radius:7px;background:var(--paper);display:block}
-.fl b{font-size:13.5px;line-height:1.3}
-.fl span{font-size:12px;color:var(--muted)}
-.fl .vers{position:absolute;top:14px;right:14px;background:#16263B;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px}
-.fl-new{border:1px dashed #b9cdd8;background:var(--paper);align-items:center;justify-content:center;text-align:center;min-height:220px}
-.fl-new .plus{width:42px;height:42px;border-radius:50%;background:#EE6A2C;color:#fff;font-size:26px;line-height:42px;font-weight:600}
-.fl-none{padding:26px 20px;text-align:center;color:var(--muted);border:1px dashed #cfdbe2;border-radius:11px;background:var(--paper)}
+/* ── the shop: one tile per product ── */
+.sh-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.sh-cats{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+.sh-cat{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;
+  font-size:13px;font-weight:600;color:var(--ink)}
+.sh-cat:hover{border-color:#bcd3df}
+.sh-cat[aria-pressed="true"]{background:#16263B;border-color:#16263B;color:#fff}
+.sh-cat:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sh-cat small{font-weight:500;opacity:.7;margin-left:4px}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px}
+.sh{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;
+  text-decoration:none;color:var(--ink);transition:box-shadow .15s,transform .15s,border-color .15s}
+.sh:hover{box-shadow:0 14px 30px rgba(22,38,59,.14);transform:translateY(-3px);border-color:#cfdde5}
+.sh:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.sh[hidden]{display:none}
+.sh-img{position:relative;height:250px;background:linear-gradient(160deg,#f3f7fa,#e6eef3);display:grid;place-items:center;overflow:hidden}
+.sh-img img.fly{height:214px;width:auto;max-width:none;border-radius:4px;box-shadow:0 10px 24px rgba(22,38,59,.22);transition:transform .2s}
+.sh:hover .sh-img img.fly{transform:scale(1.04)}
+.sh-img .stack{position:relative;width:80%;aspect-ratio:1050/600}
+.sh-img .stack img{position:absolute;width:100%;border-radius:6px;box-shadow:0 10px 22px rgba(22,38,59,.25);transition:transform .2s}
+.sh-img .stack img:first-child{transform:rotate(-7deg) translate(-6%,-10%)}
+.sh-img .stack img:last-child{transform:rotate(4deg) translate(5%,12%)}
+.sh:hover .sh-img .stack img:first-child{transform:rotate(-9deg) translate(-9%,-13%)}
+.sh-badge{position:absolute;top:12px;left:12px;background:#16263B;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:12px}
+.sh-badge.or{background:#EE6A2C}
+.sh-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+.sh-kind{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c0572b}
+.sh-body b{font-family:Fraunces,serif;font-size:18px;font-weight:600;line-height:1.25}
+.sh-body p{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.sh-foot{margin-top:auto;padding-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sh-foot span{font-size:12px;color:var(--muted)}
+.sh-foot .sh-go{font-size:13px;font-weight:700;color:#fff;background:#2C5468;padding:7px 12px;border-radius:8px;white-space:nowrap}
+.sh:hover .sh-go{background:#16263B}
+.sh-new .sh-img{background:repeating-linear-gradient(135deg,#fbf3ee,#fbf3ee 12px,#f7ece5 12px,#f7ece5 24px)}
+.sh-new .plus{width:64px;height:64px;border-radius:50%;background:#EE6A2C;color:#fff;font-size:38px;line-height:64px;text-align:center;
+  font-weight:500;box-shadow:0 10px 22px rgba(238,106,44,.35)}
+.sh-new .sh-go{background:#EE6A2C}
+.sh-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
+.sh-back:hover{text-decoration:underline}
 @media (max-width:720px){
   .po-cards,.po-form{grid-template-columns:1fr}
+  .sh-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .sh-img{height:190px}
+  .sh-img img.fly{height:162px}
+  .sh-body b{font-size:16px}
+  .sh-foot{flex-direction:column;align-items:flex-start}
 }
 </style>
 </head>
@@ -63,7 +94,11 @@
 <script src="flyers.js"></script>
 <script src="chat.js" defer></script>
 <script>
-/* ── print orders ─────────────────────────────────────────────────────────
+/* ── print orders: the print shop ─────────────────────────────────────────
+   A shop page: one tile per product. Business cards open the card designer
+   (print.html#cards), each flyer opens its editor (flyer.html), and the
+   "new flyer" tile opens a brief (print.html#new-flyer).
+
    Staff request business cards and flyers here. Each request is sent to
    /api/requests (see api/requests.js), which files it as a new
    task on the Projects page — that list is where it's tracked and ticked
@@ -157,7 +192,7 @@ function passwordCard() {
     '<p class="sub" style="margin:8px 0 0">Requests need the team password. Enter it once — this browser will remember it.</p></div>';
 }
 function cardsSection() {
-  return '<section id="cards">' +
+  return '<section id="cards">' + backLink() +
     '<div class="eyebrow">Business cards</div>' +
     '<h2 style="font-size:26px;margin:6px 0 0">Order business cards</h2>' +
     '<p class="lead">Fill in your details exactly as they should print. The preview updates as you type; the logo side ' +
@@ -180,26 +215,59 @@ function cardsSection() {
       formFoot('bc', 'Submit card order') +
     '</form></div></section>';
 }
-function flyerTile(f) {
-  var v = f.versions[0];
-  return '<a class="fl" href="flyer.html?id=' + encodeURIComponent(f.id) + '">' +
-    '<img src="' + esc(flyerThumb(v)) + '" alt="" loading="lazy">' +
-    (f.versions.length > 1 ? '<em class="vers">' + f.versions.length + ' versions</em>' : '') +
-    '<b>' + esc(f.title) + '</b><span>' + esc(f.audience || '') + '</span></a>';
+/* ── the shop ─────────────────────────────────────────────────────────── */
+var CATS = [['all', 'Everything'], ['cards', 'Business cards'], ['flyers', 'Flyers'], ['custom', 'Something new']];
+var CAT = 'all';
+function shopTiles() {
+  var tiles = [{
+    cat: 'cards', href: '#cards', kind: 'Business cards', title: 'Business cards',
+    text: 'Your name, title and contact details on the Sanctuary card. See it as you type.',
+    meta: '250 · 500 · 1,000 cards', go: 'Design yours',
+    img: '<div class="stack"><img src="print/business-card-front.png" alt=""><img src="print/business-card-back.png" alt=""></div>'
+  }];
+  FLYER_CATALOG.forEach(function (f) {
+    var n = f.versions.length;
+    tiles.push({
+      cat: 'flyers', href: 'flyer.html?id=' + encodeURIComponent(f.id), kind: 'Flyer', title: f.title,
+      text: f.audience ? 'For ' + f.audience.charAt(0).toLowerCase() + f.audience.slice(1) + '.' : '',
+      meta: n > 1 ? n + ' versions · 25–1,000 prints' : '25–1,000 prints', go: 'Open editor',
+      badge: n > 1 ? n + ' versions' : '',
+      img: '<img class="fly" src="' + esc(flyerThumb(f.versions[0])) + '" alt="" loading="lazy">'
+    });
+  });
+  tiles.push({
+    cat: 'custom', href: '#new-flyer', kind: 'Custom', title: 'Request a new flyer', cls: 'sh-new',
+    text: 'Something none of these cover? Tell marketing what it\'s for and they\'ll design it.', meta: 'Designed for you', go: 'Start a request',
+    img: '<div class="plus" aria-hidden="true">+</div>'
+  });
+  return tiles;
 }
-function flyersSection() {
-  return '<section id="flyers">' +
-    '<div class="eyebrow">Flyers</div>' +
-    '<h2 style="font-size:26px;margin:6px 0 0">Flyers</h2>' +
-    '<p class="lead">Open a flyer to see it full size. Click any part of it to ask for a change, and say how many to ' +
-    'print. Everything goes to marketing, and you\'ll hear back before anything prints.</p>' +
-    '<div class="fl-grid">' + FLYER_CATALOG.map(flyerTile).join('') +
-      '<a class="fl fl-new" href="#new-flyer"><div class="plus" aria-hidden="true">+</div><b>Request a new flyer</b>' +
-      '<span>For something none of these cover</span></a></div>' +
-    '</section>' + newFlyerSection();
+function tileHtml(t) {
+  return '<a class="sh' + (t.cls ? ' ' + t.cls : '') + '" href="' + esc(t.href) + '" data-cat="' + t.cat + '"' +
+    (CAT !== 'all' && CAT !== t.cat ? ' hidden' : '') + '>' +
+    '<div class="sh-img">' + t.img + (t.badge ? '<span class="sh-badge">' + esc(t.badge) + '</span>' : '') + '</div>' +
+    '<div class="sh-body"><span class="sh-kind">' + esc(t.kind) + '</span><b>' + esc(t.title) + '</b>' +
+      (t.text ? '<p>' + esc(t.text) + '</p>' : '') +
+      '<div class="sh-foot"><span>' + esc(t.meta) + '</span><span class="sh-go">' + esc(t.go) + ' →</span></div></div></a>';
 }
+function shopSection() {
+  var tiles = shopTiles();
+  var count = function (c) { return c === 'all' ? tiles.length : tiles.filter(function (t) { return t.cat === c; }).length; };
+  return '<section id="shop">' +
+    '<div class="eyebrow">Print shop</div>' +
+    '<h2 style="font-size:28px;margin:6px 0 0">What do you need printed?</h2>' +
+    '<p class="lead">Pick a product to customize it. Every order goes to marketing as a task, and you\'ll hear back before anything prints.</p>' +
+    '<div class="sh-cats" role="group" aria-label="Show">' + CATS.map(function (c) {
+      return '<button type="button" class="sh-cat" data-cat="' + c[0] + '" aria-pressed="' + (CAT === c[0]) + '">' +
+        esc(c[1]) + '<small>' + count(c[0]) + '</small></button>';
+    }).join('') + '</div>' +
+    '<div class="sh-grid">' + tiles.map(tileHtml).join('') + '</div>' +
+  '</section>';
+}
+function backLink() { return '<a class="sh-back" href="#">← Print shop</a>'; }
+
 function newFlyerSection() {
-  return '<section id="new-flyer">' +
+  return '<section id="new-flyer">' + backLink() +
     '<div class="eyebrow">New flyer</div>' +
     '<h2 style="font-size:26px;margin:6px 0 0">Request a new flyer</h2>' +
     '<p class="lead">Tell marketing what it\'s for and what it needs to say. They\'ll design it and check it with you first.</p>' +
@@ -216,18 +284,22 @@ function newFlyerSection() {
     '</form></div></section>';
 }
 
+/* #cards and #new-flyer are their own views; anything else is the shop
+   (#flyers opens it filtered to flyers) */
 function render() {
+  var view = location.hash.slice(1);
+  if (view === 'flyers') { CAT = 'flyers'; }
+  var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : shopSection();
   document.getElementById('sheet').innerHTML =
     pageHeader('Print Orders', 'Business cards &amp; flyers &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
-    '<section style="padding-bottom:0">' + passwordCard() + '</section>' +
-    cardsSection() + flyersSection() +
+    (passwordCard() ? '<section style="padding-bottom:0">' + passwordCard() + '</section>' : '') +
+    body +
     pageFooter('print requests');
-  refreshCard();
+  if (view === 'cards') { refreshCard(); }
   wire();
-  /* the page draws after sign-in is checked, so jump to #flyers / #new-flyer by hand */
-  var at = location.hash && document.getElementById(location.hash.slice(1));
-  if (at) { at.scrollIntoView(); }
+  window.scrollTo(0, 0);
 }
+window.addEventListener('hashchange', function () { SM.ready.then(render); });
 
 /* ── submitting ───────────────────────────────────────────────────────── */
 function msg(pfx, kind, text) {
@@ -309,12 +381,23 @@ function wire() {
     });
   }
   var bc = document.getElementById('bc-form');
-  bc.addEventListener('input', function () { refreshCard(); msg('bc', 'err', ''); });
-  document.getElementById('bc-phone').addEventListener('blur', function () { this.value = fmtPhone(this.value); refreshCard(); });
-  bc.addEventListener('submit', function (e) { e.preventDefault(); submitCard(); });
+  if (bc) {
+    bc.addEventListener('input', function () { refreshCard(); msg('bc', 'err', ''); });
+    document.getElementById('bc-phone').addEventListener('blur', function () { this.value = fmtPhone(this.value); refreshCard(); });
+    bc.addEventListener('submit', function (e) { e.preventDefault(); submitCard(); });
+  }
   var nf = document.getElementById('nf-form');
-  nf.addEventListener('input', function () { msg('nf', 'err', ''); });
-  nf.addEventListener('submit', function (e) { e.preventDefault(); submitNewFlyer(); });
+  if (nf) {
+    nf.addEventListener('input', function () { msg('nf', 'err', ''); });
+    nf.addEventListener('submit', function (e) { e.preventDefault(); submitNewFlyer(); });
+  }
+  document.querySelectorAll('.sh-cat').forEach(function (b) {
+    b.addEventListener('click', function () {
+      CAT = b.getAttribute('data-cat');
+      document.querySelectorAll('.sh-cat').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      document.querySelectorAll('.sh[data-cat]').forEach(function (t) { t.hidden = CAT !== 'all' && CAT !== t.getAttribute('data-cat'); });
+    });
+  });
 }
 
 SM.ready.then(render);
