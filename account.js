@@ -95,6 +95,11 @@
       'border:1px solid #8c8c8c;border-radius:4px;color:#5e5e5e;font:600 15px "Segoe UI",Inter,sans-serif;text-decoration:none;cursor:pointer}' +
     '.smms:hover{background:#f3f3f3}.smms:focus-visible{outline:2px solid #1C9AD6;outline-offset:2px}' +
     '.smms svg{width:21px;height:21px;flex:none}' +
+    '.smcard{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}' +
+    '.smcard h3{margin:0 0 4px}.smcard p{margin:0;font-size:14px;line-height:1.5;max-width:560px}' +
+    '.smgo{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 20px;border-radius:8px;background:#16263B;' +
+      'color:#fff!important;font:700 14px Inter,sans-serif;text-decoration:none;white-space:nowrap}' +
+    '.smgo:hover{background:#0f1b2b}.smgo:focus-visible{outline:2px solid #1C9AD6;outline-offset:2px}' +
     '#smnag{background:#fdf3e0;color:#7a4a24;font:500 13px Inter,sans-serif;padding:9px 20px;text-align:center}' +
     '#smnag a{color:#B23A1B;font-weight:700}';
   document.head.appendChild(css);
@@ -224,16 +229,17 @@
       '<svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/>' +
       '<path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>' + h(label || 'Sign in with Microsoft') + '</a>';
   };
-  /* every "Sign in" goes to Microsoft once it's set up; account.html until then */
+  /* every "Sign in" on the site goes to the one sign-in page, login.html,
+     which offers Sign in with Microsoft (and a password only as a fallback) */
   SM.signInUrl = function (next) {
     next = next || (here() + location.hash);
-    return '/api/microsoft?start=1&next=' + encodeURIComponent(next);
+    return 'login.html?next=' + encodeURIComponent(next);
   };
-  /* the card a page shows in place of its own password box */
+  /* the card a page shows when you need to be signed in */
   SM.signInCard = function (next, why) {
-    return '<div class="card"><h3>Sign in to continue</h3>' +
-      '<p style="margin:0 0 14px;font-size:14px;line-height:1.5">' + h(why || 'Use your Sanctuary Microsoft account — the same login as Outlook and Teams.') + '</p>' +
-      SM.msButton(next || (here() + location.hash)) + '</div>';
+    return '<div class="card smcard"><div><h3>Sign in to continue</h3>' +
+      '<p>' + h(why || 'Use your Sanctuary Microsoft account — the same login as Outlook and Teams.') + '</p></div>' +
+      '<a class="smgo" href="' + h(SM.signInUrl(next)) + '">Sign in →</a></div>';
   };
   SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.msConfigured = !!j.microsoft; return j.user; }, function () { return null; })
     .then(function (u) { setUser(u); return u; });
