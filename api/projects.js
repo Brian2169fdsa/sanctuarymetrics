@@ -143,7 +143,7 @@ async function supabase(method, query, body, extraHeaders) {
   return text ? JSON.parse(text) : null;
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PROJECTS_PASSWORD']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {
@@ -225,4 +225,8 @@ module.exports = async function handler(req, res) {
         : 'Could not reach the projects database. ' + (e.status === 404 ? 'Check the projects table exists.' : 'Try again shortly.')
     });
   }
-};
+}
+
+module.exports = handler;
+/* shared with api/requests.js, which files print orders into this same table */
+module.exports.helpers = { sendJSON: sendJSON, readBody: readBody, passwordOk: passwordOk, supabase: supabase };
