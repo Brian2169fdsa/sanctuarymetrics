@@ -20,13 +20,15 @@
 
    Route (signed in, or the X-Projects-Password header). Admins with an
    account get an alert for each new request:
-     POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit', …}   file one request
+     POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit' | 'presentation_edit', …}   file one request
 
    A flyer request (flyer.html) can carry edits area by area — area_edits:
    [{area, now, change}] — plus general edits, and a quantity of 0 when it's
    edits only, no prints yet. A new_flyer request asks marketing for a design
-   that doesn't exist yet. Signed-in requests are filed under the account's
-   own name and email.
+   that doesn't exist yet. A presentation_edit (presentations.html) names a
+   deck by deck_id and carries slide_edits: [{slide, change}]; the deck's
+   title and SharePoint link are looked up here, not taken from the page.
+   Signed-in requests are filed under the account's own name and email.
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
@@ -34,7 +36,7 @@ const { authorize, admins, sendAlerts } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [0, 25, 50, 100, 250, 500, 1000],
                      new_flyer: [0, 25, 50, 100, 250, 500, 1000] };
-const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1 };
+const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1, presentation_edit: 1 };
 const MAX_AREA_EDITS = 30;
 const EDIT_TYPES = ['Change text', 'Page title / Google description', 'Images or video', 'Add a section',
                     'Remove something', 'Fix a link or button', 'New page', 'Other'];
@@ -46,7 +48,7 @@ function str(v, max) { return v === null || v === undefined ? '' : String(v).tri
 function bad(message) { const e = new Error(message); e.bad = true; return e; }
 
 /* validate the request and turn it into a projects row */
-function toRow(body, user) {
+function toRow(body, user, deck) {
   const kind = body.kind;
   if (!KINDS[kind]) { throw bad('Unknown request type.'); }
 
@@ -91,6 +93,19 @@ function toRow(body, user) {
     lines.push('WEBSITE EDIT — ' + type, 'Page: ' + (url || 'new page'));
     if (current) { lines.push('', 'Currently says:', current); }
     lines.push('', 'Change to / request:', change);
+  } else if (kind === 'presentation_edit') {
+    if (!deck) { throw bad('That presentation isn\'t here any more.'); }
+    const edits = str(body.edits, 3000);
+    const slideEdits = (Array.isArray(body.slide_edits) ? body.slide_edits : []).slice(0, MAX_AREA_EDITS).map(function (e) {
+      return { slide: Number(e && e.slide), change: str(e && e.change, 1500) };
+    }).filter(function (e) { return Number.isInteger(e.slide) && e.slide >= 1 && e.slide <= deck.slide_count && e.change; });
+    if (!slideEdits.length && !edits) { throw bad('Write a change for at least one slide first.'); }
+    title = 'Presentation edits: ' + deck.title + (slideEdits.length ? ' (' + slideEdits.length + ' slide' + (slideEdits.length === 1 ? '' : 's') + ')' : '');
+    lines.push('PRESENTATION EDITS — ' + deck.title);
+    if (deck.sharepoint_url) { lines.push('PowerPoint: ' + deck.sharepoint_url); }
+    lines.push('On the site: presentations.html#deck=' + deck.id);
+    slideEdits.forEach(function (e) { lines.push('', 'Slide ' + e.slide + ': ' + e.change); });
+    if (edits) { lines.push('', slideEdits.length ? 'Also:' : 'Requested edits:', edits); }
   } else if (kind === 'new_flyer') {
     const topic = str(body.topic, 160);
     const audience = str(body.audience, 200);
@@ -130,7 +145,8 @@ function toRow(body, user) {
     importance: str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
     due: needed || null,
     notes: lines.join('\n').slice(0, 4000),
-    source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
+    source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · '
+      : kind === 'presentation_edit' ? 'Presentation edit request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
     seed_key: null
   };
 }
@@ -151,7 +167,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const row = toRow(await readBody(req), who.user || null);
+    const body = await readBody(req);
+    let deck = null;
+    if (body.kind === 'presentation_edit') {
+      if (!/^[0-9a-f-]{36}$/i.test(String(body.deck_id || ''))) { throw bad('Which presentation?'); }
+      deck = (await supabase('GET', '?id=eq.' + body.deck_id + '&select=id,title,sharepoint_url,slide_count', null, null, 'presentations'))[0] || null;
+    }
+    const row = toRow(body, who.user || null, deck);
     const rows = await projectWrite('POST', '', Object.assign(row, addedBy(who.user)));
     /* let the admins know on the bell */
     try {
