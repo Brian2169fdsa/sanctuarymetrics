@@ -123,9 +123,9 @@ function clean(input) {
   return out;
 }
 
-/* one call to Supabase's REST API (PostgREST) */
-async function supabase(method, query, body, extraHeaders) {
-  const url = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + TABLE + (query || '');
+/* one call to Supabase's REST API (PostgREST); table defaults to projects */
+async function supabase(method, query, body, extraHeaders, table) {
+  const url = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + (table || TABLE) + (query || '');
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const headers = Object.assign({
     apikey: key,
@@ -228,5 +228,5 @@ async function handler(req, res) {
 }
 
 module.exports = handler;
-/* shared with api/requests.js, which files print orders into this same table */
+/* shared with api/requests.js, api/collect.js and api/site-stats.js */
 module.exports.helpers = { sendJSON: sendJSON, readBody: readBody, passwordOk: passwordOk, supabase: supabase };

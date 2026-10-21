@@ -5,30 +5,220 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="report.css">
+<style>
+.ci-period{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px}
+.ci-period button{all:unset;cursor:pointer;font-size:12px;font-weight:700;padding:6px 13px;border-radius:20px;
+  border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.ci-period button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.ci-period button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ci-live{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:#2E8B6F}
+.ci-live i{width:8px;height:8px;border-radius:50%;background:#2E8B6F;box-shadow:0 0 0 4px rgba(46,139,111,.18)}
+.ci-path{font-weight:600;word-break:break-all}
+.ci-t{font-size:12px;color:var(--muted)}
+</style>
 </head>
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
 <script src="ui.js"></script>
 <script src="chat.js" defer></script>
 <script>
-/* ── sanctuaryci.org metrics — placeholder until the data is piped in ──────
-   The page looks for data/sanctuaryci-metrics.json. It uses the same schema
-   as data/metrics.json (see pipeline/README.md): runs[], newest last, each
-   with channels.{website,facebook,instagram,linkedin}.metrics. Until that
-   file exists every channel shows "not connected yet". Nothing is
-   estimated or carried over from the Sanctuary Recovery Centers figures.   */
-var CI_SOURCE = 'data/sanctuaryci-metrics.json';
-var CI_CHANNELS = ['website', 'facebook', 'instagram', 'linkedin'];
+/* ── sanctuaryci.org metrics ──────────────────────────────────────────────
+   Website: live, first-party analytics. sanctuaryci.org loads analytics.js,
+   which posts anonymous events to /api/collect → Supabase site_events.
+   This page reads the totals from /api/site-stats (team password), which
+   calls the site_stats() SQL function — see supabase/site-analytics.sql.
 
+   Social channels: still read from data/sanctuaryci-metrics.json (same
+   schema as data/metrics.json, see pipeline/README.md). Until that file
+   exists they show "not connected yet". Nothing is estimated.             */
+var SITE = 'sanctuaryci.org';
+var STATS_API = '/api/site-stats';
+var PW_KEY = 'src_projects_pw';   /* same team password as the Projects page */
+var CI_SOURCE = 'data/sanctuaryci-metrics.json';
+var CI_SOCIAL = ['facebook', 'instagram', 'linkedin'];
+var PERIODS = [[1, 'Last 24 hours'], [7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days']];
+
+var DAYS = 30;
+var STATS = null, STATS_STATE = 'loading', STATS_ERR = '';
+var SOCIAL = null;
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } }
+
+/* ── formatting ───────────────────────────────────────────────────────── */
+function num(v) { return v === null || v === undefined ? '—' : fmt(v); }
+function pct(v) { return v === null || v === undefined ? '—' : v + '%'; }
+function dur(s) {
+  if (s === null || s === undefined) { return '—'; }
+  s = Math.round(s);
+  return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60 < 10 ? '0' : '') + (s % 60) + 's';
+}
+function change(cur, prev) {
+  if (!prev) { return {}; }
+  var c = Math.round((cur - prev) / prev * 100);
+  return { chg: (c >= 0 ? '▲ ' : '▼ ') + Math.abs(c) + '% vs prior period', dir: c > 0 ? 'up' : (c < 0 ? 'down' : 'flat') };
+}
+function shortDay(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function hourLabel(h) { return (h % 12 || 12) + (h < 12 ? 'a' : 'p'); }
+
+/* ── the live website section ─────────────────────────────────────────── */
+function periodChips() {
+  return '<div class="ci-period" role="group" aria-label="Period">' + PERIODS.map(function (p) {
+    return '<button type="button" data-days="' + p[0] + '" aria-pressed="' + (p[0] === DAYS) + '">' + p[1] + '</button>';
+  }).join('') + '</div>';
+}
+function passwordForm() {
+  return '<div class="card"><form class="addform" id="pwform" style="grid-template-columns:2fr auto">' +
+    '<div class="f"><label for="pw">Team password</label><input type="password" id="pw" autocomplete="current-password" ' +
+    'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +
+    '<button class="btn" type="submit">Show analytics</button></form>' +
+    (STATS_ERR ? '<div class="warn" style="margin-top:10px">' + esc(STATS_ERR) + '</div>' : '') + '</div>';
+}
+
+/* days → bars; 90 days becomes weekly bars so labels stay readable */
+function trafficSeries(daily) {
+  if (daily.length <= 31) {
+    return daily.map(function (d) { return { label: shortDay(d.day), value: d.visitors }; });
+  }
+  var weeks = [];
+  daily.forEach(function (d, i) {
+    if (i % 7 === 0) { weeks.push({ label: 'wk of ' + shortDay(d.day), value: 0 }); }
+    weeks[weeks.length - 1].value += d.visitors;
+  });
+  return weeks;
+}
+function thinLabels(series, max) {
+  var step = Math.ceil(series.length / max);
+  return series.map(function (d, i) { return { label: i % step === 0 ? d.label : '', value: d.value }; });
+}
+
+function vitalTag(name, v) {
+  var limits = { LCP: [2.5, 4], INP: [0.2, 0.5], CLS: [0.1, 0.25], FCP: [1.8, 3], TTFB: [0.8, 1.8], Load: [3, 6] };
+  var l = limits[name];
+  if (!l) { return ''; }
+  return v <= l[0] ? 'Good' : (v <= l[1] ? 'Needs work' : 'Poor');
+}
+function vitalNum(name, v) { return name === 'CLS' ? String(v) : (v < 1 ? Math.round(v * 1000) + ' ms' : v.toFixed(2) + ' s'); }
+
+function liveWebsite() {
+  var head = sechead('Website', CHANNEL_META.website.color, 'sanctuaryci.org · first-party analytics (analytics.js → Supabase)', '');
+  if (lsGet(PW_KEY) === null || STATS_STATE === 'password') { return '<section>' + head + passwordForm() + '</section>'; }
+  if (STATS_STATE === 'loading') { return '<section>' + head + periodChips() + '<p class="lead">Loading site analytics…</p></section>'; }
+  if (STATS_STATE === 'error') {
+    return '<section>' + head + periodChips() + '<div class="warn">' + esc(STATS_ERR) + '</div>' +
+      '<p class="lead"><button class="btn" id="retry">Try again</button></p></section>';
+  }
+  var s = STATS, t = s.totals || {}, ss = s.sessions || {}, prev = s.prev || {};
+  var period = PERIODS.filter(function (p) { return p[0] === DAYS; })[0][1];
+  var live = '<span class="ci-live"><i></i>' + num(s.live_visitors) + ' on the site now</span>';
+
+  if (!t.pageviews) {
+    return '<section>' + head + periodChips() + '<p>' + live + '</p>' +
+      '<div class="noexport"><b>No visits recorded ' + esc(period.toLowerCase()) + '</b>' +
+      'The tracker is ready. Visits appear here within seconds of someone loading sanctuaryci.org once ' +
+      'analytics.js is live on the site.</div></section>';
+  }
+
+  var W = chartW(false), W2 = chartW(true);
+  var traffic = trafficSeries(s.daily);
+  var out = '<section>' + head + periodChips() + '<p style="margin:0 0 14px">' + live + '</p>' +
+    kpis([
+      Object.assign({ lab: 'Visitors', num: num(t.visitors), note: num(t.new_visitors) + ' new' }, change(t.visitors, prev.visitors)),
+      Object.assign({ lab: 'Page views', num: num(t.pageviews), note: t.pages_per_session + ' pages per visit' }, change(t.pageviews, prev.pageviews)),
+      Object.assign({ lab: 'Visits (sessions)', num: num(t.sessions), note: 'avg ' + dur(ss.avg_session_s) + ' each' }, change(t.sessions, prev.sessions)),
+      { lab: 'Avg scroll depth', num: pct(t.avg_scroll), note: 'avg ' + dur(t.avg_engaged_s) + ' engaged per page' },
+      { lab: 'Bounce rate', num: pct(ss.bounce_rate), note: 'one page and under 10s' }
+    ], 5) +
+    card((traffic.length > 31 ? 'Visitors per week' : 'Visitors per day') + ' · ' + period,
+      vbar(thinLabels(traffic, W < 420 ? 6 : 12), CHANNEL_META.website.color, W)) +
+    grid2(
+      card('How far people scroll', hbar([
+        { label: 'Reached 25%', value: s.scroll.p25 || 0 }, { label: 'Reached 50%', value: s.scroll.p50 || 0 },
+        { label: 'Reached 75%', value: s.scroll.p75 || 0 }, { label: 'Reached 90%', value: s.scroll.p90 || 0 },
+        { label: 'Reached the end', value: s.scroll.p100 || 0 }], { W: W2, color: '#2C5468' }),
+        '% of page views that scrolled at least this far.'),
+      card('Where visits come from', hbar(s.channels.map(function (c) { return { label: c.channel, value: c.sessions }; }),
+        { W: W2, color: CHANNEL_META.website.color }), 'Visits by channel.')
+    ) +
+    card('Pages', table(['Page', 'Views', 'Visitors', 'Avg scroll', 'Read to 75%', 'Avg time'],
+      s.pages.map(function (p) {
+        return ['<span class="ci-path">' + esc(p.path) + '</span>' + (p.title ? '<div class="ci-t">' + esc(p.title) + '</div>' : ''),
+                fmt(p.views), fmt(p.visitors), pct(p.avg_scroll), pct(p.read_75), dur(p.avg_s)];
+      }), { numeric: function (i) { return i > 0; } })) +
+    grid2(
+      card('Landing pages', table(['First page of the visit', 'Visits', 'Bounce'],
+        s.landing.map(function (p) { return ['<span class="ci-path">' + esc(p.path) + '</span>', fmt(p.sessions), pct(p.bounce_rate)]; }),
+        { numeric: function (i) { return i > 0; } })),
+      card('Exit pages', table(['Last page of the visit', 'Visits'],
+        s.exits.map(function (p) { return ['<span class="ci-path">' + esc(p.path) + '</span>', fmt(p.sessions)]; }),
+        { numeric: function (i) { return i > 0; } }))
+    ) +
+    grid2(
+      card('Referring sites', s.referrers.length ? table(['Site', 'Visits'],
+        s.referrers.map(function (r) { return [esc(r.ref_domain), fmt(r.sessions)]; }), { numeric: function (i) { return i > 0; } })
+        : '<p class="ci-t">No outside sites have sent visits yet.</p>'),
+      card('Campaigns (UTM tags)', s.campaigns.length ? table(['Source', 'Medium', 'Campaign', 'Visits'],
+        s.campaigns.map(function (c) { return [esc(c.utm_source || '—'), esc(c.utm_medium || '—'), esc(c.utm_campaign || '—'), fmt(c.sessions)]; }),
+        { numeric: function (i) { return i === 3; } })
+        : '<p class="ci-t">No tagged links used yet. Add ?utm_source=…&amp;utm_campaign=… to links in emails and posts to see them here.</p>')
+    ) +
+    card('Clicks', s.clicks.length ? table(['Kind', 'Where it goes', 'Button / link text', 'Clicks', 'People'],
+      s.clicks.map(function (c) {
+        return ['<span class="tag ' + (/donate|phone|email/.test(c.kind) ? 'hi' : 'eq') + '">' + esc(c.kind) + '</span>',
+                '<span class="ci-path">' + esc(c.target || '—') + '</span>', esc(c.label || '—'), fmt(c.clicks), fmt(c.visitors)];
+      }), { numeric: function (i) { return i > 2; } }) : '<p class="ci-t">No clicks recorded yet.</p>',
+      'Phone and email links, donate buttons, links to other sites, downloads, and on-site buttons and links.') +
+    card('Forms', s.forms.length ? table(['Form', 'Page', 'Started', 'Submitted', 'Sent', 'Completion'],
+      s.forms.map(function (f) {
+        return [esc(f.form), esc(f.path || '—'), fmt(f.started), fmt(f.submitted), fmt(f.succeeded),
+                f.started ? pct(Math.round(f.succeeded / f.started * 100)) : '—'];
+      }), { numeric: function (i) { return i > 1; } }) : '<p class="ci-t">No form activity yet.</p>',
+      'Counts only — nothing anyone types is recorded. "Submitted" includes attempts that failed validation.') +
+    grid2(
+      card('Devices', hbar(s.devices.map(function (d) { return { label: d.name, value: d.visitors }; }), { W: W2, color: '#2C5468' })),
+      card('Browsers', hbar(s.browsers.map(function (d) { return { label: d.name, value: d.visitors }; }), { W: W2, color: '#2C5468' }))
+    ) +
+    grid2(
+      card('Cities', s.cities.length ? table(['City', 'Visitors'],
+        s.cities.map(function (c) { return [esc(c.name), fmt(c.visitors)]; }), { numeric: function (i) { return i > 0; } })
+        : '<p class="ci-t">No location data yet.</p>', 'Approximate, from the network the visit came from. No IP addresses are kept.'),
+      card('Countries & systems', table(['Country', 'Visitors'],
+        s.countries.map(function (c) { return [esc(c.name), fmt(c.visitors)]; }), { numeric: function (i) { return i > 0; } }) +
+        '<div style="margin-top:14px">' + hbar(s.os.map(function (d) { return { label: d.name, value: d.visitors }; }), { W: W2, color: '#E17F55' }) + '</div>')
+    ) +
+    card('Time of day (Phoenix)', vbar(hoursSeries(s.hours), '#D98A1F', W), 'Page views by hour.') +
+    vitalsCard(s.vitals) +
+    '</section>';
+  return out;
+}
+function hoursSeries(hours) {
+  var by = {};
+  hours.forEach(function (h) { by[h.hour] = h.pageviews; });
+  var out = [];
+  for (var h = 0; h < 24; h++) { out.push({ label: h % 3 === 0 ? hourLabel(h) : '', value: by[h] || 0 }); }
+  return out;
+}
+function vitalsCard(v) {
+  var order = ['LCP', 'INP', 'CLS', 'FCP', 'TTFB', 'Load'];
+  var names = { LCP: 'Largest paint', INP: 'Response to taps', CLS: 'Layout shift', FCP: 'First paint', TTFB: 'Server response', Load: 'Full load' };
+  var list = order.filter(function (k) { return v && v[k] !== undefined; });
+  if (!list.length) { return ''; }
+  return card('Page speed (75th percentile of real visits)', kpis(list.map(function (k) {
+    return { lab: names[k] + ' (' + k + ')', num: vitalNum(k, v[k]), note: vitalTag(k, v[k]) };
+  }), Math.min(list.length, 6)), 'Google\'s Core Web Vitals: LCP under 2.5s, INP under 200ms and CLS under 0.1 count as good.');
+}
+
+/* ── social channels (unchanged placeholder until data is piped in) ───── */
 function ciLabel(key) {
   return key.replace(/_(\d+d|lifetime)$/, function (m, p) { return p === 'lifetime' ? '' : ' (' + p + ')'; })
             .replace(/_/g, ' ').replace(/^./, function (c) { return c.toUpperCase(); });
 }
-
 function ciWindow(m) {
   return m.window && m.window.start ? m.window.start + ' – ' + m.window.end : (m.window ? 'as of ' + m.window.end : '');
 }
-
 function ciChannel(key, chan) {
   var meta = CHANNEL_META[key];
   if (!chan || !Object.keys(chan.metrics || {}).length) {
@@ -51,34 +241,68 @@ function ciChannel(key, chan) {
     kpis(list) + '</section>';
 }
 
-function render(data) {
-  var run = data && data.runs && data.runs.length ? data.runs[data.runs.length - 1] : null;
-  var status = run
-    ? 'Latest data: ' + esc(run.run_date)
-    : 'Placeholder · awaiting first data pull';
+function render() {
+  var run = SOCIAL && SOCIAL.runs && SOCIAL.runs.length ? SOCIAL.runs[SOCIAL.runs.length - 1] : null;
+  var status = STATS_STATE === 'ready' ? 'Website: live · updated ' +
+    new Date(STATS.generated).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'Website: live analytics';
 
   document.getElementById('sheet').innerHTML =
-    pageHeader('sanctuaryci.org Metrics',
-      'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', status, 'sanctuaryci') +
+    pageHeader('sanctuaryci.org Metrics', 'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', status, 'sanctuaryci') +
     '<section>' +
       '<div class="eyebrow">Sanctuary CI</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">sanctuaryci.org at a glance</h2>' +
-      '<p class="lead">' + (run
-        ? 'Figures below come from the most recent data pull. Each one carries its own source window.'
-        : 'This page is ready for sanctuaryci.org data. When the pipeline starts writing <code>' + CI_SOURCE +
-          '</code>, the website and social sections below fill in on their own. Until then nothing is shown, ' +
-          'so no number on this page is ever an estimate.') + '</p>' +
+      '<p class="lead">Website figures are live: every visit, how far people scroll, how long they stay, what they click and ' +
+      'where they came from. Visitors are anonymous — no names, form contents or IP addresses are stored. Social channels ' +
+      'fill in once their data is piped in.</p>' +
     '</section>' +
-    CI_CHANNELS.map(function (k) { return ciChannel(k, run && run.channels[k]); }).join('') +
-    pageFooter(run ? 'sanctuaryci.org data pull of ' + run.run_date : 'none yet — placeholder');
+    liveWebsite() +
+    CI_SOCIAL.map(function (k) { return ciChannel(k, run && run.channels[k]); }).join('') +
+    pageFooter('sanctuaryci.org first-party analytics' + (run ? '; social data pull of ' + run.run_date : ''));
 
   applyDataLabels();
+  wire();
 }
 
-render(null);
+/* ── loading ──────────────────────────────────────────────────────────── */
+function loadStats() {
+  if (lsGet(PW_KEY) === null) { STATS_STATE = 'password'; render(); return; }
+  STATS_STATE = 'loading'; render();
+  fetch(STATS_API + '?site=' + encodeURIComponent(SITE) + '&days=' + DAYS, {
+    headers: { 'X-Projects-Password': lsGet(PW_KEY) || '' }, cache: 'no-store'
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.code = j.error; throw e; }
+      return j;
+    });
+  }).then(function (j) { STATS = j; STATS_STATE = 'ready'; STATS_ERR = ''; render(); }, function (e) {
+    if (e.code === 'password') { lsDel(PW_KEY); STATS_STATE = 'password'; STATS_ERR = 'That password didn\'t work — check it and try again.'; }
+    else { STATS_STATE = 'error'; STATS_ERR = e.message; }
+    render();
+  });
+}
+function wire() {
+  var pw = document.getElementById('pwform');
+  if (pw) {
+    pw.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = document.getElementById('pw').value;
+      if (v) { lsSet(PW_KEY, v); loadStats(); }
+    });
+  }
+  document.querySelectorAll('[data-days]').forEach(function (b) {
+    b.addEventListener('click', function () { DAYS = +this.getAttribute('data-days'); loadStats(); });
+  });
+  var retry = document.getElementById('retry');
+  if (retry) { retry.addEventListener('click', loadStats); }
+}
+
+loadStats();
 fetch(CI_SOURCE, { cache: 'no-store' })
   .then(function (r) { return r.ok ? r.json() : null; })
-  .then(function (d) { if (d) { render(d); } })
+  .then(function (d) { if (d) { SOCIAL = d; render(); } })
   .catch(function () { /* no file yet — the placeholder stays */ });
+/* re-render charts at the new width when the window is resized */
+var resizeT;
+addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { if (STATS_STATE === 'ready') { render(); } }, 200); });
 </script>
 </body></html>
