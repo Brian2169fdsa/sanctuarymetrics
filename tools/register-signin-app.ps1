@@ -79,7 +79,7 @@ $secret = Add-MgApplicationPassword -ApplicationId $app.Id -PasswordCredential @
 }
 
 Write-Host "`nAdd these in Vercel -> sanctuarymetrics -> Settings -> Environment Variables (Production), then redeploy:`n" -ForegroundColor Green
-Write-Host "  MS_TENANT_ID     = $($ctx.TenantId)"
+Write-Host "  (tenant           $($ctx.TenantId) — should be d2b75006-002d-467c-9718-c57a492f182a; not needed in Vercel)"
 Write-Host "  MS_CLIENT_ID     = $($app.AppId)"
 Write-Host "  MS_CLIENT_SECRET = $($secret.SecretText)"
 Write-Host "`nThe secret is shown only once and expires $($secret.EndDateTime.ToString('yyyy-MM-dd'))." -ForegroundColor Yellow

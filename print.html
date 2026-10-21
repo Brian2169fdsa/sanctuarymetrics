@@ -146,6 +146,7 @@ function formFoot(pfx, btn) {
 /* ── sections ─────────────────────────────────────────────────────────── */
 function passwordCard() {
   if (lsGet(PW_KEY) !== null || SM.me) { return ''; }
+  if (SM.microsoft) { return SM.signInCard('print.html', 'Requests are sent under your name. Sign in with your Sanctuary Microsoft account — the same login as Outlook and Teams.'); }
   return '<div class="card"><form class="addform" id="pwform" style="grid-template-columns:2fr auto">' +
     '<div class="f"><label for="pw">Team password</label><input type="password" id="pw" autocomplete="current-password" ' +
     'style="font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px"></div>' +

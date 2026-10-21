@@ -72,6 +72,7 @@ var MS_ERRORS = {
   cancelled: 'Microsoft sign-in was cancelled.',
   expired: 'That sign-in took too long or was opened in another browser. Please try again.',
   noemail: 'Microsoft didn\'t share an email address for that login. Try your work account.',
+  domain: '{email} isn\'t a Sanctuary work account. Sign in with your @sanctuaryrecoverycenters.com or @sanctuaryrc.com login.',
   microsoft: 'Microsoft couldn\'t complete the sign-in. Please try again.',
   storage: 'Signed in with Microsoft, but the accounts database didn\'t answer. Try again shortly.'
 };
@@ -81,13 +82,17 @@ function msError() {
   return '<div class="warn" style="margin-bottom:14px">' +
     SM.h((MS_ERRORS[code] || MS_ERRORS.microsoft).replace('{email}', q.get('email') || 'that email')) + '</div>';
 }
+/* With Microsoft sign-in on, it's the only way in. The password form stays
+   reachable at account.html?password=1 for an admin if Microsoft is down. */
+var PASSWORD_BACKDOOR = new URLSearchParams(location.search).get('password') === '1';
 function signedOut() {
-  return '<section><div class="eyebrow">Account</div><h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
-    '<p class="lead">Sign in to see projects, message the team on each one, and get alerts.</p>' + msError() +
-    (SM.microsoft ? '<div class="card"><h3>Your Sanctuary Microsoft account</h3>' +
-      '<p style="margin:0 0 14px;font-size:14px;line-height:1.5">Use the same login as Outlook and Teams.</p>' +
-      SM.msButton(safeNext()) + '</div>' +
-      '<p class="sub" style="margin:4px 0 10px">Or sign in with an email and password:</p>' : '') +
+  var head = '<section><div class="eyebrow">Account</div><h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
+    '<p class="lead">Sign in to see projects, message the team on each one, and get alerts.</p>' + msError();
+  if (SM.microsoft && !PASSWORD_BACKDOOR) {
+    return head + SM.signInCard(safeNext()) +
+      '<p class="sub">Only Sanctuary work accounts can sign in. No account yet? Ask an admin to add you.</p></section>';
+  }
+  return head +
     '<div class="card"><form class="ac-form" id="f-login" novalidate>' +
       '<label class="ac-f">Email<input id="l-email" type="email" autocomplete="username" required></label>' +
       '<label class="ac-f">Password<input id="l-pw" type="password" autocomplete="current-password" required></label>' +
@@ -198,6 +203,14 @@ function adminSection(me) {
     '</form></div></section>';
 }
 function tempBox(name, email, temp, isReset) {
+  if (SM.microsoft && !isReset) {
+    var msg = 'Go to ' + location.origin + '/projects.html and click Sign in with Microsoft, using your work login (' + email + ').';
+    return '<div class="ac-temp" role="status"><b>Account ready for ' + SM.h(name) + '.</b> Send them this:<br><br>' + SM.h(msg) +
+      ' <button class="btn sm lt" type="button" data-copy="' + SM.h(msg) + '">Copy</button>' +
+      '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">Backup password (only if Microsoft is down)</summary>' +
+      '<p style="margin:8px 0 0;font-size:13px">' + SM.h(location.origin) + '/account.html?password=1 · <code>' + SM.h(temp) + '</code> — ' +
+      'deleted automatically the first time they sign in with Microsoft.</p></details></div>';
+  }
   return '<div class="ac-temp" role="status"><b>' + (isReset ? 'New temporary password for ' : 'Account ready for ') + SM.h(name) + '.</b> ' +
     'Send them this — it\'s only shown once:<br><br>' +
     'Sign in at <b>' + SM.h(location.origin) + '/account.html</b><br>Email: <b>' + SM.h(email) + '</b><br>' +
