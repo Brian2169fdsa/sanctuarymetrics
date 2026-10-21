@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Presentations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+/* ── deck tiles ── */
+.pr-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;margin-top:16px}
+.pr{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;
+  text-decoration:none;color:var(--ink);transition:box-shadow .15s,transform .15s}
+.pr:hover{box-shadow:0 14px 30px rgba(22,38,59,.14);transform:translateY(-3px)}
+.pr:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pr-cover{aspect-ratio:16/9;background:linear-gradient(160deg,#f3f7fa,#e6eef3);display:grid;place-items:center;overflow:hidden}
+.pr-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.pr-cover .none{font-size:13px;color:var(--muted)}
+.pr-count{position:absolute;top:10px;right:10px;background:rgba(1,23,59,.82);color:#fff;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:12px}
+.pr-up{position:absolute;top:10px;left:10px;background:#EE6A2C;color:#fff;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:12px}
+.pr-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+.pr-cat{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c0572b}
+.pr-body b{font-family:Fraunces,serif;font-size:18px;font-weight:600;line-height:1.25}
+.pr-body p{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.pr-meta{margin-top:auto;padding-top:10px;font-size:12px;color:var(--muted)}
+.pr-empty{padding:40px 20px;text-align:center;color:var(--muted);border:1px dashed #cfdbe2;border-radius:14px;background:var(--paper);margin-top:16px}
+/* ── viewer ── */
+.pv-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
+.pv-back:hover{text-decoration:underline}
+.pv-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.pv-acts{display:flex;gap:8px;flex-wrap:wrap}
+.pv-acts a.btn{text-decoration:none}
+.pv-stage{position:relative;margin-top:16px;background:#0d1a2b;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;
+  box-shadow:0 14px 34px rgba(22,38,59,.22)}
+.pv-stage img{width:100%;height:100%;object-fit:contain;display:block}
+.pv-stage:fullscreen{border-radius:0;aspect-ratio:auto}
+.pv-nav{all:unset;position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;cursor:pointer;
+  background:rgba(255,255,255,.88);color:#16263B;font-size:24px;line-height:46px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.25);
+  opacity:0;transition:opacity .15s}
+.pv-stage:hover .pv-nav,.pv-nav:focus-visible{opacity:1}
+.pv-nav:focus-visible{outline:3px solid var(--blue)}
+.pv-nav[disabled]{opacity:0!important;pointer-events:none}
+.pv-prev{left:14px}.pv-next{right:14px}
+.pv-n{position:absolute;bottom:12px;right:14px;background:rgba(1,23,59,.8);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px}
+.pv-strip{display:flex;gap:10px;overflow-x:auto;padding:14px 2px 6px;scroll-snap-type:x proximity}
+.pv-th{all:unset;flex:none;width:150px;cursor:pointer;scroll-snap-align:start;border-radius:8px;overflow:hidden;border:2px solid transparent;
+  position:relative;background:#e6eef3;aspect-ratio:16/9}
+.pv-th img{width:100%;height:100%;object-fit:cover;display:block}
+.pv-th i{position:absolute;left:5px;bottom:5px;background:rgba(1,23,59,.78);color:#fff;font:700 10.5px/1 Inter,sans-serif;font-style:normal;padding:3px 6px;border-radius:8px}
+.pv-th[aria-current="true"]{border-color:#EE6A2C}
+.pv-th:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.pv-keys{font-size:12px;color:var(--muted);margin-top:4px}
+/* ── admin upload ── */
+#pmodal{border:0;padding:0;border-radius:16px;width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 32px);
+  box-shadow:0 24px 60px rgba(22,38,59,.28);color:var(--ink);background:#fff}
+#pmodal::backdrop{background:rgba(22,38,59,.42);backdrop-filter:blur(2px)}
+.pm{padding:22px 24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.pm-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+.pm-head h3{font-family:Fraunces,serif;font-size:21px;font-weight:600;margin:0}
+.pm-x{all:unset;cursor:pointer;font-size:24px;line-height:1;padding:2px 8px;border-radius:6px;color:var(--muted)}
+.pm-f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pm-f input,.pm-f textarea{font:400 14px Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.pm-f input:focus,.pm-f textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.pm-wide{grid-column:1/-1}
+.pm-drop{grid-column:1/-1;border:2px dashed #b9cdd8;border-radius:12px;padding:20px;text-align:center;background:var(--paper);cursor:pointer;font-size:14px}
+.pm-drop.over{border-color:var(--blue);background:#eaf5fb}
+.pm-drop b{display:block;font-size:15px;margin-bottom:4px}
+.pm-drop span{color:var(--muted);font-size:12.5px}
+.pm-files{grid-column:1/-1;font-size:13px;color:var(--ink)}
+.pm-bar{grid-column:1/-1;height:8px;border-radius:4px;background:#e6eef3;overflow:hidden}
+.pm-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1C9AD6,#EE6A2C);transition:width .2s}
+.pm-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
+.pm-err[hidden],.pm-bar[hidden]{display:none}
+.pm-foot{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+.btn.lt{background:#fff!important;color:var(--teal,#2C5468)!important;border:1px solid var(--line)!important}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:600px){
+  .pm{grid-template-columns:1fr;padding:18px 16px}
+  .pv-nav{opacity:1;width:38px;height:38px;line-height:38px;font-size:20px}
+  .pv-th{width:110px}
+}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ── presentations ────────────────────────────────────────────────────────
+   PowerPoint decks from SharePoint, flipped through right on the site.
+   The slides are images in a private Supabase bucket (api/presentations.js
+   signs short-lived links for signed-in staff); "Open in PowerPoint" goes
+   to the deck itself in SharePoint.
+
+   Admins add a deck here: in PowerPoint, File → Export → PNG or JPEG →
+   All Slides, then drop the folder's images (or the zip of them) on the
+   form. The browser shrinks each slide to WebP before uploading.          */
+var API = '/api/presentations';
+var DECKS = null, DECK = null, CUR = 1, ADMIN = false, ERR = '';
+var FULL_W = 1920, THUMB_W = 480;
+
+function when(iso) { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function deckId() { var m = location.hash.match(/^#deck=([0-9a-f-]{36})(?:&s=(\d+))?$/i); return m ? { id: m[1], s: +(m[2] || 1) } : null; }
+
+/* ── the list ─────────────────────────────────────────────────────────── */
+function tile(d) {
+  return '<a class="pr" href="#deck=' + esc(d.id) + '">' +
+    '<div class="pr-cover">' + (d.cover ? '<img src="' + esc(d.cover) + '" alt="" loading="lazy">' : '<span class="none">No slides yet</span>') + '</div>' +
+    '<span class="pr-count">' + d.slide_count + ' slide' + (d.slide_count === 1 ? '' : 's') + '</span>' +
+    (d.status !== 'ready' ? '<span class="pr-up">Upload not finished</span>' : '') +
+    '<div class="pr-body">' + (d.category ? '<span class="pr-cat">' + esc(d.category) + '</span>' : '') +
+      '<b>' + esc(d.title) + '</b>' + (d.description ? '<p>' + esc(d.description) + '</p>' : '') +
+      '<div class="pr-meta">Added ' + esc(when(d.created_at)) + (d.created_by_name ? ' by ' + esc(d.created_by_name) : '') + '</div></div></a>';
+}
+function listHtml() {
+  return '<section><div class="pr-top"><div><div class="eyebrow">Presentations</div>' +
+    '<h2 style="font-size:28px;margin:6px 0 0">Presentations</h2>' +
+    '<p class="lead" style="margin-bottom:0">Decks from SharePoint. Open one to flip through the slides, or open it in PowerPoint.</p></div>' +
+    (ADMIN ? '<button type="button" class="btn" id="pr-add">+ Add presentation</button>' : '') + '</div>' +
+    (ERR ? '<div class="warn" style="margin-top:16px">' + esc(ERR) + '</div>'
+      : DECKS === null ? '<p class="sub" style="margin-top:16px">Loading…</p>'
+      : DECKS.length ? '<div class="pr-grid">' + DECKS.map(tile).join('') + '</div>'
+      : '<div class="pr-empty">No presentations yet.' + (ADMIN ? ' Add the first one with <b>+ Add presentation</b>.' : '') + '</div>') +
+  '</section>';
+}
+
+/* ── one deck ─────────────────────────────────────────────────────────── */
+function viewerHtml() {
+  var d = DECK;
+  if (!d) { return '<section><a class="pv-back" href="#">← All presentations</a><p class="sub">' + esc(ERR || 'Loading…') + '</p></section>'; }
+  return '<section><a class="pv-back" href="#">← All presentations</a>' +
+    '<div class="pv-head"><div>' + (d.category ? '<div class="eyebrow">' + esc(d.category) + '</div>' : '') +
+      '<h2 style="font-size:26px;margin:6px 0 0">' + esc(d.title) + '</h2>' +
+      (d.description ? '<p class="lead" style="margin:6px 0 0">' + esc(d.description) + '</p>' : '') + '</div>' +
+      '<div class="pv-acts">' +
+        (d.sharepoint_url ? '<a class="btn" href="' + esc(d.sharepoint_url) + '" target="_blank" rel="noopener">Open in PowerPoint ↗</a>' : '') +
+        '<button type="button" class="btn lt" id="pv-full">Full screen</button>' +
+        (ADMIN && d.status !== 'ready' ? '<button type="button" class="btn lt" id="pv-ready">Mark finished</button>' : '') +
+        (ADMIN ? '<button type="button" class="btn lt" id="pv-del">Remove</button>' : '') +
+      '</div></div>' +
+    '<div class="pv-stage" id="pv-stage">' +
+      '<img id="pv-img" alt="">' +
+      '<button type="button" class="pv-nav pv-prev" id="pv-prev" aria-label="Previous slide">‹</button>' +
+      '<button type="button" class="pv-nav pv-next" id="pv-next" aria-label="Next slide">›</button>' +
+      '<span class="pv-n" id="pv-n" aria-live="polite"></span></div>' +
+    '<div class="pv-strip" id="pv-strip" role="list" aria-label="Slides">' + d.slides.map(function (s) {
+      return '<button type="button" class="pv-th" role="listitem" data-n="' + s.n + '" aria-label="Slide ' + s.n + '">' +
+        (s.thumb ? '<img src="' + esc(s.thumb) + '" alt="" loading="lazy">' : '') + '<i>' + s.n + '</i></button>';
+    }).join('') + '</div>' +
+    '<p class="pv-keys">← → to move between slides · F for full screen</p></section>';
+}
+function show(n) {
+  var d = DECK;
+  CUR = Math.min(Math.max(1, n), d.slide_count);
+  var s = d.slides[CUR - 1];
+  var img = document.getElementById('pv-img');
+  img.src = s.full || s.thumb || '';
+  img.alt = d.title + ' — slide ' + CUR + ' of ' + d.slide_count;
+  document.getElementById('pv-n').textContent = CUR + ' / ' + d.slide_count;
+  document.getElementById('pv-prev').disabled = CUR === 1;
+  document.getElementById('pv-next').disabled = CUR === d.slide_count;
+  document.querySelectorAll('.pv-th').forEach(function (b) {
+    var on = +b.getAttribute('data-n') === CUR;
+    b.setAttribute('aria-current', on ? 'true' : 'false');
+    if (on) { b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+  });
+  history.replaceState(null, '', '#deck=' + d.id + (CUR > 1 ? '&s=' + CUR : ''));
+  /* fetch the next slide early so flipping feels instant */
+  if (d.slides[CUR]) { new Image().src = d.slides[CUR].full || ''; }
+}
+
+function render() {
+  var at = deckId();
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Presentations', 'Decks from SharePoint &nbsp;·&nbsp; Internal', 'Staff only — sign-in required', 'presentations') +
+    (at ? viewerHtml() : listHtml()) + pageFooter('presentations');
+  if (at && DECK) {
+    show(at.s);
+    document.getElementById('pv-prev').addEventListener('click', function () { show(CUR - 1); });
+    document.getElementById('pv-next').addEventListener('click', function () { show(CUR + 1); });
+    document.getElementById('pv-strip').addEventListener('click', function (e) {
+      var b = e.target.closest('.pv-th'); if (b) { show(+b.getAttribute('data-n')); }
+    });
+    document.getElementById('pv-full').addEventListener('click', fullScreen);
+    var rd = document.getElementById('pv-ready');
+    if (rd) { rd.addEventListener('click', function () { patch(DECK.id, { status: 'ready' }).then(function () { DECK.status = 'ready'; render(); }); }); }
+    var del = document.getElementById('pv-del');
+    if (del) {
+      del.addEventListener('click', function () {
+        if (!confirm('Remove "' + DECK.title + '" from the site? The deck in SharePoint isn\'t touched.')) { return; }
+        SM.api('DELETE', API + '?id=' + DECK.id).then(function () { DECKS = null; location.hash = ''; }, function (e) { alert(e.message); });
+      });
+    }
+  }
+  var add = document.getElementById('pr-add');
+  if (add) { add.addEventListener('click', openAdd); }
+}
+function fullScreen() {
+  var st = document.getElementById('pv-stage');
+  if (document.fullscreenElement) { document.exitFullscreen(); } else if (st.requestFullscreen) { st.requestFullscreen(); }
+}
+document.addEventListener('keydown', function (e) {
+  if (!DECK || !deckId() || e.target.closest('input,textarea,dialog')) { return; }
+  if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(CUR + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(CUR - 1); }
+  else if (e.key === 'Home') { show(1); } else if (e.key === 'End') { show(DECK.slide_count); }
+  else if (e.key === 'f' || e.key === 'F') { fullScreen(); }
+});
+
+function load() {
+  var at = deckId();
+  ERR = '';
+  if (at) {
+    if (DECK && DECK.id === at.id) { render(); return; }
+    DECK = null; render();
+    SM.api('GET', API + '?id=' + at.id).then(function (j) { DECK = j.deck; ADMIN = j.admin; render(); },
+      function (e) { ERR = e.message; render(); });
+    return;
+  }
+  DECK = null; render();
+  SM.api('GET', API).then(function (j) { DECKS = j.decks; ADMIN = j.admin; render(); },
+    function (e) { ERR = e.message; DECKS = []; render(); });
+}
+window.addEventListener('hashchange', load);
+function patch(id, body) { return SM.api('PATCH', API + '?id=' + id, body).catch(function (e) { alert(e.message); throw e; }); }
+
+/* ── adding a deck (admins) ───────────────────────────────────────────── */
+var FILES = [];   /* [{name, blob}] in slide order */
+function modal() {
+  var d = document.getElementById('pmodal');
+  if (!d) { d = document.createElement('dialog'); d.id = 'pmodal'; d.setAttribute('aria-labelledby', 'pm-title'); document.body.appendChild(d); }
+  return d;
+}
+function openAdd() {
+  FILES = [];
+  var d = modal();
+  d.innerHTML = '<form class="pm" id="pm-form" novalidate>' +
+    '<div class="pm-head"><h3 id="pm-title">Add a presentation</h3><button type="button" class="pm-x" id="pm-x" aria-label="Close">×</button></div>' +
+    '<label class="pm-f pm-wide">Title<input id="pm-t" maxlength="200" placeholder="e.g. ADCRR Site Visit — Sanctuary Recovery Centers" required></label>' +
+    '<label class="pm-f">Category<input id="pm-c" maxlength="60" placeholder="e.g. Partners, Training"></label>' +
+    '<label class="pm-f">SharePoint link<input id="pm-u" maxlength="1000" placeholder="https://…sharepoint.com/…"></label>' +
+    '<label class="pm-f pm-wide">Short description<textarea id="pm-d" rows="2" maxlength="600" placeholder="Optional — who it\'s for, when it was given"></textarea></label>' +
+    '<label class="pm-drop" id="pm-drop" for="pm-file"><b>Drop the slide images or their .zip here</b>' +
+      '<span>In PowerPoint: File → Export → Change File Type → PNG or JPEG → All Slides. Or click to choose files.</span>' +
+      '<input type="file" id="pm-file" class="vh" multiple accept=".zip,image/png,image/jpeg,image/webp"></label>' +
+    '<div class="pm-files" id="pm-files"></div>' +
+    '<div class="pm-bar" id="pm-bar" hidden><i id="pm-bar-i"></i></div>' +
+    '<div class="pm-err" id="pm-err" role="alert" hidden></div>' +
+    '<div class="pm-foot"><button type="button" class="btn lt" id="pm-cancel">Cancel</button>' +
+      '<button type="submit" class="btn" id="pm-go">Upload</button></div></form>';
+  d.querySelector('#pm-x').addEventListener('click', function () { d.close(); });
+  d.querySelector('#pm-cancel').addEventListener('click', function () { d.close(); });
+  var drop = d.querySelector('#pm-drop');
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function () { drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) { e.preventDefault(); take(e.dataTransfer.files); });
+  d.querySelector('#pm-file').addEventListener('change', function () { take(this.files); });
+  d.querySelector('#pm-form').addEventListener('submit', function (e) { e.preventDefault(); upload(); });
+  d.showModal();
+  d.querySelector('#pm-t').focus();
+}
+function addErr(t) { var el = document.getElementById('pm-err'); el.textContent = t || ''; el.hidden = !t; }
+/* "Slide10.jpg" sorts after "Slide9.jpg" */
+function slideNo(name) { var m = name.match(/(\d+)(?=\.[a-z]+$)/i); return m ? +m[1] : 0; }
+function isSlide(name) { return /\.(png|jpe?g|webp)$/i.test(name) && !/(^|\/)(__MACOSX|\._)/.test(name); }
+var JSZIP = null;
+function jszip() {
+  if (JSZIP) { return JSZIP; }
+  JSZIP = new Promise(function (ok, no) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = function () { ok(window.JSZip); };
+    s.onerror = function () { JSZIP = null; no(new Error('Couldn\'t load the zip reader — unzip it and drop the images instead.')); };
+    document.head.appendChild(s);
+  });
+  return JSZIP;
+}
+function take(list) {
+  addErr('');
+  var files = Array.prototype.slice.call(list || []);
+  var zips = files.filter(function (f) { return /\.zip$/i.test(f.name); });
+  var imgs = files.filter(function (f) { return isSlide(f.name); }).map(function (f) { return { name: f.name, blob: f }; });
+  var done = function (all) {
+    FILES = all.sort(function (a, b) { return slideNo(a.name) - slideNo(b.name) || a.name.localeCompare(b.name); });
+    document.getElementById('pm-files').textContent = FILES.length
+      ? FILES.length + ' slide' + (FILES.length === 1 ? '' : 's') + ' ready: ' + FILES[0].name.split('/').pop() + ' … ' + FILES[FILES.length - 1].name.split('/').pop()
+      : 'No slide images found. Use PNG or JPEG files, or a zip of them.';
+    var t = document.getElementById('pm-t');
+    if (!t.value && zips[0]) { t.value = zips[0].name.replace(/\.zip$/i, '').replace(/[_]+/g, ' ').replace(/ - /g, ' — '); }
+  };
+  if (!zips.length) { done(imgs); return; }
+  document.getElementById('pm-files').textContent = 'Reading the zip…';
+  jszip().then(function (JSZip) {
+    return Promise.all(zips.map(function (z) { return JSZip.loadAsync(z); }));
+  }).then(function (archives) {
+    var jobs = [];
+    archives.forEach(function (a) {
+      a.forEach(function (path, entry) {
+        if (!entry.dir && isSlide(path)) { jobs.push(entry.async('blob').then(function (b) { return { name: path, blob: b }; })); }
+      });
+    });
+    return Promise.all(jobs);
+  }).then(function (fromZip) { done(imgs.concat(fromZip)); }, function (e) { addErr(e.message); done(imgs); });
+}
+/* one slide → WebP at most w wide */
+function toWebp(blob, w) {
+  return createImageBitmap(blob).then(function (bmp) {
+    var scale = Math.min(1, w / bmp.width);
+    var c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    return new Promise(function (ok, no) {
+      c.toBlob(function (b) { b ? ok(b) : no(new Error('Couldn\'t convert a slide.')); }, 'image/webp', w > 1000 ? 0.84 : 0.78);
+    });
+  });
+}
+function put(id, n, kind, blob) {
+  return fetch(API + '?id=' + id + '&n=' + n + '&kind=' + kind, {
+    method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'image/webp' }, body: blob
+  }).then(function (r) { if (!r.ok) { return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Upload failed (' + r.status + ')'); }); } });
+}
+function upload() {
+  var title = document.getElementById('pm-t').value.trim();
+  if (!title) { addErr('Give the presentation a title.'); document.getElementById('pm-t').focus(); return; }
+  if (!FILES.length) { addErr('Add the slide images first.'); return; }
+  var go = document.getElementById('pm-go'), bar = document.getElementById('pm-bar'), fill = document.getElementById('pm-bar-i');
+  go.disabled = true; go.textContent = 'Uploading…'; bar.hidden = false; addErr('');
+  var total = FILES.length, done = 0, id;
+  SM.api('POST', API, { title: title, category: document.getElementById('pm-c').value.trim(),
+    sharepoint_url: document.getElementById('pm-u').value.trim(), description: document.getElementById('pm-d').value.trim(),
+    slide_count: total }).then(function (j) {
+    id = j.deck.id;
+    /* three slides at a time */
+    var next = 0;
+    function worker() {
+      if (next >= total) { return Promise.resolve(); }
+      var i = next++, f = FILES[i];
+      return toWebp(f.blob, FULL_W).then(function (full) { return put(id, i + 1, 's', full); })
+        .then(function () { return toWebp(f.blob, THUMB_W); }).then(function (th) { return put(id, i + 1, 't', th); })
+        .then(function () { done++; fill.style.width = Math.round(done / total * 100) + '%'; go.textContent = 'Uploading ' + done + ' / ' + total + '…'; })
+        .then(worker);
+    }
+    return Promise.all([worker(), worker(), worker()]);
+  }).then(function () { return SM.api('PATCH', API + '?id=' + id, { status: 'ready' }); }).then(function () {
+    modal().close(); DECKS = null; location.hash = '#deck=' + id;
+  }, function (e) {
+    go.disabled = false; go.textContent = 'Upload'; addErr(e.message + (id ? ' The slides so far are saved; open the deck to finish or remove it.' : ''));
+  });
+}
+
+SM.ready.then(load);
+</script>
+</body></html>
