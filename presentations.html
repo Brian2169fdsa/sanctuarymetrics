@@ -30,7 +30,10 @@
 .pv-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .pv-acts{display:flex;gap:8px;flex-wrap:wrap}
 .pv-acts a.btn{text-decoration:none}
-.pv-stage{position:relative;margin-top:16px;background:#0d1a2b;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;
+.pv-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start;margin-top:16px}
+.pv-main{min-width:0}
+/* the slide is sized so slide + thumbnails fit on one screen */
+.pv-stage{position:relative;width:100%;max-width:calc((100vh - 250px) * 16 / 9);background:#0d1a2b;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;
   box-shadow:0 14px 34px rgba(22,38,59,.22)}
 .pv-stage img{width:100%;height:100%;object-fit:contain;display:block}
 .pv-stage:fullscreen{border-radius:0;aspect-ratio:auto}
@@ -42,12 +45,35 @@
 .pv-nav[disabled]{opacity:0!important;pointer-events:none}
 .pv-prev{left:14px}.pv-next{right:14px}
 .pv-n{position:absolute;bottom:12px;right:14px;background:rgba(1,23,59,.8);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px}
-.pv-strip{display:flex;gap:10px;overflow-x:auto;padding:14px 2px 6px;scroll-snap-type:x proximity}
-.pv-th{all:unset;flex:none;width:150px;cursor:pointer;scroll-snap-align:start;border-radius:8px;overflow:hidden;border:2px solid transparent;
+.pv-strip{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 6px;scroll-snap-type:x proximity}
+.pv-th{all:unset;flex:none;width:112px;cursor:pointer;scroll-snap-align:start;border-radius:8px;overflow:hidden;border:2px solid transparent;
   position:relative;background:#e6eef3;aspect-ratio:16/9}
 .pv-th img{width:100%;height:100%;object-fit:cover;display:block}
 .pv-th i{position:absolute;left:5px;bottom:5px;background:rgba(1,23,59,.78);color:#fff;font:700 10.5px/1 Inter,sans-serif;font-style:normal;padding:3px 6px;border-radius:8px}
-.pv-th[aria-current="true"]{border-color:#EE6A2C}
+.pv-th[aria-current="true"]{border-color:#1C9AD6}
+.pv-th.edit::after{content:"✎";position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:9px;background:#EE6A2C;color:#fff;
+  font-size:11px;line-height:18px;text-align:center}
+/* ── asking for changes ── */
+.pv-ed{position:sticky;top:12px;border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px 16px 14px;
+  display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 24px);overflow:auto}
+.pv-ed h3{font-family:Fraunces,serif;font-size:19px;font-weight:600;margin:0}
+.pv-ed .sub{margin:0;font-size:12.5px}
+.pv-f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pv-f b{color:#1C9AD6}
+.pv-f textarea,.pv-f input{font:400 14px Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;line-height:1.45;resize:vertical}
+.pv-f textarea:focus,.pv-f input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.pv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pv-list li{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;font-size:13px;background:#fdf3ee;border-radius:9px;padding:7px 9px}
+.pv-list button{all:unset;cursor:pointer}
+.pv-list .go{font-weight:700;color:#c0572b;white-space:nowrap}
+.pv-list .tx{color:var(--ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pv-list .x{color:var(--muted);font-size:16px;line-height:1;padding:0 2px}
+.pv-list button:focus-visible{outline:2px solid var(--blue);border-radius:4px}
+.pv-none{font-size:12.5px;color:var(--muted)}
+.pv-err{padding:9px 11px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
+.pv-ok{padding:10px 12px;border-radius:9px;background:#e9f5ee;color:#1f5a37;font-size:13px;line-height:1.45}
+.pv-err[hidden],.pv-ok[hidden]{display:none}
 .pv-th:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .pv-keys{font-size:12px;color:var(--muted);margin-top:4px}
 /* ── admin upload ── */
@@ -78,7 +104,11 @@
 @media (max-width:600px){
   .pm{grid-template-columns:1fr;padding:18px 16px}
   .pv-nav{opacity:1;width:38px;height:38px;line-height:38px;font-size:20px}
-  .pv-th{width:110px}
+  .pv-th{width:96px}
+}
+@media (max-width:980px){
+  .pv-body{grid-template-columns:1fr}
+  .pv-ed{position:static;max-height:none}
 }
 </style>
 </head>
@@ -142,6 +172,7 @@ function viewerHtml() {
         (ADMIN && d.status !== 'ready' ? '<button type="button" class="btn lt" id="pv-ready">Mark finished</button>' : '') +
         (ADMIN ? '<button type="button" class="btn lt" id="pv-del">Remove</button>' : '') +
       '</div></div>' +
+    '<div class="pv-body"><div class="pv-main">' +
     '<div class="pv-stage" id="pv-stage">' +
       '<img id="pv-img" alt="">' +
       '<button type="button" class="pv-nav pv-prev" id="pv-prev" aria-label="Previous slide">‹</button>' +
@@ -151,7 +182,78 @@ function viewerHtml() {
       return '<button type="button" class="pv-th" role="listitem" data-n="' + s.n + '" aria-label="Slide ' + s.n + '">' +
         (s.thumb ? '<img src="' + esc(s.thumb) + '" alt="" loading="lazy">' : '') + '<i>' + s.n + '</i></button>';
     }).join('') + '</div>' +
-    '<p class="pv-keys">← → to move between slides · F for full screen</p></section>';
+    '<p class="pv-keys">← → to move between slides · F for full screen</p></div>' + editPanel() + '</div></section>';
+}
+/* ── asking for changes, slide by slide (like the flyer editor) ─────────
+   Each change is kept against its slide number; everything goes to
+   marketing as one request (/api/requests → a task on the Projects page). */
+var EDITS = {};       /* slide number → requested change, for the open deck */
+var EDITS_DECK = null;
+function editPanel() {
+  return '<aside class="pv-ed" aria-label="Request changes">' +
+    '<h3>Request changes</h3>' +
+    '<p class="sub">Go to any slide and write what should change. Add as many as you like — they go to marketing together.</p>' +
+    '<label class="pv-f"><span>Slide <b id="pv-ed-n">1</b> — what should change?</span>' +
+      '<textarea id="pv-ed-t" rows="3" maxlength="1500" placeholder="e.g. Update the numbers to this quarter, swap the photo, fix a typo…"></textarea></label>' +
+    '<div><div class="pv-f" style="margin-bottom:6px">Changes so far</div><ul class="pv-list" id="pv-list"></ul></div>' +
+    '<label class="pv-f">Anything else about the deck<textarea id="pv-gen" rows="2" maxlength="3000" ' +
+      'placeholder="e.g. Make a shorter version for the November meeting"></textarea></label>' +
+    '<label class="pv-f">Needed by<input type="date" id="pv-need"></label>' +
+    '<div class="pv-err" id="pv-err" role="alert" hidden></div>' +
+    '<div class="pv-ok" id="pv-ok" role="status" hidden></div>' +
+    '<button type="button" class="btn" id="pv-send">Send to marketing</button>' +
+    (SM.me ? '<p class="sub">Sent as ' + esc(SM.me.name) + '.</p>' : '') +
+  '</aside>';
+}
+function changes() {
+  return Object.keys(EDITS).map(Number).sort(function (a, b) { return a - b; })
+    .filter(function (n) { return (EDITS[n] || '').trim(); })
+    .map(function (n) { return { slide: n, change: EDITS[n].trim() }; });
+}
+function drawEdits() {
+  var list = changes();
+  document.getElementById('pv-list').innerHTML = list.length ? list.map(function (c) {
+    return '<li><button type="button" class="go" data-go="' + c.slide + '">Slide ' + c.slide + '</button>' +
+      '<span class="tx">' + esc(c.change) + '</span>' +
+      '<button type="button" class="x" data-rm="' + c.slide + '" aria-label="Remove the change to slide ' + c.slide + '">×</button></li>';
+  }).join('') : '<li class="pv-none" style="background:none;padding:0;display:block">None yet.</li>';
+  document.querySelectorAll('.pv-th').forEach(function (b) {
+    b.classList.toggle('edit', !!(EDITS[+b.getAttribute('data-n')] || '').trim());
+  });
+  var n = list.length;
+  document.getElementById('pv-send').textContent = n ? 'Send ' + n + ' change' + (n === 1 ? '' : 's') + ' to marketing' : 'Send to marketing';
+}
+function wireEdits() {
+  var ta = document.getElementById('pv-ed-t');
+  ta.addEventListener('input', function () {
+    EDITS[CUR] = ta.value;
+    document.getElementById('pv-err').hidden = true;
+    drawEdits();
+  });
+  document.getElementById('pv-list').addEventListener('click', function (e) {
+    var go = e.target.closest('[data-go]'), rm = e.target.closest('[data-rm]');
+    if (go) { show(+go.getAttribute('data-go')); ta.focus(); }
+    if (rm) { delete EDITS[+rm.getAttribute('data-rm')]; if (+rm.getAttribute('data-rm') === CUR) { ta.value = ''; } drawEdits(); }
+  });
+  document.getElementById('pv-send').addEventListener('click', sendEdits);
+  drawEdits();
+}
+function sendEdits() {
+  var list = changes(), gen = document.getElementById('pv-gen').value.trim();
+  var err = document.getElementById('pv-err'), ok = document.getElementById('pv-ok'), btn = document.getElementById('pv-send');
+  ok.hidden = true;
+  if (!list.length && !gen) { err.textContent = 'Write a change for at least one slide first.'; err.hidden = false; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  SM.api('POST', '/api/requests', { kind: 'presentation_edit', deck_id: DECK.id, slide_edits: list, edits: gen,
+                                    needed_by: document.getElementById('pv-need').value }).then(function () {
+    btn.disabled = false;
+    EDITS = {};
+    ['pv-ed-t', 'pv-gen', 'pv-need'].forEach(function (id) { document.getElementById(id).value = ''; });
+    ok.textContent = 'Sent — ' + (list.length ? list.length + ' slide change' + (list.length === 1 ? '' : 's') : 'your notes') +
+      ' for "' + DECK.title + '" are on the marketing list. You\'ll hear back when it\'s updated.';
+    ok.hidden = false;
+    drawEdits();
+  }, function (e) { btn.disabled = false; drawEdits(); err.textContent = e.message; err.hidden = false; });
 }
 function show(n) {
   var d = DECK;
@@ -168,6 +270,8 @@ function show(n) {
     b.setAttribute('aria-current', on ? 'true' : 'false');
     if (on) { b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
   });
+  var ed = document.getElementById('pv-ed-t');
+  if (ed) { document.getElementById('pv-ed-n').textContent = CUR; ed.value = EDITS[CUR] || ''; }
   history.replaceState(null, '', '#deck=' + d.id + (CUR > 1 ? '&s=' + CUR : ''));
   /* fetch the next slide early so flipping feels instant */
   if (d.slides[CUR]) { new Image().src = d.slides[CUR].full || ''; }
@@ -179,7 +283,9 @@ function render() {
     pageHeader('Presentations', 'Decks from SharePoint &nbsp;·&nbsp; Internal', 'Staff only — sign-in required', 'print') +
     (at ? viewerHtml() : listHtml()) + pageFooter('presentations');
   if (at && DECK) {
+    if (EDITS_DECK !== DECK.id) { EDITS = {}; EDITS_DECK = DECK.id; }
     show(at.s);
+    wireEdits();
     document.getElementById('pv-prev').addEventListener('click', function () { show(CUR - 1); });
     document.getElementById('pv-next').addEventListener('click', function () { show(CUR + 1); });
     document.getElementById('pv-strip').addEventListener('click', function (e) {
