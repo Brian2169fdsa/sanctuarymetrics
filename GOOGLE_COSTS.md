@@ -5,6 +5,32 @@ Google Workspace cut the same way the Microsoft one was tracked. Like the
 Microsoft pages, nothing on it is estimated: anything not loaded yet shows as
 "needed".
 
+## The Oct 21 cutover review
+
+The 13 Google Workspace accounts (sanctuarysoberliving.com) are in Supabase's
+`google_accounts` table, which `supabase/google-cutover.sql` creates. They
+show on the Google tab to signed-in staff only, with:
+
+- every usage figure from the Google Admin apps report and the Microsoft 365
+  mailbox report
+- the review's recommendation for each account
+- a checkbox
+
+The rows themselves aren't in this public repo. Brian has the one-time insert
+that loads them.
+
+**How choosing works**
+
+- Tick accounts, or use **Ready to cut**, **Ready + verify** or **Everything
+  except must-keep**. Then press **Send for approval**. That files one cut
+  covering every ticked account; approving it puts a task on Brian's project
+  list.
+- **Mark as Keep** records a keep decision.
+- **Must-keep accounts can't be cut.** Ulonda is one. Their checkbox is
+  disabled, and the server refuses to cut them.
+- Declining a cut on the Cost cutting page frees its accounts so they can be
+  picked again.
+
 ## Load the data
 
 **1. The user list.** This covers who has a license, their last sign-in,

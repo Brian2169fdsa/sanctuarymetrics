@@ -52,8 +52,9 @@ function authority() { return 'https://login.microsoftonline.com/' + A.msTenant(
 
 module.exports = async function handler(req, res) {
   if (!A.microsoftEnabled() || !GUID.test(A.msTenant())) {
-    return sendJSON(res, 503, { error: 'not_configured',
-      message: 'Microsoft sign-in is not set up yet: add MS_CLIENT_ID and MS_CLIENT_SECRET.' });
+    /* keys not in Vercel yet: say so on the account page instead of a bare error */
+    const next = safeNext(new URL(req.url, 'http://x').searchParams.get('next'));
+    return redirect(res, '/account.html?ms_error=notsetup&next=' + encodeURIComponent(next));
   }
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return sendJSON(res, 405, { error: 'method' }); }
   const q = new URL(req.url, 'http://x').searchParams;

@@ -74,10 +74,11 @@ var MS_ERRORS = {
   noemail: 'Microsoft didn\'t share an email address for that login. Try your work account.',
   domain: '{email} isn\'t a Sanctuary work account. Sign in with your @sanctuaryrecoverycenters.com or @sanctuaryrc.com login.',
   microsoft: 'Microsoft couldn\'t complete the sign-in. Please try again.',
-  storage: 'Signed in with Microsoft, but the accounts database didn\'t answer. Try again shortly.'
+  storage: 'Signed in with Microsoft, but the accounts database didn\'t answer. Try again shortly.',
+  notsetup: 'Microsoft sign-in isn\'t switched on yet: MS_CLIENT_ID and MS_CLIENT_SECRET still need to be added in Vercel (see MICROSOFT_SIGNIN.md). Until then, sign in with your email and password below.'
 };
 function msError() {
-  var q = new URLSearchParams(location.search), code = q.get('ms_error');
+  var q = new URLSearchParams(location.search), code = q.get('ms_error') || (SM.msConfigured ? '' : 'notsetup');
   if (!code) { return ''; }
   return '<div class="warn" style="margin-bottom:14px">' +
     SM.h((MS_ERRORS[code] || MS_ERRORS.microsoft).replace('{email}', q.get('email') || 'that email')) + '</div>';
@@ -88,7 +89,8 @@ var PASSWORD_BACKDOOR = new URLSearchParams(location.search).get('password') ===
 function signedOut() {
   var head = '<section><div class="eyebrow">Account</div><h2 style="font-size:26px;margin:6px 0 0">Sign in</h2>' +
     '<p class="lead">Sign in to see projects, message the team on each one, and get alerts.</p>' + msError();
-  if (SM.microsoft && !PASSWORD_BACKDOOR) {
+  var notSetup = new URLSearchParams(location.search).get('ms_error') === 'notsetup' || !SM.msConfigured;
+  if (!PASSWORD_BACKDOOR && !notSetup) {
     return head + SM.signInCard(safeNext()) +
       '<p class="sub">Only Sanctuary work accounts can sign in. No account yet? Ask an admin to add you.</p></section>';
   }
@@ -100,7 +102,7 @@ function signedOut() {
       '<div class="ac-foot"><button class="btn" type="submit" id="l-go">Sign in</button>' +
         '<span class="sub" style="margin:0">Forgot it? Ask an admin to reset your password.</span></div>' +
     '</form></div>' +
-    (SM.microsoft ? '' : '<details class="ac-setup"><summary>First time here as the master admin?</summary>' +
+    (SM.msConfigured ? '' : '<details class="ac-setup"><summary>First time here as the master admin?</summary>' +
       '<div class="card" style="margin-top:12px"><form class="ac-form" id="f-setup" novalidate>' +
         '<p class="ac-wide" style="margin:0;font-size:13.5px;line-height:1.5">One-time setup for the master admin account. ' +
           'You\'ll need the current team password to prove it\'s you.</p>' +
@@ -173,7 +175,7 @@ function adminSection(me) {
   }).join('');
   return '<section id="people"><div class="eyebrow">Admin</div><h2 style="font-size:24px;margin:6px 0 12px">People</h2>' +
     '<div class="card"><h3>Give someone an account</h3>' +
-      (SM.microsoft ? '<p style="margin:0 0 14px;font-size:13.5px;line-height:1.5">Use their work email. They can then ' +
+      (SM.msConfigured ? '<p style="margin:0 0 14px;font-size:13.5px;line-height:1.5">Use their work email. They can then ' +
         '<b>Sign in with Microsoft</b> — no password to send. A temporary password is still made as a backup.</p>' : '') +
       '<form class="ac-form" id="f-add" novalidate>' +
       '<label class="ac-f">Name<input id="u-name" type="text" maxlength="80" placeholder="e.g. Jane Smith"></label>' +
@@ -203,7 +205,7 @@ function adminSection(me) {
     '</form></div></section>';
 }
 function tempBox(name, email, temp, isReset) {
-  if (SM.microsoft && !isReset) {
+  if (SM.msConfigured && !isReset) {
     var msg = 'Go to ' + location.origin + '/projects.html and click Sign in with Microsoft, using your work login (' + email + ').';
     return '<div class="ac-temp" role="status"><b>Account ready for ' + SM.h(name) + '.</b> Send them this:<br><br>' + SM.h(msg) +
       ' <button class="btn sm lt" type="button" data-copy="' + SM.h(msg) + '">Copy</button>' +

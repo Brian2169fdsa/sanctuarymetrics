@@ -214,7 +214,10 @@
   setInterval(function () { if (document.visibilityState === 'visible') { SM.refreshBell(); } }, POLL_MS);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { SM.refreshBell(); } });
 
-  SM.microsoft = false;
+  /* Every sign-in button goes to Microsoft. SM.msConfigured says whether the
+     server has its keys yet; until then /api/microsoft explains on account.html. */
+  SM.microsoft = true;
+  SM.msConfigured = false;
   /* the Microsoft button: four squares, per Microsoft's sign-in branding */
   SM.msButton = function (next, label) {
     return '<a class="smms" href="/api/microsoft?start=1&next=' + encodeURIComponent(next || 'projects.html') + '">' +
@@ -224,7 +227,7 @@
   /* every "Sign in" goes to Microsoft once it's set up; account.html until then */
   SM.signInUrl = function (next) {
     next = next || (here() + location.hash);
-    return SM.microsoft ? '/api/microsoft?start=1&next=' + encodeURIComponent(next) : 'account.html?next=' + encodeURIComponent(next);
+    return '/api/microsoft?start=1&next=' + encodeURIComponent(next);
   };
   /* the card a page shows in place of its own password box */
   SM.signInCard = function (next, why) {
@@ -232,7 +235,7 @@
       '<p style="margin:0 0 14px;font-size:14px;line-height:1.5">' + h(why || 'Use your Sanctuary Microsoft account — the same login as Outlook and Teams.') + '</p>' +
       SM.msButton(next || (here() + location.hash)) + '</div>';
   };
-  SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.microsoft = !!j.microsoft; return j.user; }, function () { return null; })
+  SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.msConfigured = !!j.microsoft; return j.user; }, function () { return null; })
     .then(function (u) { setUser(u); return u; });
   drawBar();
 })();
