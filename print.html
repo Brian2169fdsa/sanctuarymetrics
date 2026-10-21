@@ -75,6 +75,12 @@
 .sh-new .plus{width:64px;height:64px;border-radius:50%;background:#EE6A2C;color:#fff;font-size:38px;line-height:64px;text-align:center;
   font-weight:500;box-shadow:0 10px 22px rgba(238,106,44,.35)}
 .sh-new .sh-go{background:#EE6A2C}
+.sh-img img.deck{width:88%;height:auto;max-width:none;border-radius:6px;box-shadow:0 10px 24px rgba(22,38,59,.22);transition:transform .2s}
+.sh:hover .sh-img img.deck{transform:scale(1.04)}
+.sh-img .deck-none{font-size:13px;color:var(--muted)}
+.sh-deck .sh-img{background:linear-gradient(160deg,#16263B,#2C5468)}
+.sh-deck .plus{width:64px;height:64px;border-radius:50%;background:#1C9AD6;color:#fff;font-size:30px;line-height:64px;text-align:center;
+  box-shadow:0 10px 22px rgba(28,154,214,.35)}
 .sh-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
 .sh-back:hover{text-decoration:underline}
 @media (max-width:720px){
@@ -97,7 +103,8 @@
 /* ── print orders: the print shop ─────────────────────────────────────────
    A shop page: one tile per product. Business cards open the card designer
    (print.html#cards), each flyer opens its editor (flyer.html), and the
-   "new flyer" tile opens a brief (print.html#new-flyer).
+   "new flyer" tile opens a brief (print.html#new-flyer). Presentations
+   (presentations.html) are listed here too, one tile per deck.
 
    Staff request business cards and flyers here. Each request is sent to
    /api/requests (see api/requests.js), which files it as a new
@@ -216,8 +223,10 @@ function cardsSection() {
     '</form></div></section>';
 }
 /* ── the shop ─────────────────────────────────────────────────────────── */
-var CATS = [['all', 'Everything'], ['cards', 'Business cards'], ['flyers', 'Flyers'], ['custom', 'Something new']];
+var CATS = [['all', 'Everything'], ['cards', 'Business cards'], ['flyers', 'Flyers'], ['decks', 'Presentations'],
+            ['custom', 'Something new']];
 var CAT = 'all';
+var DECKS = null, DECK_ADMIN = false;   /* from /api/presentations — slides stay private there */
 function shopTiles() {
   var tiles = [{
     cat: 'cards', href: '#cards', kind: 'Business cards', title: 'Business cards',
@@ -235,6 +244,24 @@ function shopTiles() {
       img: '<img class="fly" src="' + esc(flyerThumb(f.versions[0])) + '" alt="" loading="lazy">'
     });
   });
+  (DECKS || []).forEach(function (d) {
+    tiles.push({
+      cat: 'decks', href: 'presentations.html#deck=' + encodeURIComponent(d.id), kind: 'Presentation' + (d.category ? ' · ' + d.category : ''),
+      title: d.title, text: d.description || '', meta: d.slide_count + ' slide' + (d.slide_count === 1 ? '' : 's'), go: 'View slides',
+      badge: d.status !== 'ready' ? 'Upload not finished' : '',
+      img: d.cover ? '<img class="deck" src="' + esc(d.cover) + '" alt="" loading="lazy">' : '<div class="deck-none">No slides yet</div>'
+    });
+  });
+  if (DECK_ADMIN || !(DECKS && DECKS.length)) {
+    tiles.push({
+      cat: 'decks', href: DECK_ADMIN ? 'presentations.html#add' : 'presentations.html', kind: 'Presentations',
+      title: DECK_ADMIN ? 'Add a presentation' : 'Presentations', cls: 'sh-deck',
+      text: DECK_ADMIN ? 'Put a PowerPoint from SharePoint on the site: drop its slide images and paste the link.'
+                       : 'PowerPoint decks from SharePoint, to flip through right here.',
+      meta: 'Staff only', go: DECK_ADMIN ? 'Add one' : 'Open',
+      img: '<div class="plus" aria-hidden="true">' + (DECK_ADMIN ? '+' : '▶') + '</div>'
+    });
+  }
   tiles.push({
     cat: 'custom', href: '#new-flyer', kind: 'Custom', title: 'Request a new flyer', cls: 'sh-new',
     text: 'Something none of these cover? Tell marketing what it\'s for and they\'ll design it.', meta: 'Designed for you', go: 'Start a request',
@@ -291,7 +318,7 @@ function render() {
   if (view === 'flyers') { CAT = 'flyers'; }
   var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : shopSection();
   document.getElementById('sheet').innerHTML =
-    pageHeader('Print Orders', 'Business cards &amp; flyers &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
+    pageHeader('Print Orders', 'Cards, flyers &amp; presentations &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
     (passwordCard() ? '<section style="padding-bottom:0">' + passwordCard() + '</section>' : '') +
     body +
     pageFooter('print requests');
@@ -300,6 +327,14 @@ function render() {
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', function () { SM.ready.then(render); });
+/* presentations come from the server (signed-in only); the shop shows them once they arrive */
+function loadDecks() {
+  if (!SM.me) { return; }
+  SM.api('GET', '/api/presentations').then(function (j) {
+    DECKS = j.decks || []; DECK_ADMIN = !!j.admin;
+    if (document.getElementById('shop')) { render(); }
+  }, function () { /* not set up yet — the shop still shows the Presentations tile */ });
+}
 
 /* ── submitting ───────────────────────────────────────────────────────── */
 function msg(pfx, kind, text) {
@@ -400,6 +435,6 @@ function wire() {
   });
 }
 
-SM.ready.then(render);
+SM.ready.then(function () { render(); loadDecks(); });
 </script>
 </body></html>

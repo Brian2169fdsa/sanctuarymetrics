@@ -102,6 +102,8 @@ var DECKS = null, DECK = null, CUR = 1, ADMIN = false, ERR = '';
 var FULL_W = 1920, THUMB_W = 480;
 
 function when(iso) { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+/* print.html's "Add a presentation" tile links to #add */
+function wantsAdd() { return location.hash === '#add'; }
 function deckId() { var m = location.hash.match(/^#deck=([0-9a-f-]{36})(?:&s=(\d+))?$/i); return m ? { id: m[1], s: +(m[2] || 1) } : null; }
 
 /* ── the list ─────────────────────────────────────────────────────────── */
@@ -115,7 +117,7 @@ function tile(d) {
       '<div class="pr-meta">Added ' + esc(when(d.created_at)) + (d.created_by_name ? ' by ' + esc(d.created_by_name) : '') + '</div></div></a>';
 }
 function listHtml() {
-  return '<section><div class="pr-top"><div><div class="eyebrow">Presentations</div>' +
+  return '<section><a class="pv-back" href="print.html">← Print shop</a><div class="pr-top"><div><div class="eyebrow">Presentations</div>' +
     '<h2 style="font-size:28px;margin:6px 0 0">Presentations</h2>' +
     '<p class="lead" style="margin-bottom:0">Decks from SharePoint. Open one to flip through the slides, or open it in PowerPoint.</p></div>' +
     (ADMIN ? '<button type="button" class="btn" id="pr-add">+ Add presentation</button>' : '') + '</div>' +
@@ -174,7 +176,7 @@ function show(n) {
 function render() {
   var at = deckId();
   document.getElementById('sheet').innerHTML =
-    pageHeader('Presentations', 'Decks from SharePoint &nbsp;·&nbsp; Internal', 'Staff only — sign-in required', 'presentations') +
+    pageHeader('Presentations', 'Decks from SharePoint &nbsp;·&nbsp; Internal', 'Staff only — sign-in required', 'print') +
     (at ? viewerHtml() : listHtml()) + pageFooter('presentations');
   if (at && DECK) {
     show(at.s);
@@ -220,7 +222,10 @@ function load() {
     return;
   }
   DECK = null; render();
-  SM.api('GET', API).then(function (j) { DECKS = j.decks; ADMIN = j.admin; render(); },
+  SM.api('GET', API).then(function (j) {
+    DECKS = j.decks; ADMIN = j.admin; render();
+    if (wantsAdd() && ADMIN) { history.replaceState(null, '', location.pathname); openAdd(); }
+  },
     function (e) { ERR = e.message; DECKS = []; render(); });
 }
 window.addEventListener('hashchange', load);
