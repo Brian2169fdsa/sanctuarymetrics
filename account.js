@@ -130,7 +130,8 @@
         '<div id="smpanel" role="dialog" aria-label="Alerts" hidden></div>';
       document.getElementById('smbell').addEventListener('click', togglePanel);
       document.getElementById('smout').addEventListener('click', function () {
-        SM.logout().then(function () { if (here() === 'account.html') { location.reload(); } });
+        /* every page needs a sign-in now, so signing out goes back to the front door */
+        SM.logout().then(function () { location.replace('login.html'); });
       });
     }
     /* first sign-in with a temporary password: nudge to choose a real one */
