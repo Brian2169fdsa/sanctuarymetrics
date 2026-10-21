@@ -83,3 +83,20 @@ if you want to pin it.
 - Turning an account off on **Account → People** blocks Microsoft sign-in too.
 - The client secret expires; the script sets it to 24 months. Make a new one
   before then, or Microsoft sign-in stops. Password sign-in keeps working.
+
+## Every page needs a sign-in
+
+`middleware.js` sits in front of the whole site. Anyone without a valid
+session goes to `login.html` first. After signing in they land on the page
+they asked for; visiting the site root lands them on the report
+(`index.html`). Signing out sends them back to `login.html`.
+
+These stay open:
+
+- `login.html`
+- `account.html`, for first-time setup and the `?password=1` fallback
+- `/api/*`, since each function checks access itself
+- images, scripts and styles
+
+The old team password no longer gets anyone past the front door. Everyone
+needs an account (Admin → People).
