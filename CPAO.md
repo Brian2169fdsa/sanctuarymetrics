@@ -57,14 +57,14 @@ The steps and timings live in `cpao/process.js`, and both pages read them from t
 
 **Opening a person:** click a name on the roster to open them in a pop-up. It shows where they are in the 10 steps, what they submitted, the automatic check, follow-ups and every action. **Open full page ↗** gives the same view as its own page.
 
-**CPAO mail:** AHCCCS answers by letter, mailed to Sanctuary.
-- **Uploading:** Elyssa opens **CPAO mail** in the top menu (`cpao-mail.html`). She picks the person and what the letter says (approved, denied, correction needed, final approval or other), adds the letter date, and uploads the scan or photo (PDF, JPG or PNG, up to 4 MB).
-- **Where it goes:** the letter is filed privately on that person's record, and you get a bell alert plus a "CPAO letter for …" task. Denials and corrections are marked Hot.
-- **Viewing it:** open the person and press **View letter** in their follow-ups. Only admins can open letters.
+**CPAO letters:** AHCCCS answers by letter, mailed to Sanctuary.
+- **Uploading:** Elyssa opens **HEAplus (CP-AO)** in the top menu, presses **View details** on the person's row, and uses **"Got a letter from CPAO? Upload it here"** in their "Where they are" card. She picks what it says (approved, denied, correction needed, final approval or other), adds the letter date, and uploads the scan or photo (PDF, JPG or PNG, up to 4 MB). You can upload from the same place.
+- **Where it goes:** the letter is tracked on that person's card and in their follow-ups, and you get a bell alert plus a "CPAO letter for …" task. Denials and corrections are marked Hot.
+- **What uploaders see:** a limited view of the roster and each person's stage and letters. No application details, SSN, birth date or address, invites, countersigning, batches, settings or audit log.
 - **Who can upload:** admins, plus the emails in the Vercel setting `CPAO_MAIL_UPLOADERS` (comma-separated). It defaults to `efischer@sanctuaryrecoverycenters.com`.
 
 **If AHCCCS denies an application:**
-1. Elyssa uploads the denial letter on **CPAO mail**, and you get an alert.
+1. Elyssa uploads the denial letter in the person's card, and you get an alert.
 2. Open the person, read the letter, and use **CPAO denied it?** to enter the reason and the letter date.
 3. The denial is logged in their follow-ups, and you get a "Let … know" task due the next business day. Tell them privately, in person or by phone.
 4. If the reason can be fixed, press **Invite them to reapply**. They start again at step 1.

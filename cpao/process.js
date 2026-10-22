@@ -24,7 +24,7 @@ var CPAO_STAGES = [
   { n: 5, key: 'sent', title: 'Sent to CPAO — background check', who: 'AHCCCS / CPAO',
     statuses: ['sent_to_cpao', 'cpao_correction_requested'],
     time: '1 week to 3 months',
-    text: 'Brian emails the bundle to CPAO. AHCCCS runs the background check. AHCCCS replies by letter mailed to Sanctuary — Elyssa uploads it on the CPAO mail page and Brian gets an alert. If CPAO asks for a correction or more information, it is logged as a follow-up and re-sent.' },
+    text: 'Brian emails the bundle to CPAO. AHCCCS runs the background check. AHCCCS replies by letter mailed to Sanctuary — Elyssa uploads it in the person's card on the HEAplus tab and Brian gets an alert. If CPAO asks for a correction or more information, it is logged as a follow-up and re-sent.' },
   { n: 6, key: 'training', title: 'Approved — AZLearns training', who: 'Staff member',
     statuses: ['approved_training_assigned'],
     time: 'Usually 1–2 weeks to finish',
@@ -49,7 +49,7 @@ var CPAO_STAGES = [
 var CPAO_TOTAL_TIME = 'About 3 weeks at the quickest, and up to 3–4 months — almost all of it is the AHCCCS background check.';
 /* what happens when AHCCCS says no (usually after the background check, step 5) */
 var CPAO_DENIAL = [
-  'AHCCCS mails a letter to Sanctuary. Elyssa uploads it on the CPAO mail page, and Brian gets an alert and a task.',
+  'AHCCCS mails a letter to Sanctuary. Elyssa uploads it in the person's card on the HEAplus tab, and Brian gets an alert and a task.',
   'Brian opens the person, reads the letter and records the denial with the reason. It goes in their follow-up log, and a task is added for Brian to let them know.',
   'Brian tells the person privately — in person or by phone, not by email with details.',
   'They can\'t use HEAplus. If the reason can be fixed (a wrong date of birth, a name mismatch, a missing document), Brian can invite them to reapply and the process starts again at step 1.'
