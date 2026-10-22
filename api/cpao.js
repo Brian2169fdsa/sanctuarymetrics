@@ -697,6 +697,34 @@ async function mailUpload(req, me, q) {
   return { ok: true };
 }
 
+/* CPAO mail uploaders (not admins) see the roster and each person's stage
+   and letters — never the application, PII, invites or settings */
+const STAFF_PUBLIC = ['id', 'first_name', 'last_name', 'title_position', 'status', 'stage_dates', 'last_action', 'last_action_at', 'created_at', 'updated_at'];
+function limitedStaff(s) {
+  const o = {};
+  STAFF_PUBLIC.forEach(function (k) { o[k] = s[k]; });
+  o.followups = (s.followups || []).filter(function (f) { return f.kind === 'letter'; });
+  return o;
+}
+async function mailRoute(req, res, action, me, q) {
+  if (req.method === 'GET' && action === 'roster') {
+    const staff = await db('GET', 'cpao_staff', '?select=*&status=not.in.(removed)&order=updated_at.desc');
+    return sendJSON(res, 200, { limited: true, staff: staff.map(limitedStaff), batches: [], statuses: STATUSES, titles: R.TITLE_OPTIONS, constants: R.C,
+      settings: { has_signature: true, site_admin_phone: 'x', batch_weekday: 1 }, setup: {} });
+  }
+  if (req.method === 'GET' && action === 'detail') {
+    const s = await staffById(q.id);
+    await audit(me.email, 'view_status', s.id, null, req);
+    return sendJSON(res, 200, { limited: true, staff: limitedStaff(s), app: null, links: {} });
+  }
+  if (req.method === 'GET' && action === 'file') {
+    if (!/^mail\//.test(str(q.key, 300))) { throw bad('Only the site administrator can open that file.', 403); }
+    return sendJSON(res, 200, await fileLink(req, me, q.key));
+  }
+  if (req.method === 'GET' && action === 'mail_people') { return sendJSON(res, 200, await mailPeople()); }
+  return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can do that.' });
+}
+
 async function adminRoute(req, res, action, me, q) {
   if (req.method === 'GET') {
     if (action === 'roster') { return sendJSON(res, 200, await roster(me)); }
@@ -706,6 +734,7 @@ async function adminRoute(req, res, action, me, q) {
       return sendJSON(res, 200, { entries: await db('GET', 'cpao_audit_log', where + 'select=*&order=at.desc&limit=200') });
     }
     if (action === 'file') { return sendJSON(res, 200, await fileLink(req, me, q.key)); }
+    if (action === 'mail_people') { return sendJSON(res, 200, await mailPeople()); }
     if (action === 'directory') {
       /* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
       try {
@@ -803,13 +832,12 @@ module.exports = async function handler(req, res) {
     if (STAFF_ACTIONS[action]) { return await staffRoute(req, res, action); }
     const me = await currentUser(req);
     if (!me) { return sendJSON(res, 401, { error: 'signin', message: 'Sign in first.' }); }
-    if (action === 'mail_people' || action === 'mail_upload') {
-      if (!access(me).cpao_mail) { return sendJSON(res, 403, { error: 'forbidden', message: 'Ask Brian to add you as a CPAO mail uploader.' }); }
-      if (action === 'mail_people' && req.method === 'GET') { return sendJSON(res, 200, await mailPeople()); }
-      if (action === 'mail_upload' && req.method === 'POST') { return sendJSON(res, 200, await mailUpload(req, me, q)); }
-      throw bad('Unknown action.', 404);
+    /* letters are uploaded raw, before any JSON body is read */
+    if (action === 'mail_upload' && req.method === 'POST' && access(me).cpao_mail) { return sendJSON(res, 200, await mailUpload(req, me, q)); }
+    if (!access(me).admin) {
+      if (!access(me).cpao_mail) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can open this.' }); }
+      return await mailRoute(req, res, action, me, q);
     }
-    if (!access(me).admin) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can open this.' }); }
     return await adminRoute(req, res, action, me, q);
   } catch (e) {
     if (e.bad) { return sendJSON(res, e.status, { error: 'bad_request', message: e.message }); }

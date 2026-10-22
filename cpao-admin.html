@@ -190,6 +190,10 @@ function stageCell(s) {
 var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function $(id) { return document.getElementById(id); }
+/* CPAO mail uploaders (not admins) get a limited view: roster, stages, letters */
+function LIM() { return !!(DATA && DATA.limited); }
+var LETTER_KINDS = [['approved', 'Approved — training assigned'], ['denied', 'Denied'], ['correction', 'Correction or more information needed'],
+                    ['final', 'Final approval'], ['other', 'Other']];
 function api(method, action, body) { return SM.api(method, '/api/cpao?action=' + action, body); }
 function when(iso) { return iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Phoenix' }) : ''; }
 function day(d) { return d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
@@ -207,6 +211,13 @@ function shell(inner) {
     return '<button class="ca-tab" role="tab" data-tab="' + id + '" aria-selected="' + (view === id || (id === 'roster' && view === 'staff')) + '">' + label +
       (count ? '<small>' + count + '</small>' : '') + '</button>';
   };
+  if (LIM()) {
+    $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access', 'Where each person is · CPAO letters', 'cpao') +
+      '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 6px">HEAplus access</h2>' +
+      '<p class="lead" style="margin:0 0 14px">When AHCCCS mails Sanctuary a letter about someone, press <b>View details</b> on their row and upload it in their card. Brian is alerted right away.</p>' +
+      inner + '</section>' + pageFooter('CP-AO portal');
+    return;
+  }
   $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access · Site Administrator', 'Admins only', 'cpao') +
     '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 10px">HEAplus access</h2>' +
     setupWarnings() +
@@ -219,7 +230,7 @@ function shell(inner) {
   });
 }
 function setupWarnings() {
-  if (!DATA) { return ''; }
+  if (!DATA || LIM()) { return ''; }
   var s = DATA.setup, w = [];
   if (!s.pii_key) { w.push('<b>CPAO_PII_KEY</b> isn\'t set in Vercel. You can invite people now, but they can\'t fill in the form, and you can\'t countersign, until it is (see CPAO.md).'); }
   if (!DATA.settings.has_signature) { w.push('Draw your <b>signature</b> under Settings — countersigning and the Org form need it.'); }
@@ -250,8 +261,8 @@ function rosterView() {
   shell('<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
       '<div class="filters" role="group" aria-label="Show">' + FILTERS.map(function (f) {
         return '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>' +
-      '<button class="btn" id="inv-open">+ Invite someone</button></div>' +
-    '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
+      (LIM() ? '' : '<button class="btn" id="inv-open">+ Invite someone</button>') + '</div>' +
+    (LIM() ? '' : '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
       '<div class="dir"><label class="fl" for="d-q">Pick from Microsoft 365</label>' +
         '<input type="search" id="d-q" placeholder="Loading the staff list…" autocomplete="off" aria-describedby="d-note">' +
         '<p class="sub" id="d-note" style="margin:6px 0 0">Click a name to fill the form, or tick several and invite them together.</p>' +
@@ -270,12 +281,12 @@ function rosterView() {
       '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
-    '</form></div>' +
-    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
+    '</form></div>') +
+    (list.length ? '<table class="tbl"><thead><tr><th>' + (LIM() ? '' : '<input type="checkbox" id="selall" aria-label="Select all">') + '</th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
       list.map(function (s) {
-        return '<tr><td><input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '"></td>' +
+        return '<tr><td>' + (LIM() ? '' : '<input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '">') + '</td>' +
           '<td><a class="nm" data-open="' + s.id + '" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
-            '<div class="sm">' + esc(s.title_position || '') + (s.title_position ? ' · ' : '') + esc(s.email) + '</div></td>' +
+            '<div class="sm">' + esc(s.title_position || '') + (s.title_position && s.email ? ' · ' : '') + esc(s.email || '') + '</div></td>' +
           '<td>' + stageCell(s) + '</td>' +
           '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
             ((s.followups || []).length ? ' · ' + s.followups.length + ' follow-up' + (s.followups.length === 1 ? '' : 's') : '') + '</div></td>' +
@@ -284,10 +295,10 @@ function rosterView() {
           '<td style="text-align:right"><button type="button" class="btn alt view-btn" data-open="' + s.id + '">View details →</button></td></tr>';
       }).join('') + '</tbody></table>'
       : '<div class="placeholder">' + (DATA.staff.length ? 'No one in this view.' : 'No one yet — press <b>+ Invite someone</b> to send the first application.') + '</div>') +
-    '<div class="bulk" id="bulk" hidden><b id="bulk-n"></b>' +
+    (LIM() ? '' : '<div class="bulk" id="bulk" hidden><b id="bulk-n"></b>' +
       '<button class="btn alt" id="b-sa">Mark Add-SA</button>' +
       '<label class="ck"><input type="checkbox" id="b-conf"> Their HEAplus accounts are already deactivated</label>' +
-      '<button class="btn warm" id="b-rm">Mark for removal</button><span class="note" id="b-note" hidden></span></div>' +
+      '<button class="btn warm" id="b-rm">Mark for removal</button><span class="note" id="b-note" hidden></span></div>') +
     '<div class="how"><h3 style="font-family:Fraunces,serif;font-size:21px;margin:0 0 4px">How it works, start to finish</h3>' +
       '<p class="sub" style="margin:0 0 14px">Every person moves through these 10 steps. Their stage and the date each step happened show on the roster and on their page.</p>' +
       cpaoProcessHtml() + '</div>');
@@ -301,6 +312,7 @@ function wireRoster() {
     });
   });
   document.querySelectorAll('[data-f]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); rosterView(); }); });
+  if (LIM()) { return; }
   $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
   wireDir();
   $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
@@ -469,7 +481,23 @@ function afterChange(id) {
   if (popOpen()) { refresh(true); } else { refresh(false); }
   staffView(id);
 }
+/* the uploader's card: where they are + letters */
+function drawLimited(j) {
+  var s = j.staff, inPop = !!popOpen();
+  var html = (inPop ? '' : '<a class="back" href="#roster">← Roster</a>') +
+    '<h3 style="font-family:Fraunces,serif;font-size:24px;margin:0">' + esc(s.first_name + ' ' + s.last_name) + '</h3>' +
+    '<div class="sub" style="margin:4px 0 0">' + pill(s.status) + '</div>' +
+    '<div class="note" id="s-note" hidden></div>' + tracker(s) +
+    '<div class="card" style="margin-top:14px"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Letters from CPAO</div>' +
+      ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
+        return '<li>' + esc(f.text) + ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' +
+          '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + '</div></li>'; }).join('') + '</ul>'
+        : '<p class="sub" style="margin:0">None yet.</p>') + '</div>';
+  if (inPop) { $('pop-body').innerHTML = html; } else { shell(html); }
+  wireLetters(s);
+}
 function drawStaff(j) {
+  if (j.limited) { return drawLimited(j); }
   var s = j.staff, a = j.app, ans = (a && a.answers) || {};
   var ai = a && a.ai_check_result;
   var row = function (k, v) { return '<dt>' + k + '</dt><dd>' + (v === null || v === undefined || v === '' ? '—' : v) + '</dd>'; };
@@ -564,13 +592,49 @@ function tracker(s) {
     : /remove/.test(s.status) ? '<p class="note err" style="margin:0 0 10px">' + esc(LABEL[s.status]) + '.</p>' : '';
   return '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">' +
       '<div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">Where they are' + (cur ? ' — step ' + cur.n + ' of 10' : '') + '</div>' +
-      (nx ? '<button class="btn next-btn" id="nx-go" data-to="' + nx[0] + '">✓ ' + esc(nx[1]) + '</button>' : '') + '</div>' + extra +
+      (nx && !LIM() ? '<button class="btn next-btn" id="nx-go" data-to="' + nx[0] + '">✓ ' + esc(nx[1]) + '</button>' : '') + '</div>' + extra +
     '<ol class="proc" style="margin-top:12px">' + CPAO_STAGES.map(function (st) {
       var d = stageDate(s, st), state = cur ? (st.n < cur.n ? 'done' : st.n === cur.n ? 'now' : '') : (d ? 'done' : '');
       return '<li class="' + state + '"><div class="proc-h"><b>' + st.n + '. ' + esc(st.title) + '</b>' +
         '<span class="proc-t">' + (d && state ? (state === 'now' ? 'since ' : '') + day(d) : esc(st.time)) + '</span></div>' +
         (state === 'now' ? '<div class="proc-w">' + esc(st.who) + ' · usually ' + esc(st.time) + '</div><p>' + esc(st.text) + '</p>' : '') + '</li>';
-    }).join('') + '</ol></div>';
+    }).join('') + '</ol>' + letterForm(s) + '</div>';
+}
+/* upload a letter AHCCCS mailed to Sanctuary, right on the person's card */
+function letterForm(s) {
+  if (['invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'removed'].indexOf(s.status) >= 0) { return ''; }
+  return '<details class="letter" style="margin-top:6px;border-top:1px solid var(--line);padding-top:12px"' + (LIM() ? ' open' : '') + '>' +
+    '<summary style="cursor:pointer;font-weight:700;font-size:14.5px">✉️ Got a letter from CPAO? Upload it here</summary>' +
+    '<p class="sub" style="margin:8px 0 10px">Scan it or take a clear photo. It\'s saved privately on ' + esc(s.first_name) + '\'s record' +
+      (LIM() ? ' and Brian is alerted right away.' : ', logged in their follow-ups, and you get an alert and a task.') + '</p>' +
+    '<div class="f2"><label class="fl wide">What does the letter say?<select id="lt-kind"><option value="">Pick one…</option>' +
+      LETTER_KINDS.map(function (k) { return '<option value="' + k[0] + '">' + esc(k[1]) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="fl">Date on the letter<input type="date" id="lt-date"></label>' +
+    '<label class="fl">The letter (PDF, JPG or PNG, up to 4 MB)<input type="file" id="lt-file" accept="application/pdf,image/jpeg,image/png"></label>' +
+    '<label class="fl wide">Note (optional)<input id="lt-note" maxlength="500" placeholder="e.g. Second page missing from the envelope"><span class="fh">No SSNs or birth dates here.</span></label></div>' +
+    '<div class="btnrow"><button type="button" class="btn" id="lt-go">' + (LIM() ? 'Upload and alert Brian' : 'Upload letter') + '</button></div>' +
+    '<div class="note" id="lt-note-msg" hidden></div></details>';
+}
+function wireLetters(s) {
+  document.querySelectorAll('[data-letter]').forEach(function (b) {
+    b.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(b.getAttribute('data-letter'))).catch(function (e) { note('s-note', 'err', e.message); }); });
+  });
+  if (!$('lt-go')) { return; }
+  $('lt-go').addEventListener('click', function () {
+    var kind = $('lt-kind').value, f = $('lt-file').files[0];
+    if (!kind) { return note('lt-note-msg', 'err', 'Pick what the letter says.'); }
+    if (!f) { return note('lt-note-msg', 'err', 'Choose the scan or photo of the letter.'); }
+    if (f.size > 4000000) { return note('lt-note-msg', 'err', 'That file is over 4 MB — scan it at a lower resolution, or take a photo instead.'); }
+    var b = $('lt-go'); b.disabled = true; b.textContent = 'Uploading…';
+    fetch('/api/cpao?action=mail_upload&id=' + encodeURIComponent(s.id) + '&kind=' + encodeURIComponent(kind) + '&date=' + encodeURIComponent($('lt-date').value), {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/octet-stream', 'X-Note': encodeURIComponent($('lt-note').value.trim()) }, body: f
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); })
+      .then(function () {
+        afterChange(s.id);
+        setTimeout(function () { note('s-note', 'ok', 'Letter uploaded' + (LIM() ? ' — Brian has been alerted.' : '.')); }, 500);
+      }, function (e) { b.disabled = false; b.textContent = 'Upload'; note('lt-note-msg', 'err', e.message); });
+  });
 }
 function wireStaff(s) {
   document.querySelectorAll('[data-reveal]').forEach(function (b) {
@@ -628,9 +692,7 @@ function wireStaff(s) {
         .then(function () { afterChange(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
     });
   }
-  document.querySelectorAll('[data-letter]').forEach(function (b) {
-    b.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(b.getAttribute('data-letter'))).catch(function (e) { note('s-note', 'err', e.message); }); });
-  });
+  wireLetters(s);
   if ($('dn-go')) {
     $('dn-go').addEventListener('click', function () {
       if (!$('dn-reason').value.trim()) { note('s-note', 'err', 'Add the reason CPAO gave for the denial.'); return; }
@@ -759,7 +821,7 @@ function setupGate(view) {
   if (view !== GATE_VIEW) { GATE_VIEW = view; GATE_LATER = false; }
   var old = $('gate');
   if (old) { old.remove(); }
-  if (!DATA || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
+  if (!DATA || LIM() || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
   document.body.insertAdjacentHTML('beforeend',
     '<dialog class="gate" id="gate" aria-labelledby="gate-h"><div class="gate-in">' +
       '<div class="gate-steps"><span>1. Your signature</span><span class="' + (DATA.settings.site_admin_phone ? 'done' : '') + '">2. Office phone</span></div>' +
@@ -800,6 +862,7 @@ function route() {
   var h = location.hash.replace(/^#/, ''), k = h.split('=')[0], v = h.split('=')[1];
   setupGate(k);
   if (k === 'staff' && v) { return staffView(v); }
+  if (LIM()) { return rosterView(); }
   if (k === 'batches' || k === 'batch') { return batchesView(v); }
   if (k === 'settings') { return settingsView(); }
   if (k === 'audit') { return auditView(); }
