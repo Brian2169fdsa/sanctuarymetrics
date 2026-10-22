@@ -20,10 +20,13 @@ Within that, one of these must also be true:
 - They're the master admin (`ADMIN_EMAILS`, which defaults to
   `breinhart@sanctuaryrecoverycenters.com`). The first time that person signs
   in, the admin account is created for them.
-- `MS_AUTO_CREATE=true` is set. Then anyone in the tenant gets in as a
-  **member**, and the admins get an alert when someone joins.
+- Anyone else in the tenant gets in as **staff** on their first sign-in, and
+  the admins get an alert. Staff see Home, Social media, the print shop,
+  presentations, website edits and their own requests; an admin turns on
+  **Reports** or **Cost management** for them under People. Set
+  `MS_AUTO_CREATE=false` to stop this.
 
-Everyone else sees "There's no account for … yet. Ask an admin to add you."
+With `MS_AUTO_CREATE=false`, everyone else sees "There's no account for … yet. Ask an admin to add you."
 
 Once Microsoft sign-in is on, every **Sign in** button on the site goes to
 Microsoft and the password forms are hidden. If Microsoft is ever down, an
@@ -65,7 +68,7 @@ Go to **sanctuarymetrics → Settings → Environment Variables (Production)**. 
 - `MS_CLIENT_ID`
 - `MS_CLIENT_SECRET`
 
-Optionally add `MS_AUTO_CREATE=true`.
+Optionally add `MS_AUTO_CREATE=false` to stop new staff signing themselves in.
 
 Redeploy. Once both are set, the **Sign in with Microsoft** button appears and every sign-in goes through Microsoft.
 

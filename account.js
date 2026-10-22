@@ -43,8 +43,19 @@
       });
     });
   };
+  /* hide what this person can't open (middleware.js blocks the pages
+     themselves): classes on <html> switch off [data-need] links */
+  function applyAccess() {
+    var acc = (SM.me && SM.me.access) || { admin: false, reports: true, costs: false };
+    var root = document.documentElement.classList;
+    root.toggle('sm-no-reports', !acc.reports);
+    root.toggle('sm-no-costs', !acc.costs);
+    root.toggle('sm-no-admin', !acc.admin);
+  }
+  SM.can = function (what) { return !!(SM.me && SM.me.access && SM.me.access[what]); };
   function setUser(u) {
     SM.me = u || null;
+    applyAccess();
     drawBar();
     listeners.forEach(function (fn) { try { fn(SM.me); } catch (e) { /* page bug */ } });
     if (SM.me) { SM.refreshBell(); }
@@ -62,6 +73,8 @@
   /* ── styles ── */
   var css = document.createElement('style');
   css.textContent =
+    '.sm-no-reports [data-need="reports"],.sm-no-costs [data-need="costs"],.sm-no-admin [data-need="admin"],' +
+      'html:not(.sm-no-reports) [data-need="staff-only"]{display:none!important}' +
     '#smbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:8px 20px;font:500 13px Inter,sans-serif;' +
       'background:#16263B;color:#dfe8ee;position:relative;z-index:50;flex-wrap:wrap}' +
     '#smbar a,#smbar button.l{all:unset;cursor:pointer;color:#dfe8ee;padding:4px 9px;border-radius:7px}' +

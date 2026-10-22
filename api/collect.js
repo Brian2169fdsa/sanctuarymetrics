@@ -1,5 +1,10 @@
 /* ============================================================================
-   /api/collect — visitor analytics from sanctuaryci.org.
+   /api/collect — visitor analytics from sanctuaryci.org, in and out.
+
+   POST  events from the site's tracker (below)
+   GET   ?site=sanctuaryci.org&days=30 — the totals behind sanctuaryci.html,
+         for signed-in people with Reports access. (This was /api/site-stats;
+         it lives here so the site stays within Vercel's 12 functions.)
 
    The site loads analytics.js, which sends small batches of events here with
    navigator.sendBeacon (a "simple" cross-origin POST, so no preflight). Each
@@ -19,6 +24,7 @@
    ========================================================================== */
 
 const { sendJSON, supabase } = require('../lib/db');
+const A = require('../lib/auth');
 
 const DEFAULT_ORIGINS = 'https://sanctuaryci.org,https://www.sanctuaryci.org';
 const TYPES = { pageview: 1, engage: 1, click: 1, form: 1, vital: 1 };
@@ -113,11 +119,40 @@ function row(e, base) {
   return out;
 }
 
+/* GET: site_stats() in Supabase (supabase/site-analytics.sql) does the counting */
+const DAYS = [1, 7, 30, 90, 365];
+async function stats(req, res) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return sendJSON(res, 503, { error: 'not_configured', message: 'Site analytics are not set up yet.' });
+  }
+  let me = null;
+  try { me = await A.currentUser(req); } catch (e) { /* accounts not set up */ }
+  if (!me) { return sendJSON(res, 401, { error: 'signin', message: 'Sign in to see the site numbers.' }); }
+  if (!A.access(me).reports) { return sendJSON(res, 403, { error: 'access', message: 'The reports are open to people with Reports access.' }); }
+  const q = new URL(req.url, 'http://x').searchParams;
+  const site = String(q.get('site') || 'sanctuaryci.org').toLowerCase().replace(/^www\./, '');
+  const days = Number(q.get('days')) || 30;
+  if (!/^[a-z0-9.-]{3,100}$/.test(site)) { return sendJSON(res, 400, { error: 'site', message: 'Bad site.' }); }
+  if (DAYS.indexOf(days) < 0) { return sendJSON(res, 400, { error: 'days', message: 'days must be one of ' + DAYS.join(', ') + '.' }); }
+  try {
+    return sendJSON(res, 200, await supabase('POST', '', { p_site: site, p_days: days }, null, 'rpc/site_stats'));
+  } catch (e) {
+    /* PGRST202 = the function doesn't exist yet (SQL not run) */
+    const missingFn = e.status === 404 || /PGRST202|PGRST205|site_stats|site_events/.test(e.message);
+    return sendJSON(res, 502, {
+      error: missingFn ? 'schema' : 'storage',
+      message: missingFn ? 'The analytics tables aren\'t in Supabase yet — run supabase/site-analytics.sql in the SQL Editor.'
+        : 'Could not reach the analytics database. Try again shortly.'
+    });
+  }
+}
+
 module.exports = async function handler(req, res) {
+  if (req.method === 'GET') { return stats(req, res); }
   const originOk = cors(req, res);
   if (req.method === 'OPTIONS') { res.statusCode = originOk ? 204 : 403; return res.end(); }
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
+    res.setHeader('Allow', 'GET, POST, OPTIONS');
     return sendJSON(res, 405, { error: 'method' });
   }
   if (!originOk) { return sendJSON(res, 403, { error: 'origin' }); }

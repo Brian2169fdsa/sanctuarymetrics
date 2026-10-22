@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:14px}
+.hm{display:flex;gap:14px;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff;
+  text-decoration:none;color:var(--ink);transition:box-shadow .15s,transform .15s,border-color .15s}
+.hm:hover{box-shadow:0 12px 26px rgba(22,38,59,.12);transform:translateY(-2px);border-color:#cfdde5}
+.hm:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.hm-ic{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#eef5f9}
+.hm b{display:block;font-family:Fraunces,serif;font-size:18px;font-weight:600;line-height:1.25}
+.hm div span{display:block;font-size:13px;color:var(--muted);line-height:1.45;margin-top:3px}
+.hm em{display:inline-block;font-style:normal;font-size:11.5px;font-weight:700;color:#fff;background:#EE6A2C;border-radius:10px;padding:2px 8px;margin-top:6px}
+.hm-h{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#c0572b;margin:26px 0 0}
+.hm-denied{margin-top:14px}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── home ─────────────────────────────────────────────────────────────────
+   Where everyone lands after signing in: a tile for each part of the site
+   this person can open (access levels: lib/auth.js access(); pages are
+   enforced by middleware.js). ?denied=page.html says why they were sent
+   here instead.                                                         */
+var DENIED = { 'index.html': 'the performance report', 'compare.html': 'Compare', 'twoweeks.html': 'Two weeks at a glance',
+               'sanctuaryci.html': 'the sanctuaryci.org metrics', 'costs.html': 'cost cutting' };
+function tile(href, icon, title, text, badge) {
+  return '<a class="hm" href="' + href + '"><span class="hm-ic" aria-hidden="true">' + icon + '</span>' +
+    '<div><b>' + esc(title) + '</b><span>' + esc(text) + '</span>' + (badge ? '<em>' + esc(badge) + '</em>' : '') + '</div></a>';
+}
+function render(socialNew) {
+  var me = SM.me || {}, can = SM.can;
+  var q = new URLSearchParams(location.search), denied = q.get('denied');
+  var first = (me.name || '').split(' ')[0];
+  var staff = tile('social.html', '📸', can('admin') ? 'Social media' : 'Share event photos',
+      can('admin') ? 'Posts from the team, drafted by Claude, ready for you to publish.'
+                   : 'Send photos and a few words from an event — marketing turns them into a post.',
+      can('admin') && socialNew ? socialNew + ' to post' : '') +
+    tile('print.html', '🖨️', 'Print shop', 'Business cards, flyers and presentations — order or ask for changes.') +
+    tile('website.html', '🌐', 'Website edits', 'Ask for a change on any page of sanctuaryrecoverycenters.com.') +
+    tile('projects.html', '📋', can('reports') ? 'Projects' : 'My requests',
+      can('reports') ? 'The marketing project list, with messages on every item.' : 'Everything you\'ve asked for, and where it stands.');
+  var reports = can('reports') ?
+    '<p class="hm-h">Reports</p><div class="hm-grid">' +
+      tile('index.html', '📈', 'Performance report', 'Marketing results across every channel.') +
+      tile('compare.html', '⚖️', 'Compare', 'Two periods side by side.') +
+      tile('twoweeks.html', '🗓️', 'Two weeks at a glance', 'The latest fortnight on one page.') +
+      tile('sanctuaryci.html', '📊', 'sanctuaryci.org metrics', 'Visitors, scroll depth and clicks on the CI site.') +
+    '</div>' : '';
+  var costs = can('costs') ?
+    '<p class="hm-h">Cost management</p><div class="hm-grid">' +
+      tile('costs.html', '💲', 'Cost cutting', 'Microsoft and Google licences, recommended cuts and approvals.') + '</div>' : '';
+  var admin = can('admin') ?
+    '<p class="hm-h">Admin</p><div class="hm-grid">' +
+      tile('account.html#people', '👥', 'People & access', 'Who can sign in, and who sees reports or cost management.') + '</div>' : '';
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Home', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Team portal', 'Signed in as ' + esc(me.email || ''), 'home') +
+    '<section><div class="eyebrow">Team portal</div>' +
+      '<h2 style="font-size:28px;margin:6px 0 0">' + (first ? 'Hi ' + esc(first) + '.' : 'Welcome.') + ' What do you need?</h2>' +
+      (denied ? '<div class="warn hm-denied">You don\'t have access to ' + esc(DENIED[denied] || denied) + '. ' +
+        'If you need it, ask an admin to turn it on for you.</div>' : '') +
+      '<div class="hm-grid">' + staff + '</div>' + reports + costs + admin +
+    '</section>' + pageFooter('team portal');
+}
+SM.ready.then(function () {
+  render(0);
+  /* admins: how many social posts are waiting */
+  if (SM.can('admin')) {
+    SM.api('GET', '/api/social?count=1').then(function (j) { if (j.waiting) { render(j.waiting); } }, function () {});
+  }
+});
+</script>
+</body></html>

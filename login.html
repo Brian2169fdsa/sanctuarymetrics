@@ -99,7 +99,7 @@ input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transp
   var q = new URLSearchParams(location.search);
   /* only ever send people back to a page on this site */
   var ok = /^[a-z0-9-]+\.html(#[\w=:%.\-]*)?$/i;
-  var next = ok.test(q.get('next') || '') ? q.get('next') : 'projects.html';
+  var next = ok.test(q.get('next') || '') ? q.get('next') : 'home.html';
   /* the sign-in gate (middleware.js) can't see a #link; the browser carries it here, so pass it on */
   if (location.hash && next.indexOf('#') < 0 && ok.test(next + location.hash)) { next += location.hash; }
   var ERRORS = {

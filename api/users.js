@@ -3,7 +3,7 @@
 
      GET                                   list every account
      POST   {email, name, role}            create one; returns a temporary password
-     PATCH  ?id=… {name?, role?, disabled?, reset_password?}
+     PATCH  ?id=… {name?, role?, disabled?, access_reports?, access_costs?, reset_password?}
                                            reset_password returns a new temporary
                                            password and signs that person out
      DELETE ?id=…                          remove an account
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
     const idOk = /^[0-9a-f-]{36}$/i.test(id || '');
 
     if (req.method === 'GET') {
-      const rows = await supabase('GET', '?select=' + A.USER_COLS + '&order=created_at.asc', null, null, 'app_users');
+      const rows = await supabase('GET', '?select=' + (await A.userCols()) + '&order=created_at.asc', null, null, 'app_users');
       return sendJSON(res, 200, { users: rows });
     }
 
@@ -49,7 +49,7 @@ module.exports = async function handler(req, res) {
       const temp = A.tempPassword();
       let rows;
       try {
-        rows = await supabase('POST', '?select=' + A.USER_COLS, { email: email, name: name, role: role,
+        rows = await supabase('POST', '?select=' + (await A.userCols()), { email: email, name: name, role: role,
           password_hash: A.hashPassword(temp), must_change_password: true }, null, 'app_users');
       } catch (e) {
         if (e.status === 409) { return sendJSON(res, 409, { error: 'exists', message: 'There is already an account for ' + email + '.' }); }
@@ -74,6 +74,9 @@ module.exports = async function handler(req, res) {
         fields.role = b.role;
       }
       if ('disabled' in b) { fields.disabled = b.disabled === true; }
+      /* what a staff member may open beyond the staff pages (admins get everything) */
+      if ('access_reports' in b) { fields.access_reports = b.access_reports === true; }
+      if ('access_costs' in b) { fields.access_costs = b.access_costs === true; }
       if (id === me.id && (fields.role === 'member' || fields.disabled)) {
         return sendJSON(res, 400, { error: 'self', message: 'You can\'t remove your own admin access.' });
       }
@@ -82,7 +85,7 @@ module.exports = async function handler(req, res) {
         Object.assign(fields, { password_hash: A.hashPassword(temp), must_change_password: true, failed_logins: 0, locked_until: null });
       }
       if (!Object.keys(fields).length) { return sendJSON(res, 400, { error: 'empty', message: 'Nothing to change.' }); }
-      const rows = await supabase('PATCH', '?id=eq.' + id + '&select=' + A.USER_COLS, fields, null, 'app_users');
+      const rows = await supabase('PATCH', '?id=eq.' + id + '&select=' + (await A.userCols()), fields, null, 'app_users');
       if (!rows.length) { return sendJSON(res, 404, { error: 'not_found', message: 'That account no longer exists.' }); }
       if (temp || fields.disabled) { await signOutEverywhere(id); }
       return sendJSON(res, 200, { user: rows[0], temp_password: temp });

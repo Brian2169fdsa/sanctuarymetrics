@@ -119,6 +119,10 @@ module.exports = async function handler(req, res) {
     const who = await A.authorize(req);
     if (!who) { return sendJSON(res, 401, { error: 'signin', message: 'Sign in to see recommended cuts.' }); }
     const me = who.user || null;
+    /* cost management is only for the people an admin has given it to */
+    if (!A.access(me).costs) {
+      return sendJSON(res, 403, { error: 'access', message: 'Cost management is only open to the people an admin has given it to.' });
+    }
     const id = new URL(req.url, 'http://x').searchParams.get('id');
     const idOk = /^[0-9a-f-]{36}$/i.test(id || '');
 

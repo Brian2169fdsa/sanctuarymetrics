@@ -141,6 +141,7 @@ var OLD_META_KEY = 'src_projects_meta_v1';
 var MIGRATED_KEY = 'src_projects_migrated_v1';
 
 var ROWS = [];          /* rows from the server */
+var STAFF = false;      /* staff (no Reports access) see only their own requests, read-only */
 var STATE = 'loading';  /* loading | signin | password | error | ready */
 var MSGS = {};          /* ref → { total, unread } from /api/messages?summary=1 */
 var CHAT_POLL = null;   /* refreshes the open popover's thread */
@@ -167,7 +168,7 @@ function api(method, query, body) {
   });
 }
 function load() {
-  return Promise.all([api('GET'), loadMsgSummary()]).then(function (r) { ROWS = r[0].rows || []; STATE = 'ready'; });
+  return Promise.all([api('GET'), loadMsgSummary()]).then(function (r) { ROWS = r[0].rows || []; STAFF = !!r[0].staff; STATE = 'ready'; });
 }
 /* message counts per project — only for people signed in with an account */
 function loadMsgSummary() {
@@ -301,7 +302,7 @@ function chips(items) {
 function rowsHtml(items) {
   var s = '';
   items.forEach(function (it) {
-    var ref = esc(it.ref), done = isDone(it.status), dis = BUSY ? ' disabled' : '';
+    var ref = esc(it.ref), done = isDone(it.status), dis = BUSY || STAFF ? ' disabled' : '';
     var checkCell = '<input type="checkbox" class="donechk" data-ref="' + ref + '"' + (done ? ' checked' : '') + dis +
       ' aria-label="Mark ' + esc(it.title) + ' done">';
     var mc = MSGS[it.ref];
@@ -491,6 +492,17 @@ function openModal(ref) {
   }
   if (typeof d.showModal === 'function') { d.showModal(); } else { d.setAttribute('open', ''); }
   document.getElementById(seed ? 'pm-s' : 'pm-t').focus();
+  /* staff can read their request and message about it, not change it */
+  if (STAFF) {
+    document.querySelectorAll('#pm-form input, #pm-form select, #pm-form textarea').forEach(function (el) { el.disabled = true; });
+    ['pm-save', 'pm-del', 'pm-teams', 'pm-outlook'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.hidden = true; } });
+    document.getElementById('pm-title').textContent = 'Your request';
+    var note = document.createElement('p');
+    note.className = 'pm-sub';
+    note.textContent = 'Marketing keeps this up to date. Ask about it in Messages — they\'ll get an alert.';
+    document.getElementById('pm-title').parentNode.insertAdjacentElement('afterend', note);
+    document.getElementById('pm-cancel').textContent = 'Close';
+  }
   if (ref) { startChat(ref); }
 }
 
@@ -547,14 +559,18 @@ function fetchThread(ref) {
   });
 }
 /* ── @tagging ─────────────────────────────────────────────────────────────
-   Typing @ (or pressing the @ button) lists everyone with an account; picking
-   one writes "@Full Name" into the message. The server finds the tags in the
-   text and sends those people a "tagged you" alert (api/messages.js).     */
-var PEOPLE = null;      /* [{id, name}] from /api/messages?people=1 */
+   Typing @ (or pressing the @ button) lists everyone who can open this
+   project; picking one writes "@Full Name" into the message. The server finds
+   the tags in the text and sends those people a "tagged you" alert
+   (api/messages.js).                                                      */
+var PEOPLE = null;      /* [{id, name}] from /api/messages?people=1&ref=… */
+var PEOPLE_REF = null;
 function loadPeople() {
-  if (PEOPLE) { return Promise.resolve(PEOPLE); }
-  return SM.api('GET', '/api/messages?people=1').then(function (j) { PEOPLE = j.people || []; return PEOPLE; },
-                                                      function () { return []; });
+  var ref = MODAL_REF;
+  if (PEOPLE && PEOPLE_REF === ref) { return Promise.resolve(PEOPLE); }
+  return SM.api('GET', '/api/messages?people=1&ref=' + encodeURIComponent(ref || '')).then(function (j) {
+    PEOPLE = j.people || []; PEOPLE_REF = ref; return PEOPLE;
+  }, function () { return []; });
 }
 function reEsc(t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 /* the message as HTML with each @tag highlighted; .me = it tags the reader */
@@ -784,6 +800,23 @@ function render() {
     body = messagePanel('Projects unavailable',
       '<div class="warn">' + esc(ERROR) + '</div>' +
       '<p class="lead"><button class="btn" id="retry">Try again</button></p>');
+  } else if (STAFF) {
+    /* staff: the requests they filed, to follow along and message about */
+    var mine = customItems().sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
+    body =
+      '<section>' +
+        '<div class="eyebrow">My requests</div>' +
+        '<h2 style="font-size:26px;margin:6px 0 0">My requests</h2>' +
+        '<p class="lead">Everything you\'ve asked marketing for — print orders, flyer and website edits, presentations and ' +
+        'social posts — with where each one stands. Open one to message marketing about it.</p>' +
+        (mine.length
+          ? '<div class="ptools">' + chips(mine) + '</div>' +
+            '<div class="tw"><table class="ptable"><thead><tr><th>Done</th><th>Request</th><th>With</th><th>Status</th>' +
+            '<th>Importance</th><th>Needed by</th><th><span class="vh">Open</span></th></tr></thead>' +
+            '<tbody>' + rowsHtml(mine) + '</tbody></table></div>'
+          : '<div class="warn" style="background:var(--paper);color:var(--muted)">No requests yet. ' +
+            '<a href="print.html">Order something from the print shop</a> or <a href="social.html">send photos for a social post</a>.</div>') +
+      '</section>';
   } else {
     /* open items first, ticked-off items sink to the bottom */
     var items = seedItems().concat(customItems()).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
@@ -807,7 +840,8 @@ function render() {
   }
 
   document.getElementById('sheet').innerHTML =
-    pageHeader('Project Tracking', 'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential', sub, 'projects') +
+    pageHeader(STAFF ? 'My Requests' : 'Project Tracking', 'Marketing rocks &amp; projects &nbsp;·&nbsp; Internal / Confidential',
+               STAFF ? 'What you\'ve asked for, and where it stands' : sub, 'projects') +
     body +
     pageFooter('L10 Leadership dashboard (Rocks sheet), ' + L10.asOf + ' meeting column · shared project list');
   applyDataLabels();

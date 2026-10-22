@@ -19,10 +19,19 @@ const A = require('../lib/auth');
 
 const REF = /^(row:[0-9a-f-]{36}|seed:.{1,300})$/i;
 
-async function projectTitle(ref) {
-  if (ref.indexOf('seed:') === 0) { return ref.slice(5); }
-  const rows = await supabase('GET', '?id=eq.' + ref.slice(4) + '&select=title', null, null, 'projects');
-  return rows[0] ? rows[0].title : null;
+/* the project a ref names: {title, created_by}, or null if it's gone */
+async function project(ref) {
+  if (ref.indexOf('seed:') === 0) { return { title: ref.slice(5), created_by: null }; }
+  const rows = await supabase('GET', '?id=eq.' + ref.slice(4) + '&select=*', null, null, 'projects');
+  return rows[0] ? { title: rows[0].title, created_by: rows[0].created_by || null } : null;
+}
+/* who can open a project: admins and Reports people see every one; staff
+   only the requests they filed themselves */
+function canSee(u, p) { return A.access(u).reports || (!!p && p.created_by === u.id); }
+/* everyone with an account who can open this project */
+async function audience(p) {
+  const users = await supabase('GET', '?disabled=is.false&select=' + (await A.userCols()), null, null, 'app_users');
+  return users.filter(function (u) { return canSee(u, p); }).map(function (u) { return { id: u.id, name: u.name }; });
 }
 function markRead(me, ref) {
   const now = new Date().toISOString();
@@ -64,7 +73,17 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (q.get('people')) {
-        const people = await supabase('GET', '?disabled=is.false&select=id,name&order=name.asc', null, null, 'app_users');
+        /* for a project: only people who can open it can be tagged */
+        const pref = String(q.get('ref') || '');
+        let people;
+        if (REF.test(pref)) {
+          const p = await project(pref);
+          if (!p || !canSee(me, p)) { return sendJSON(res, 404, { error: 'not_found', message: 'That project isn\'t here.' }); }
+          people = await audience(p);
+        } else {
+          people = (await supabase('GET', '?disabled=is.false&select=id,name', null, null, 'app_users'));
+        }
+        people.sort(function (a, b) { return a.name.localeCompare(b.name); });
         return sendJSON(res, 200, { people: people, me: me.id });
       }
       if (q.get('summary')) {
@@ -73,6 +92,8 @@ module.exports = async function handler(req, res) {
       }
       const ref = String(q.get('ref') || '');
       if (!REF.test(ref)) { return sendJSON(res, 400, { error: 'ref', message: 'Unknown project.' }); }
+      const seen = await project(ref);
+      if (!seen || !canSee(me, seen)) { return sendJSON(res, 404, { error: 'not_found', message: 'That project isn\'t here.' }); }
       const rows = await supabase('GET', '?project_ref=eq.' + encodeURIComponent(ref) +
         '&select=id,user_id,author_name,body,created_at&order=created_at.asc&limit=300', null, null, 'project_messages');
       if (q.get('read') !== '0') { await markRead(me, ref); }
@@ -85,15 +106,15 @@ module.exports = async function handler(req, res) {
       const text = String(b.body || '').trim().slice(0, 4000);
       if (!REF.test(ref)) { return sendJSON(res, 400, { error: 'ref', message: 'Unknown project.' }); }
       if (!text) { return sendJSON(res, 400, { error: 'body', message: 'Write a message first.' }); }
-      const title = await projectTitle(ref);
-      if (!title) { return sendJSON(res, 404, { error: 'not_found', message: 'That project no longer exists.' }); }
+      const p = await project(ref);
+      if (!p || !canSee(me, p)) { return sendJSON(res, 404, { error: 'not_found', message: 'That project no longer exists.' }); }
+      const title = p.title;
       const rows = await supabase('POST', '', { project_ref: ref, user_id: me.id, author_name: me.name, body: text },
                                   null, 'project_messages');
       await markRead(me, ref);
-      /* small team: everyone else with an account hears about it — and
-         anyone @tagged gets an alert that says so */
-      const people = (await supabase('GET', '?disabled=is.false&select=id,name', null, null, 'app_users'))
-        .filter(function (u) { return u.id !== me.id; });
+      /* everyone else who can open the project hears about it — and anyone
+         @tagged gets an alert that says so */
+      const people = (await audience(p)).filter(function (u) { return u.id !== me.id; });
       const tags = tagged(text, people);
       const tagIds = tags.map(function (u) { return u.id; });
       const alert = { from_user_id: me.id, project_ref: ref, body: text.length > 280 ? text.slice(0, 277) + '…' : text,

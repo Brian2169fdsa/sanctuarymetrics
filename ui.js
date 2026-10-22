@@ -198,14 +198,18 @@ function pageHeader(titleText, line1, line2, current) {
       '<div class="s">' + line2 + '</div>' +
     '</div></header>' +
     '<nav class="topnav">' +
-      '<a href="index.html"' + (current === 'report' ? ' aria-current="page"' : '') + '>Report</a>' +
-      '<a href="compare.html"' + (current === 'compare' ? ' aria-current="page"' : '') + '>Compare</a>' +
-      '<a href="twoweeks.html"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
-      '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '>Projects</a>' +
+      /* data-need: account.js hides links the signed-in person can't open */
+      '<a href="home.html"' + (current === 'home' ? ' aria-current="page"' : '') + '>Home</a>' +
+      '<a href="index.html" data-need="reports"' + (current === 'report' ? ' aria-current="page"' : '') + '>Report</a>' +
+      '<a href="compare.html" data-need="reports"' + (current === 'compare' ? ' aria-current="page"' : '') + '>Compare</a>' +
+      '<a href="twoweeks.html" data-need="reports"' + (current === 'twoweeks' ? ' aria-current="page"' : '') + '>Two weeks at a glance</a>' +
+      '<a href="projects.html"' + (current === 'projects' ? ' aria-current="page"' : '') + '><span data-need="reports">Projects</span>' +
+        '<span data-need="staff-only">My requests</span></a>' +
+      '<a href="social.html"' + (current === 'social' ? ' aria-current="page"' : '') + '>Social media</a>' +
       '<a href="print.html"' + (current === 'print' ? ' aria-current="page"' : '') + '>Print orders</a>' +
       '<a href="website.html"' + (current === 'website' ? ' aria-current="page"' : '') + '>Website edits</a>' +
-      '<a href="sanctuaryci.html"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
-      '<a class="navbtn" href="costs.html">Cost cutting</a>' +
+      '<a href="sanctuaryci.html" data-need="reports"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
+      '<a class="navbtn" href="costs.html" data-need="costs">Cost cutting</a>' +
     '</nav><hr class="phoenix">';
 }
 
