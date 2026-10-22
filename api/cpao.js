@@ -8,6 +8,10 @@
    also be signed in to the site with the Microsoft account the invite was
    sent to (that replaces the emailed 6-digit code: it's MFA-backed and needs
    no mailer). Five tries from the wrong account lock the link.
+   Someone invited at a personal email (no Sanctuary Microsoft account) gets
+   a 6-digit access code instead: Brian sees it once when he invites them and
+   gives it to them himself (text or in person — it's never in the email).
+   It comes in the X-CPAO-Code header; five wrong codes lock the link.
      GET  ?action=apply                     where they are + saved answers
      POST ?action=save   {step, answers, sensitive, agree, signature}
      GET  ?action=print                     CPAO_REQUIRE_WET_SIGNATURE: the
@@ -31,6 +35,7 @@
    ========================================================================== */
 
 const { sendJSON, supabase, projectWrite, addedBy } = require('../lib/db');
+const crypto = require('crypto');
 const { currentUser, access, admins, sendAlerts } = require('../lib/auth');
 const S = require('../lib/storage');
 const K = require('../lib/cpao-crypto');
@@ -49,7 +54,7 @@ const STATUSES = ['invited', 'in_progress', 'needs_fix', 'ready_for_countersign'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[A-Za-z]{2,}$/;
 
-function bad(message, status) { const e = new Error(message); e.bad = true; e.status = status || 400; return e; }
+function bad(message, status, kind) { const e = new Error(message); e.bad = true; e.status = status || 400; e.kind = kind; return e; }
 function str(v, max) { return v === null || v === undefined ? '' : String(v).trim().slice(0, max); }
 function wetMode() { return String(process.env.CPAO_REQUIRE_WET_SIGNATURE || '').toLowerCase() === 'true'; }
 function ipOf(req) { return str(String(req.headers['x-forwarded-for'] || '').split(',')[0] || (req.socket && req.socket.remoteAddress), 60) || null; }
@@ -121,7 +126,16 @@ async function signedLink(key) { return (await S.sign(BUCKET, [key], LINK_SECOND
 
 /* ════════════════════════════ STAFF SIDE ════════════════════════════════ */
 
-/* the invite token + the signed-in account must both match */
+/* personal-email invites: a 6-digit code Brian passes on himself */
+function newCode() { return String(crypto.randomInt(0, 1000000)).padStart(6, '0'); }
+function codeHash(staffId, code) { return K.hashToken(staffId + ':' + code); }
+function codeFields(s) {
+  const code = newCode();
+  return { code: code, fields: { invite_code_hash: codeHash(s.id, code) } };
+}
+
+/* the invite token + the signed-in account (or, for a personal email, the
+   access code) must both match */
 async function invitee(req) {
   const t = str(req.headers['x-cpao-token'], 100);
   if (!t) { throw bad('This page needs the link from your invite email.', 401); }
@@ -130,6 +144,18 @@ async function invitee(req) {
     throw bad('This link has expired or was already used. Ask ' + R.C.site_admin_name + ' for a new one.', 410);
   }
   if (s.invite_failures >= MAX_FAILURES) { throw bad('This link is locked. Ask ' + R.C.site_admin_name + ' for a new one.', 423); }
+  if (s.sign_in === 'code') {
+    const c = R.digits(str(req.headers['x-cpao-code'], 20));
+    if (!c) { throw bad('Enter the 6-digit access code ' + R.C.site_admin_name + ' gave you.', 401, 'need_code'); }
+    if (!s.invite_code_hash || codeHash(s.id, c) !== s.invite_code_hash) {
+      const failures = (s.invite_failures || 0) + 1;
+      await db('PATCH', 'cpao_staff', '?id=eq.' + s.id, { invite_failures: failures });
+      await audit(s.email, 'invite_wrong_code', s.id, { failures: failures }, req);
+      throw bad(failures >= MAX_FAILURES ? 'That code is wrong and the link is now locked. Ask ' + R.C.site_admin_name + ' for a new one.'
+        : 'That code isn\'t right. ' + (MAX_FAILURES - failures) + ' tries left.', 403, 'need_code');
+    }
+    return { staff: s, me: { email: s.email, name: s.first_name + ' ' + s.last_name } };
+  }
   const me = await currentUser(req);
   if (!me) { throw bad('Sign in with your Sanctuary Microsoft account first.', 401); }
   if (String(me.email).toLowerCase() !== String(s.email).toLowerCase()) {
@@ -281,6 +307,7 @@ async function invite(req, me, b) {
   let s;
   const link = K.token();
   const fields = { invite_token_hash: K.hashToken(link), invite_expires_at: new Date(Date.now() + INVITE_DAYS * 864e5).toISOString(), invite_failures: 0 };
+  let code = null;
   if (b.id) {
     s = await staffById(b.id);
     if (s.status === 'denied') {
@@ -290,34 +317,41 @@ async function invite(req, me, b) {
       if (!editable(s)) { throw bad('Their application is already in — re-invite only works before it\'s submitted, or after "Send back".'); }
       s = await setStaff(s.id, fields, 'Invite re-sent');
     }
+    /* a new link for a personal email comes with a new code */
+    if (s.sign_in === 'code') { const c = codeFields(s); code = c.code; s = await setStaff(s.id, c.fields); }
   } else {
+    const personal = b.sign_in === 'code';
     const row = {
       first_name: str(b.first_name, 40), last_name: str(b.last_name, 40), email: str(b.email, 200).toLowerCase(),
       title_position: str(b.title_position, 80) || null, worker_type: ['Employee', 'Contractor', 'Volunteer'].indexOf(b.worker_type) >= 0 ? b.worker_type : 'Employee',
       is_site_admin: b.is_site_admin === true, hire_date: R.isDate(b.hire_date) ? b.hire_date : null,
       work_address: str(b.work_address, 200) || R.C.default_work_address, status: 'invited'
     };
+    if (personal) { row.sign_in = 'code'; }
     if (!row.first_name || !row.last_name) { throw bad('Add their first and last name.'); }
-    if (!EMAIL.test(row.email)) { throw bad('Add their work email.'); }
+    if (!EMAIL.test(row.email)) { throw bad(personal ? 'Add their email.' : 'Add their work email.'); }
     const dup = await db('GET', 'cpao_staff', '?email=eq.' + encodeURIComponent(row.email) + '&status=not.in.(removed,denied)&select=id');
     if (dup.length) { throw bad('They\'re already on the roster — use Re-send invite on their row.'); }
     s = (await db('POST', 'cpao_staff', '', Object.assign(row, fields, { last_action: 'Invited', last_action_at: nowIso() })))[0];
+    if (personal) { const c = codeFields(s); code = c.code; s = await setStaff(s.id, c.fields); }
   }
   const url = site(req) + '/cpao-apply.html#t=' + link;
   let emailed = false, emailError = null;
   try {
     emailed = await G.sendMail(s.email, 'Individual User Application (HEAplus access)', [
       s.first_name + ', please take a moment to fill out the Individual User Application. You only need to complete the sections that ask for your personal information; I\'ll fill in the Sanctuary details. Once it\'s processed you\'ll get an email with instructions to log into the training portal (AZLearns) and complete the required courses. The AHCCCS background check can take anywhere from 1 week to 3 months.',
-      '', 'Start here (sign in with your Sanctuary Microsoft account): ' + url,
+      '', code ? 'Start here: ' + url + '\nYou\'ll need the 6-digit access code I give you (I\'ll text it or tell you in person).'
+               : 'Start here (sign in with your Sanctuary Microsoft account): ' + url,
       '', 'The link works for ' + INVITE_DAYS + ' days.', '', '— Brian'].join('\n'));
   } catch (e) { emailError = 'The email didn\'t send — copy the link instead.'; }
   await audit(me.email, b.id ? 'reinvite' : 'invite', s.id, { emailed: emailed }, req);
-  return { ok: true, staff: s, link: url, emailed: emailed, email_error: emailError };
+  delete s.invite_token_hash; delete s.invite_code_hash;
+  return { ok: true, staff: s, link: url, code: code, emailed: emailed, email_error: emailError };
 }
 
 async function roster(me) {
   const staff = (await db('GET', 'cpao_staff', '?select=*&order=updated_at.desc')).map(function (s) {
-    delete s.invite_token_hash;
+    delete s.invite_token_hash; delete s.invite_code_hash;
     return s;
   });
   const apps = await db('GET', 'cpao_applications', '?select=id,staff_id,step,submitted_at,sa_signed_at,pdf_storage_key,batch_id,ai_check_result,purged_at,created_at&order=created_at.desc');
@@ -349,6 +383,7 @@ async function detail(req, me, id) {
   await audit(me.email, 'view_application', s.id, null, req);
   const links = {};
   if (a && a.user_signature_key) { links.signature = await signedLink(a.user_signature_key); }
+  delete s.invite_token_hash; delete s.invite_code_hash;
   return {
     staff: s,
     app: a ? {
@@ -840,10 +875,10 @@ module.exports = async function handler(req, res) {
     }
     return await adminRoute(req, res, action, me, q);
   } catch (e) {
-    if (e.bad) { return sendJSON(res, e.status, { error: 'bad_request', message: e.message }); }
+    if (e.bad) { return sendJSON(res, e.status, { error: e.kind || 'bad_request', message: e.message }); }
     if (e.code === 'no_key' || e.code === 'old_key') { return sendJSON(res, 503, { error: e.code, message: e.message }); }
-    if (/23514[\s\S]*cpao_staff_status_check|PGRST204[\s\S]*(followups|stage_dates)/.test(e.message)) {
-      return sendJSON(res, 503, { error: 'not_set_up', message: 'Run the CP-AO update in Supabase first (supabase/cpao.sql) — it adds the new stages and follow-ups.' });
+    if (/23514[\s\S]*cpao_staff_status_check|(PGRST204|42703)[\s\S]*(followups|stage_dates|sign_in|invite_code_hash)/.test(e.message)) {
+      return sendJSON(res, 503, { error: 'not_set_up', message: 'Run the CP-AO update in Supabase first (supabase/cpao.sql) — it adds the new stages, follow-ups and personal-email sign-in.' });
     }
     if (/(PGRST205|42P01)[\s\S]*cpao_/.test(e.message)) {
       return sendJSON(res, 503, { error: 'not_set_up', message: 'The CP-AO tables aren\'t in Supabase yet — run supabase/cpao.sql (or ALL.sql).' });

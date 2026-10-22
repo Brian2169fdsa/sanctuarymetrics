@@ -100,6 +100,16 @@ About the link:
 
 There is no emailed 6-digit code, unlike the original spec. The person must instead be signed in with the Sanctuary Microsoft account the invite went to. That sign-in is MFA-backed and needs no mail server.
 
+### Personal email (no Sanctuary account)
+
+To invite someone at a personal email, set **How they open it** to **Personal email + access code**. Use this for someone without a Sanctuary Microsoft account, or to run the whole process yourself as a test. The form switches to this on its own when you type a non-Sanctuary address.
+
+- **The code:** after you press Send invite, you see the link and a 6-digit access code. The code is shown only then. Give it to them yourself by text or in person, never in the same email as the link.
+- **Opening the link:** they open it without signing in to the site and type the code. Five wrong codes lock the link.
+- **A new code:** **Re-send invite** makes a new link and a new code, and the old ones stop working. Send back keeps the same code.
+- **Security:** the server stores only a hash of the code. The roster marks these people "personal email".
+- **Setup:** this needs the `sign_in` and `invite_code_hash` columns from `supabase/cpao.sql`.
+
 ## What the staff member sees
 
 Seven steps, saved as they go, so they can stop and come back with the same link:

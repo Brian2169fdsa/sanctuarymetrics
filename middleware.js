@@ -10,6 +10,9 @@
    - login.html: the sign-in page itself
    - account.html: the admin's first-time setup / ?password=1 fallback (it
      sends anyone else to login.html on its own)
+   - cpao-apply.html: the HEAplus application, which checks the invite link
+     itself (api/cpao.js) — someone invited at a personal email has no site
+     account and opens it with an access code instead
    - /api/*: each function checks access itself, and sanctuaryci.org posts
      analytics to /api/collect
    - images, fonts, scripts and styles, so login.html can draw itself
@@ -21,7 +24,7 @@
    Someone opening a page they can't use lands on home.html, which shows
    what they can open.                                                       */
 
-const OPEN_PAGES = new Set(['/login.html', '/account.html']);
+const OPEN_PAGES = new Set(['/login.html', '/account.html', '/cpao-apply.html']);
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 
 const ADMIN_PAGES = new Set([]);

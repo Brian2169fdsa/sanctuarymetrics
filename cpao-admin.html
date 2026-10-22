@@ -95,6 +95,17 @@ dialog.pop::backdrop{background:rgba(22,38,59,.55)}
 .pop-x:hover{background:#eef3f6}.pop-x:focus-visible{outline:2px solid var(--blue)}
 .pop-body{padding:16px 20px 22px}
 .deny{border-color:#f0c9bd;background:#fff8f6}
+.codebox{display:inline-flex;align-items:center;gap:12px;margin-top:8px;padding:8px 14px;border:1px solid #f1dca6;background:#fff8ec;border-radius:10px}
+.codebox span{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6C7C86}
+.codebox b{font-size:22px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.deny-br{margin:0 0 12px 8px;padding:10px 12px;border:1px dashed #e4a99a;border-radius:10px;background:#fff8f6;font-size:13.5px}
+.deny-br.now{border-style:solid;border-color:#d9826c}
+.deny-br p{margin:3px 0 8px;color:#33434c;line-height:1.45}
+.deny-br.now p{margin-bottom:0}
+.sm-btn{padding:6px 12px;font-size:13px}
+details.letter{margin-top:6px;border-top:1px solid var(--line);padding-top:12px}
+details.letter summary{cursor:pointer;font-weight:700;font-size:14.5px;padding:10px 12px;border-radius:10px;background:#e8f3fb;color:#14628a;list-style-position:inside}
+details.letter[open] summary{margin-bottom:4px}
 .view-btn{white-space:nowrap;padding:7px 12px;font-size:12.5px}
 .tbl tbody tr{cursor:default}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -147,6 +158,11 @@ var AFTER_CPAO = ['sent_to_cpao', 'cpao_correction_requested', 'approved_trainin
                   'final_approved', 'active', 'remove_requested', 'removed'];
 /* once it's with CPAO, a denial can be recorded (with the reason) */
 var CAN_DENY = ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao', 'final_approved'];
+/* the latest denial letter uploaded since they were last invited (reapplying starts over) */
+function denialLetter(s) {
+  var since = (s.stage_dates || {}).invited || s.created_at || '';
+  return (s.followups || []).filter(function (f) { return f.kind === 'letter' && f.letter === 'denied' && f.at >= since; }).pop() || null;
+}
 function denialCard(s) {
   if (s.status === 'denied') {
     var d = (s.followups || []).filter(function (f) { return f.kind === 'denial'; }).pop();
@@ -156,9 +172,13 @@ function denialCard(s) {
         '<li>Let them know privately — in person or by phone (there\'s a task for this on the Projects page).</li>' +
         '<li>If the reason can be fixed, press <b>Invite them to reapply</b> above. They start again at step 1.</li></ol></div>';
   }
-  if (CAN_DENY.indexOf(s.status) < 0) { return ''; }
-  return '<div class="card"><details><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600">CPAO denied it?</summary>' +
-    '<p class="sub" style="margin:8px 0 10px">Record it here with the reason from CPAO\'s letter or email. It\'s logged on their page and you get a task to let them know.</p>' +
+  var dl = denialLetter(s);
+  if (CAN_DENY.indexOf(s.status) < 0 && !dl) { return ''; }
+  return '<div class="card' + (dl ? ' deny' : '') + '" id="deny-card"><details' + (dl ? ' open' : '') + '><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600">' +
+      (dl ? 'Denial letter received — record it' : 'CPAO denied it?') + '</summary>' +
+    (dl ? '<p style="font-size:13.5px;margin:8px 0 0">' + esc(dl.text) + ' <button type="button" class="reveal" data-letter="' + esc(dl.file) + '">View letter</button></p>' +
+          '<p class="sub" style="margin:2px 0 10px">Uploaded ' + when(dl.at) + ' by ' + esc(dl.by || '') + '. Read it, then record the reason below.</p>'
+        : '<p class="sub" style="margin:8px 0 10px">Record it here with the reason from CPAO\'s letter. It\'s logged on their page and you get a task to let them know. Upload the letter itself in "Where they are" above.</p>') +
     '<div class="f2"><label class="fl wide">Reason CPAO gave<textarea id="dn-reason" rows="2" maxlength="1000" placeholder="e.g. Background check — see CPAO letter"></textarea>' +
       '<span class="fh">Keep it short and factual; no SSNs or birth dates.</span></label>' +
     '<label class="fl">Letter / email date<input type="date" id="dn-date"></label></div>' +
@@ -271,7 +291,9 @@ function rosterView() {
           '<button type="button" class="btn alt" id="d-clear">Clear</button></div><div id="d-out"></div></div>' +
       '<label class="fl">First name<input id="i-first" maxlength="40"><span class="fh">Legal name — they confirm it matches their license.</span></label>' +
       '<label class="fl">Last name<input id="i-last" maxlength="40"><span class="fh">Legal last name, as on their license.</span></label>' +
-      '<label class="fl">Work email<input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"><span class="fh">The invite only opens for this Microsoft account.</span></label>' +
+      '<label class="fl">How they open it<select id="i-signin"><option value="microsoft">Sanctuary Microsoft sign-in</option><option value="code">Personal email + access code</option></select>' +
+        '<span class="fh" id="i-signin-h">Their work account — the most secure.</span></label>' +
+      '<label class="fl"><span id="i-email-l">Work email</span><input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"><span class="fh" id="i-email-h">The invite only opens for this Microsoft account.</span></label>' +
       '<label class="fl">Title<select id="i-title"><option value="">—</option>' + DATA.titles.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><span class="fh">Their role on the CP-101. They can change it.</span></label>' +
       '<label class="fl">Worker type<select id="i-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select><span class="fh">Goes on the Add/Remove form.</span></label>' +
       '<label class="fl">Hire date<input id="i-hire" type="date"><span class="fh">Required on the Add/Remove form.</span></label>' +
@@ -286,7 +308,8 @@ function rosterView() {
       list.map(function (s) {
         return '<tr><td>' + (LIM() ? '' : '<input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '">') + '</td>' +
           '<td><a class="nm" data-open="' + s.id + '" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
-            '<div class="sm">' + esc(s.title_position || '') + (s.title_position && s.email ? ' · ' : '') + esc(s.email || '') + '</div></td>' +
+            '<div class="sm">' + esc(s.title_position || '') + (s.title_position && s.email ? ' · ' : '') + esc(s.email || '') +
+              (s.sign_in === 'code' ? ' · <span title="Opens the link with an access code, not Microsoft sign-in">personal email</span>' : '') + '</div></td>' +
           '<td>' + stageCell(s) + '</td>' +
           '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
             ((s.followups || []).length ? ' · ' + s.followups.length + ' follow-up' + (s.followups.length === 1 ? '' : 's') : '') + '</div></td>' +
@@ -321,15 +344,28 @@ function wireRoster() {
     var btn = $('i-go'); btn.disabled = true;
     api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
       title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value,
-      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked }).then(function (j) {
+      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked, sign_in: $('i-signin').value }).then(function (j) {
       btn.disabled = false;
-      note('i-note', 'ok', j.emailed ? 'Invite emailed to ' + j.staff.email + '.' : (j.email_error || 'Email is off — copy this link and send it to them yourself (Teams or Outlook):'));
-      $('i-link').innerHTML = linkBox(j.link);
+      note('i-note', 'ok', j.emailed ? 'Invite emailed to ' + j.staff.email + '.' : (j.email_error || 'Email is off — copy this link and send it to them yourself' + (j.code ? ' (text or email)' : ' (Teams or Outlook)') + ':'));
+      $('i-link').innerHTML = linkBox(j.link, j.code);
       ['i-first', 'i-last', 'i-email', 'i-hire'].forEach(function (id) { $(id).value = ''; });
       refresh(false);
     }, function (err) { btn.disabled = false; note('i-note', 'err', err.message); });
   });
   wireCopy();
+  var signin = function () {
+    var personal = $('i-signin').value === 'code';
+    $('i-signin-h').textContent = personal ? 'For someone without a Sanctuary account (or to test it yourself). You get a 6-digit code to give them.' : 'Their work account — the most secure.';
+    $('i-email-l').textContent = personal ? 'Their email' : 'Work email';
+    $('i-email').placeholder = personal ? 'name@gmail.com' : 'name@sanctuaryrecoverycenters.com';
+    $('i-email-h').textContent = personal ? 'Goes on their CP-101. They open the link with the access code — no Microsoft sign-in.' : 'The invite only opens for this Microsoft account.';
+  };
+  $('i-signin').addEventListener('change', signin);
+  /* a non-Sanctuary address can't use Microsoft sign-in */
+  $('i-email').addEventListener('change', function () {
+    var e = $('i-email').value.trim().toLowerCase();
+    if (/@/.test(e) && !/@sanctuary(recoverycenters|rc)\.com$/.test(e) && $('i-signin').value !== 'code') { $('i-signin').value = 'code'; signin(); }
+  });
   var sync = function () {
     var ids = Object.keys(SEL).filter(function (k) { return SEL[k]; });
     $('bulk').hidden = !ids.length; $('bulk-n').textContent = ids.length + ' selected';
@@ -438,9 +474,11 @@ function wireDir() {
     });
   });
 }
-function linkBox(url) {
+function linkBox(url, code) {
   return '<div class="linkbox"><input readonly value="' + esc(url) + '" aria-label="Invite link"><button type="button" class="btn alt" data-copy>Copy</button></div>' +
-    '<p class="sub" style="margin:6px 0 0">Only works for their own Microsoft sign-in, for 14 days, until they submit.</p>';
+    (code ? '<div class="codebox"><span>Access code</span><b>' + esc(code.slice(0, 3) + ' ' + code.slice(3)) + '</b></div>' +
+      '<p class="sub" style="margin:6px 0 0">Give them the code yourself — by text or in person, not in the same email as the link. It\'s shown only now; Re-send invite makes a new one. The link works for 14 days, until they submit.</p>'
+      : '<p class="sub" style="margin:6px 0 0">Only works for their own Microsoft sign-in, for 14 days, until they submit.</p>');
 }
 function wireCopy() {
   document.querySelectorAll('[data-copy]').forEach(function (b) {
@@ -589,6 +627,8 @@ function tracker(s) {
   var nx = NEXT_STEP[s.status];
   var extra = s.status === 'cpao_correction_requested' ? '<p class="note err" style="margin:0 0 10px">CPAO asked for a correction — note it under Follow-ups, fix it, then press "Correction re-sent to CPAO".</p>'
     : s.status === 'denied' ? '<p class="note err" style="margin:0 0 10px">AHCCCS denied this application.</p>'
+    : denialLetter(s) ? '<p class="note err" style="margin:0 0 10px">A denial letter from CPAO was uploaded ' + day(denialLetter(s).at) + ' — ' +
+        (LIM() ? 'Brian has been alerted.' : 'record the denial and the reason below.') + '</p>'
     : /remove/.test(s.status) ? '<p class="note err" style="margin:0 0 10px">' + esc(LABEL[s.status]) + '.</p>' : '';
   return '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">' +
       '<div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">Where they are' + (cur ? ' — step ' + cur.n + ' of 10' : '') + '</div>' +
@@ -598,13 +638,22 @@ function tracker(s) {
       return '<li class="' + state + '"><div class="proc-h"><b>' + st.n + '. ' + esc(st.title) + '</b>' +
         '<span class="proc-t">' + (d && state ? (state === 'now' ? 'since ' : '') + day(d) : esc(st.time)) + '</span></div>' +
         (state === 'now' ? '<div class="proc-w">' + esc(st.who) + ' · usually ' + esc(st.time) + '</div><p>' + esc(st.text) + '</p>' : '') + '</li>';
-    }).join('') + '</ol>' + letterForm(s) + '</div>';
+    }).join('') + '</ol>' + denyBranch(s) + letterForm(s) + '</div>';
+}
+/* the "no" branch of the process: AHCCCS can deny at any point after it's sent */
+function denyBranch(s) {
+  if (s.status === 'denied') {
+    return '<div class="deny-br now"><b>✕ Denied</b>' + (s.stage_dates && s.stage_dates.denied ? ' · ' + day(s.stage_dates.denied) : '') +
+      '<p>' + (LIM() ? 'Brian lets them know and can invite them to reapply.' : 'Let them know privately, then invite them to reapply if the reason can be fixed.') + '</p></div>';
+  }
+  return '<div class="deny-br"><b>If AHCCCS denies it</b><p>The letter is mailed to Sanctuary. Upload it here as "Denied" — ' +
+    (LIM() ? 'Brian is alerted and lets them know.' : 'you get an alert and a task, record the reason, and let them know.') + '</p>' +
+    '<button type="button" class="btn alt sm-btn" id="lt-deny">Upload a denial letter</button></div>';
 }
 /* upload a letter AHCCCS mailed to Sanctuary, right on the person's card */
 function letterForm(s) {
-  if (['invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'removed'].indexOf(s.status) >= 0) { return ''; }
-  return '<details class="letter" style="margin-top:6px;border-top:1px solid var(--line);padding-top:12px"' + (LIM() ? ' open' : '') + '>' +
-    '<summary style="cursor:pointer;font-weight:700;font-size:14.5px">✉️ Got a letter from CPAO? Upload it here</summary>' +
+  return '<details class="letter"' + (LIM() ? ' open' : '') + '>' +
+    '<summary>✉️ Got a letter from CPAO (approved, denied, correction…)? Upload it here</summary>' +
     '<p class="sub" style="margin:8px 0 10px">Scan it or take a clear photo. It\'s saved privately on ' + esc(s.first_name) + '\'s record' +
       (LIM() ? ' and Brian is alerted right away.' : ', logged in their follow-ups, and you get an alert and a task.') + '</p>' +
     '<div class="f2"><label class="fl wide">What does the letter say?<select id="lt-kind"><option value="">Pick one…</option>' +
@@ -619,6 +668,12 @@ function wireLetters(s) {
   document.querySelectorAll('[data-letter]').forEach(function (b) {
     b.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(b.getAttribute('data-letter'))).catch(function (e) { note('s-note', 'err', e.message); }); });
   });
+  if ($('lt-deny')) {
+    $('lt-deny').addEventListener('click', function () {
+      var d = document.querySelector('details.letter'); d.open = true;
+      $('lt-kind').value = 'denied'; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); $('lt-file').focus();
+    });
+  }
   if (!$('lt-go')) { return; }
   $('lt-go').addEventListener('click', function () {
     var kind = $('lt-kind').value, f = $('lt-file').files[0];
@@ -663,7 +718,7 @@ function wireStaff(s) {
         if (again) { refresh(popOpen() ? true : false); }
         note('s-note', 'ok', j.emailed ? (again ? 'Invited to reapply — they got an email.' : 'Invite emailed again. The old link no longer works.')
                                        : (again ? 'Invited to reapply. Send them this link:' : 'New link (the old one no longer works):'));
-        if (!j.emailed) { $('s-link').innerHTML = linkBox(j.link); wireCopy(); }
+        if (!j.emailed || j.code) { $('s-link').innerHTML = linkBox(j.link, j.code); wireCopy(); }
       }, function (e) { note('s-note', 'err', e.message); });
     });
   }
