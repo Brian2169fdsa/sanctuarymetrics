@@ -31,7 +31,11 @@ function patchUser(id, fields) {
   return supabase('PATCH', '?id=eq.' + id, fields, { Prefer: 'return=minimal' }, 'app_users');
 }
 
+const people = require('../lib/people');
+
 module.exports = async function handler(req, res) {
+  /* People admin lives here too (lib/people.js), to stay within 12 functions */
+  if (new URL(req.url, 'http://x').searchParams.get('people')) { return people(req, res); }
   const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter(function (k) { return !process.env[k]; });
   if (missing.length) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Accounts are not set up yet: missing ' + missing.join(', ') + '.' });

@@ -101,7 +101,11 @@ input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transp
   var ok = /^[a-z0-9-]+\.html(#[\w=:%.\-]*)?$/i;
   var next = ok.test(q.get('next') || '') ? q.get('next') : 'home.html';
   /* the sign-in gate (middleware.js) can't see a #link; the browser carries it here, so pass it on */
-  if (location.hash && next.indexOf('#') < 0 && ok.test(next + location.hash)) { next += location.hash; }
+  /* …except a CP-AO invite token: that stays in this tab, out of every URL the server sees */
+  if (/^cpao-apply\.html/.test(next) && /^#t=[\w-]{20,100}$/.test(location.hash)) {
+    try { sessionStorage.setItem('cpao_t', location.hash.slice(3)); } catch (e) { /* private mode: they'll reopen the email link */ }
+    next = 'cpao-apply.html';
+  } else if (location.hash && next.indexOf('#') < 0 && ok.test(next + location.hash)) { next += location.hash; }
   var ERRORS = {
     noaccount: 'There\'s no account for {email} yet. Ask an admin to add you, then sign in again.',
     disabled: 'The account for {email} is turned off. Ask an admin to turn it back on.',

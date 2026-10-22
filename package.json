@@ -8,6 +8,11 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.126.0"
+    "@anthropic-ai/sdk": "^0.126.0",
+    "pdf-lib": "^1.17.1"
+  },
+  "scripts": {
+    "test": "node --test tests/cpao.test.js",
+    "cpao:golden": "node tools/cpao-golden.js"
   }
 }

@@ -24,6 +24,7 @@
 const OPEN_PAGES = new Set(['/login.html', '/account.html']);
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 
+const ADMIN_PAGES = new Set(['/cpao-admin.html']);
 const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
@@ -62,7 +63,7 @@ async function account(request) {
   const u = rows[0] && rows[0].user;
   if (!u || u.disabled) { return null; }
   const admin = u.role === 'admin';
-  return { reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
+  return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
 }
 
 export default async function middleware(request) {
@@ -77,7 +78,7 @@ export default async function middleware(request) {
     /* Supabase didn't answer — fall through to the sign-in page, which says so */
   }
   if (who) {
-    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs)) {
+    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin)) {
       const home = new URL('/home.html', request.url);
       if (path !== '/') { home.searchParams.set('denied', path.replace(/^\/+/, '')); }
       return new Response(null, { status: 302, headers: { Location: home.toString(), 'Cache-Control': 'no-store' } });

@@ -1,5 +1,17 @@
 {
   "functions": {
-    "api/social.js": { "maxDuration": 60 }
-  }
+    "api/social.js": {
+      "maxDuration": 60
+    },
+    "api/cpao.js": {
+      "maxDuration": 60,
+      "includeFiles": "cpao/assets/**"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cpao",
+      "schedule": "0 15 * * *"
+    }
+  ]
 }

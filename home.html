@@ -59,7 +59,8 @@ function render(socialNew) {
       tile('costs.html', '💲', 'Cost cutting', 'Microsoft and Google licences, recommended cuts and approvals.') + '</div>' : '';
   var admin = can('admin') ?
     '<p class="hm-h">Admin</p><div class="hm-grid">' +
-      tile('account.html#people', '👥', 'People & access', 'Who can sign in, and who sees reports or cost management.') + '</div>' : '';
+      tile('account.html#people', '👥', 'People & access', 'Who can sign in, and who sees reports or cost management.') +
+      tile('cpao-admin.html', '🪪', 'HEAplus access (CP-AO)', 'Invite staff to the CP-101, countersign, and send the weekly batch to CPAO.') + '</div>' : '';
   document.getElementById('sheet').innerHTML =
     pageHeader('Home', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Team portal', 'Signed in as ' + esc(me.email || ''), 'home') +
     '<section><div class="eyebrow">Team portal</div>' +
