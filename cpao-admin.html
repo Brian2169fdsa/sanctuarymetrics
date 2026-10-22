@@ -669,11 +669,15 @@ function auditView() {
 /* ── first-time setup: until Brian's signature is saved, a pop-up asks for it
    every time the CP-AO tab opens (and on each view except Settings). The
    signature goes on every countersigned CP-101 and the weekly Add/Remove form. */
-var GATE_PAD = null;
+var GATE_PAD = null, GATE_VIEW = null, GATE_LATER = false;
 function setupGate(view) {
+  /* "Not now" holds until they move to another view (or reopen the tab),
+     so redraws of the same view don't bring the pop-up straight back */
+  view = view || 'roster';
+  if (view !== GATE_VIEW) { GATE_VIEW = view; GATE_LATER = false; }
   var old = $('gate');
   if (old) { old.remove(); }
-  if (!DATA || DATA.settings.has_signature || view === 'settings') { return; }
+  if (!DATA || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
   document.body.insertAdjacentHTML('beforeend',
     '<dialog class="gate" id="gate" aria-labelledby="gate-h"><div class="gate-in">' +
       '<div class="gate-steps"><span>1. Your signature</span><span class="' + (DATA.settings.site_admin_phone ? 'done' : '') + '">2. Office phone</span></div>' +
@@ -698,8 +702,8 @@ function setupGate(view) {
     GATE_PAD = new SignaturePad(c, { penColor: '#0b1f3a', backgroundColor: 'rgba(0,0,0,0)', minWidth: 0.8, maxWidth: 2.4 });
   }
   $('gate-clear').addEventListener('click', function () { if (GATE_PAD) { GATE_PAD.clear(); } });
-  $('gate-later').addEventListener('click', function () { d.close(); d.remove(); });
-  d.addEventListener('cancel', function () { d.remove(); });
+  $('gate-later').addEventListener('click', function () { GATE_LATER = true; d.close(); d.remove(); });
+  d.addEventListener('cancel', function () { GATE_LATER = true; d.remove(); });
   $('gate-save').addEventListener('click', function () {
     if (!GATE_PAD || GATE_PAD.isEmpty()) { note('gate-note', 'err', 'Draw your signature in the box first.'); return; }
     var b = $('gate-save'); b.disabled = true; b.textContent = 'Saving…';
