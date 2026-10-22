@@ -87,7 +87,7 @@
 .fu li{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;margin:0 0 6px;font-size:13.5px}
 .fu .sm{font-size:12px;color:var(--muted)}
 .how{margin-top:26px}
-dialog.pop{border:0;border-radius:16px;padding:0;width:min(1040px,calc(100% - 24px));max-height:92vh;box-shadow:0 24px 60px rgba(22,38,59,.35);background:#fff}
+dialog.pop{border:0;border-radius:16px;padding:0;width:min(1240px,calc(100% - 24px));max-height:92vh;box-shadow:0 24px 60px rgba(22,38,59,.35);background:#fff}
 dialog.pop::backdrop{background:rgba(22,38,59,.55)}
 .pop-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line)}
 .pop-top a{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none}
@@ -95,6 +95,9 @@ dialog.pop::backdrop{background:rgba(22,38,59,.55)}
 .pop-x:hover{background:#eef3f6}.pop-x:focus-visible{outline:2px solid var(--blue)}
 .pop-body{padding:16px 20px 22px}
 .deny{border-color:#f0c9bd;background:#fff8f6}
+.view-btn{white-space:nowrap;padding:7px 12px;font-size:12.5px}
+.tbl tbody tr{cursor:default}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 dialog.gate{border:0;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 32px);box-shadow:0 24px 60px rgba(22,38,59,.35)}
 dialog.gate::backdrop{background:rgba(22,38,59,.55)}
 .gate-in{padding:22px 24px}
@@ -268,7 +271,7 @@ function rosterView() {
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
     '</form></div>' +
-    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th></tr></thead><tbody>' +
+    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
       list.map(function (s) {
         return '<tr><td><input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '"></td>' +
           '<td><a class="nm" data-open="' + s.id + '" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
@@ -277,7 +280,8 @@ function rosterView() {
           '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
             ((s.followups || []).length ? ' · ' + s.followups.length + ' follow-up' + (s.followups.length === 1 ? '' : 's') : '') + '</div></td>' +
           '<td class="' + (/^You/.test(NEXT[s.status]) ? 'next' : '') + '">' + esc(NEXT[s.status] || '') + '</td>' +
-          '<td>' + (s.app && s.app.ai_status ? '<span class="pill ai-' + s.app.ai_status + '">' + esc(s.app.ai_status.replace('_', ' ')) + '</span>' : '') + '</td></tr>';
+          '<td>' + (s.app && s.app.ai_status ? '<span class="pill ai-' + s.app.ai_status + '">' + esc(s.app.ai_status.replace('_', ' ')) + '</span>' : '') + '</td>' +
+          '<td style="text-align:right"><button type="button" class="btn alt view-btn" data-open="' + s.id + '">View details →</button></td></tr>';
       }).join('') + '</tbody></table>'
       : '<div class="placeholder">' + (DATA.staff.length ? 'No one in this view.' : 'No one yet — press <b>+ Invite someone</b> to send the first application.') + '</div>') +
     '<div class="bulk" id="bulk" hidden><b id="bulk-n"></b>' +
