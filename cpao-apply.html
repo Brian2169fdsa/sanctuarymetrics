@@ -71,6 +71,8 @@
 <script src="ui.js"></script>
 <script src="account.js"></script>
 <script src="cpao/cp101-text.js"></script>
+<script src="cpao/process.js"></script>
+<script>document.head.insertAdjacentHTML('beforeend', '<style>' + CPAO_PROCESS_CSS + '</style>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/5.0.4/signature_pad.umd.min.js"
   integrity="sha384-sAvQstqOmAfqxD54T2ZBU8/E8IQJJuNT4hEHwUULkoBRze+eTQ7tZNcXEA5yPzhE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
@@ -259,10 +261,13 @@ function render() {
 function finished() {
   var st = D.staff.status;
   var text = st === 'ready_for_countersign' ? 'Your application is in. ' + esc(D.site_admin) + ' will review and countersign it, then send it to AHCCCS with this week\'s batch.'
-    : 'Your application has been sent along. You\'ll get an email from AHCCCS with instructions for the AZLearns training. Processing can take 2 weeks to a month.';
+    : 'Your application has been sent along. You\'ll get an email from AHCCCS with instructions for the AZLearns training. The AHCCCS background check can take 1 week to 3 months.';
   shell('<div class="done-card"><div class="big" aria-hidden="true">✓</div><h2>Thank you, ' + esc(D.staff.first_name) + '!</h2>' +
     '<p class="lead" style="margin:8px auto 0;max-width:460px">' + text + '</p>' +
-    '<p class="sub" style="margin-top:14px">You can close this page.</p></div>');
+    '<p class="sub" style="margin-top:14px">You can close this page.</p></div>' +
+    '<h3 style="font-family:Fraunces,serif;font-size:20px;margin:24px 0 4px">What happens next</h3>' +
+    '<p class="sub" style="margin:0 0 14px">You\'ve done step 2. Here\'s the whole process and how long each part usually takes.</p>' +
+    cpaoProcessHtml({ current: (cpaoStageOf(D.staff.status) || { n: 3 }).n }));
   try { sessionStorage.removeItem('cpao_t'); } catch (e) { /* fine */ }
 }
 function problem(title, text) {

@@ -17,7 +17,7 @@
 
    ADMIN (cpao-admin.html; admins only):
      GET  ?action=roster | detail&id= | audit&id= | file&key= | directory
-     POST ?action=invite | update | reveal | countersign | send_back | status
+     POST ?action=invite | update | reveal | countersign | send_back | status | followup
                  | settings | batch | mark_sent | rotate | purge
 
    CRON (vercel.json, daily 15:00 UTC = 8:00 Phoenix): GET ?action=cron with
@@ -44,8 +44,8 @@ const INVITE_DAYS = 14;
 const MAX_FAILURES = 5;
 const PURGE_AFTER_SENT_DAYS = 90;
 const STATUSES = ['invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'countersigned', 'queued_for_batch',
-  'sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'active', 'denied',
-  'remove_requested', 'removed'];
+  'sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
+  'final_approved', 'active', 'denied', 'remove_requested', 'removed'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[A-Za-z]{2,}$/;
 
@@ -85,9 +85,18 @@ async function latestApp(staffId) {
 async function settings() {
   return (await db('GET', 'cpao_settings', '?id=eq.1&select=*'))[0] || { batch_weekday: 1, pdf_retention_days: 365 };
 }
-async function setStaff(id, fields, action) {
+/* every status change (and the Add/Remove form) stamps the date it happened
+   in stage_dates, which the person page's stage tracker shows */
+async function setStaff(id, fields, action, stage) {
   const f = Object.assign({ updated_at: nowIso() }, fields);
   if (action) { f.last_action = action; f.last_action_at = f.updated_at; }
+  stage = stage || f.status;
+  if (stage) {
+    try {
+      const cur = (await db('GET', 'cpao_staff', '?id=eq.' + id + '&select=stage_dates'))[0];
+      f.stage_dates = Object.assign({}, (cur && cur.stage_dates) || {}, { [stage]: f.updated_at });
+    } catch (e) { /* stage_dates not added yet (supabase/cpao.sql) — keep going without it */ }
+  }
   return (await db('PATCH', 'cpao_staff', '?id=eq.' + id, f))[0];
 }
 function owner() { return str(process.env.CPAO_OWNER || process.env.PRINT_OWNER, 120) || R.C.site_admin_name; }
@@ -293,7 +302,7 @@ async function invite(req, me, b) {
   let emailed = false, emailError = null;
   try {
     emailed = await G.sendMail(s.email, 'Individual User Application (HEAplus access)', [
-      s.first_name + ', please take a moment to fill out the Individual User Application. You only need to complete the sections that ask for your personal information; I\'ll fill in the Sanctuary details. Once it\'s processed you\'ll get an email with instructions to log into the training portal (AZLearns) and complete the required courses. Processing can take 2 weeks to a month.',
+      s.first_name + ', please take a moment to fill out the Individual User Application. You only need to complete the sections that ask for your personal information; I\'ll fill in the Sanctuary details. Once it\'s processed you\'ll get an email with instructions to log into the training portal (AZLearns) and complete the required courses. The AHCCCS background check can take anywhere from 1 week to 3 months.',
       '', 'Start here (sign in with your Sanctuary Microsoft account): ' + url,
       '', 'The link works for ' + INVITE_DAYS + ' days.', '', '— Brian'].join('\n'));
   } catch (e) { emailError = 'The email didn\'t send — copy the link instead.'; }
@@ -302,7 +311,10 @@ async function invite(req, me, b) {
 }
 
 async function roster(me) {
-  const staff = await db('GET', 'cpao_staff', '?select=id,first_name,last_name,email,title_position,worker_type,is_site_admin,hire_date,work_address,status,heaplus_username,notes,last_action,last_action_at,invite_expires_at,invite_failures,project_id,created_at,updated_at&order=updated_at.desc');
+  const staff = (await db('GET', 'cpao_staff', '?select=*&order=updated_at.desc')).map(function (s) {
+    delete s.invite_token_hash;
+    return s;
+  });
   const apps = await db('GET', 'cpao_applications', '?select=id,staff_id,step,submitted_at,sa_signed_at,pdf_storage_key,batch_id,ai_check_result,purged_at,created_at&order=created_at.desc');
   const latest = {};
   apps.forEach(function (a) { if (!latest[a.staff_id]) { latest[a.staff_id] = a; } });
@@ -401,7 +413,8 @@ async function sendBack(req, me, b) {
 /* manual status changes after CPAO replies; some start a task for Brian */
 const STATUS_TASK = {
   cpao_correction_requested: function (n) { return 'CPAO asked for a correction: ' + n; },
-  training_complete: function (n) { return 'Create HEAplus account for ' + n; }
+  training_complete: function (n) { return 'Send AZLearns certificates to CPAO for final approval: ' + n; },
+  final_approved: function (n) { return 'Create HEAplus account for ' + n; }
 };
 async function setStatus(req, me, b) {
   const s = await staffById(b.id);
@@ -413,6 +426,8 @@ async function setStatus(req, me, b) {
   const fields = { status: to };
   if ('heaplus_username' in b) { fields.heaplus_username = str(b.heaplus_username, 80) || null; }
   const name = s.first_name + ' ' + s.last_name;
+  /* moving on means the open task for the last step is done */
+  if (s.project_id && to !== s.status) { await closeProject(s.project_id); fields.project_id = null; }
   if (STATUS_TASK[to]) {
     const p = await project(STATUS_TASK[to](name), 'Status changed to ' + to.replace(/_/g, ' ') + '.\n\nOpen: ' + site(req) + '/cpao-admin.html#staff=' + s.id,
       R.addBusinessDays(R.today(), 2), me);
@@ -422,6 +437,26 @@ async function setStatus(req, me, b) {
   await audit(me.email, 'status', s.id, { from: s.status, to: to }, req);
   if (to === 'removed') { await purgeStaff(s.id, 'removed'); }
   return { ok: true };
+}
+
+/* follow-ups: anything CPAO or the person still needs, with an optional
+   reminder task on the Projects page */
+async function followup(req, me, b) {
+  const s = await staffById(b.id);
+  const text = str(b.text, 1000);
+  if (!text) { throw bad('Write what the follow-up is.'); }
+  const due = str(b.due, 10);
+  if (due && !R.isDate(due)) { throw bad('The reminder date isn\'t a date.'); }
+  const entry = { at: nowIso(), by: me.name || me.email, text: text, due: due || null };
+  if (due) {
+    const p = await project('Follow up: ' + s.first_name + ' ' + s.last_name + ' — ' + text.slice(0, 120),
+      text + '\n\nOpen: ' + site(req) + '/cpao-admin.html#staff=' + s.id, due, me);
+    entry.project_id = p.id;
+  }
+  const list = (s.followups || []).concat([entry]).slice(-100);
+  await setStaff(s.id, { followups: list }, 'Follow-up: ' + text.slice(0, 80));
+  await audit(me.email, 'followup', s.id, { due: due || null }, req);
+  return { ok: true, followups: list };
 }
 
 async function saveSettings(req, me, b) {
@@ -494,6 +529,9 @@ async function buildBatch(req, actor) {
   await S.upload(BUCKET, base + orgName, Buffer.from(org), 'application/pdf');
   await S.upload(BUCKET, base + bundleName, Buffer.from(bundle), 'application/pdf');
   if (appIds.length) { await db('PATCH', 'cpao_applications', '?id=in.(' + appIds.join(',') + ')', { batch_id: batch.id }); }
+  for (const r of rows) {
+    await setStaff(r.staff_id, {}, 'On the Add/Remove form (week of ' + R.mdy(weekOf) + ')', 'org_form');
+  }
 
   const nAdd = rows.filter(function (r) { return /^Add/.test(r.action); }).length, nRemove = rows.length - nAdd;
   const draft = G.draftOn();
@@ -659,6 +697,7 @@ async function adminRoute(req, res, action, me, q) {
     case 'countersign': return sendJSON(res, 200, await countersign(req, me, b.id));
     case 'send_back': return sendJSON(res, 200, await sendBack(req, me, b));
     case 'status': return sendJSON(res, 200, await setStatus(req, me, b));
+    case 'followup': return sendJSON(res, 200, await followup(req, me, b));
     case 'settings': return sendJSON(res, 200, await saveSettings(req, me, b));
     case 'batch': return sendJSON(res, 200, await buildBatch(req, me.email));
     case 'mark_sent': return sendJSON(res, 200, await markSent(req, me, b.id));
@@ -710,6 +749,9 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     if (e.bad) { return sendJSON(res, e.status, { error: 'bad_request', message: e.message }); }
     if (e.code === 'no_key' || e.code === 'old_key') { return sendJSON(res, 503, { error: e.code, message: e.message }); }
+    if (/23514[\s\S]*cpao_staff_status_check|PGRST204[\s\S]*(followups|stage_dates)/.test(e.message)) {
+      return sendJSON(res, 503, { error: 'not_set_up', message: 'Run the CP-AO update in Supabase first (supabase/cpao.sql) — it adds the new stages and follow-ups.' });
+    }
     if (/(PGRST205|42P01)[\s\S]*cpao_/.test(e.message)) {
       return sendJSON(res, 503, { error: 'not_set_up', message: 'The CP-AO tables aren\'t in Supabase yet — run supabase/cpao.sql (or ALL.sql).' });
     }
