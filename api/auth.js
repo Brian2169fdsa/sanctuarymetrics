@@ -2,6 +2,7 @@
    /api/auth — sign in, sign out, who am I, change password.
 
      GET                                   → { user } (null when signed out)
+     GET ?viewas=list                      admins: everyone, for the "View as" menu
      POST {action:'login', email, password}
      POST {action:'logout'}
      POST {action:'setup', email, password, team_password}
@@ -20,7 +21,13 @@ const A = require('../lib/auth');
 
 function pub(u) {
   return u ? { id: u.id, email: u.email, name: u.name, role: u.role, must_change_password: !!u.must_change_password,
-               access: A.access(u) } : null;
+               access: A.access(u), view_as: !!u.view_as, real_name: u.real_name || null } : null;
+}
+/* what someone can see, in a few words, for the "View as" menu */
+function seesLabel(u) {
+  const a = A.access(u);
+  return a.admin ? 'Admin' : a.cpao_admin ? 'HEAplus admin' : a.cpao_manager ? 'HEAplus manager' : a.cpao_mail ? 'CPAO letters'
+    : a.costs ? 'Cost management' : a.reports ? 'Reports' : 'Staff';
 }
 async function byEmail(email) {
   const rows = await supabase('GET', '?email=eq.' + encodeURIComponent(email) + '&select=' + (await A.userCols()) +
@@ -43,7 +50,15 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      return sendJSON(res, 200, { user: pub(await A.currentUser(req)), microsoft: A.microsoftEnabled() });
+      if (new URL(req.url, 'http://x').searchParams.get('viewas') === 'list') {
+        const real = await A.realUser(req);
+        if (!real || real.role !== 'admin') { return sendJSON(res, 403, { error: 'forbidden', message: 'Only admins can view as someone else.' }); }
+        const all = await supabase('GET', '?disabled=is.false&select=' + (await A.userCols()) + '&order=name.asc', null, null, 'app_users');
+        return sendJSON(res, 200, { people: all.filter(function (u) { return u.email !== real.email; }).map(function (u) {
+          return { email: u.email, name: u.name || u.email, sees: seesLabel(u) }; }) });
+      }
+      const u = await A.currentUser(req);
+      return sendJSON(res, 200, { user: pub(u), microsoft: A.microsoftEnabled(), can_view_as: !!(u && (u.view_as || u.role === 'admin')) });
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');

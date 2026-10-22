@@ -65,8 +65,16 @@ async function account(request) {
   if (r.status === 400) { r = await get('disabled,role'); }
   if (!r.ok) { return null; }
   const rows = await r.json();
-  const u = rows[0] && rows[0].user;
+  let u = rows[0] && rows[0].user;
   if (!u || u.disabled) { return null; }
+  /* an admin using "View as" gets that person's pages (lib/auth.js viewAs) */
+  const as = cookie(request, 'sm_view_as').trim().toLowerCase();
+  if (as && u.role === 'admin' && as.length <= 200) {
+    const t = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_users?email=eq.' + encodeURIComponent(as) +
+      '&select=disabled,role,access_reports,access_costs', { headers: { apikey: key, Authorization: 'Bearer ' + key } })
+      .then((x) => (x.ok ? x.json() : [])).catch(() => []);
+    if (t[0] && !t[0].disabled) { u = t[0]; }
+  }
   const admin = u.role === 'admin';
   return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
 }

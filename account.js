@@ -67,8 +67,21 @@
       .then(function (j) { setUser(j.user); return j.user; });
   };
   SM.logout = function () {
+    setViewAs('');
     return SM.api('POST', '/api/auth', { action: 'logout' }).then(function () { setUser(null); }, function () { setUser(null); });
   };
+  /* "View as" (admins): the whole site answers as that person, read-only.
+     The server only honours it for a signed-in admin (lib/auth.js viewAs). */
+  function setViewAs(email) {
+    document.cookie = 'sm_view_as=' + encodeURIComponent(email || '') + '; Path=/; SameSite=Lax' +
+      (location.protocol === 'https:' ? '; Secure' : '') + (email ? '; Max-Age=28800' : '; Max-Age=0');
+  }
+  SM.viewAs = function (email) { setViewAs(email); location.reload(); };
+  var PEOPLE = null;
+  function loadPeople() {
+    if (PEOPLE) { return Promise.resolve(PEOPLE); }
+    return SM.api('GET', '/api/auth?viewas=list').then(function (j) { PEOPLE = j.people || []; return PEOPLE; });
+  }
   SM.setUser = setUser;
 
   /* ── styles ── */
@@ -114,6 +127,11 @@
     '.smgo{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 20px;border-radius:8px;background:#16263B;' +
       'color:#fff!important;font:700 14px Inter,sans-serif;text-decoration:none;white-space:nowrap}' +
     '.smgo:hover{background:#0f1b2b}.smgo:focus-visible{outline:2px solid #1C9AD6;outline-offset:2px}' +
+    '#smbar .va{display:flex;align-items:center;gap:6px;color:#9fb3c2;margin-right:8px}' +
+    '#smbar .va select{font:500 13px Inter,sans-serif;max-width:240px;padding:4px 6px;border-radius:7px;border:1px solid #3d5266;background:#1f3347;color:#fff}' +
+    '#smview-bar{background:#5b2a86;color:#fff;font:500 13.5px Inter,sans-serif;padding:9px 20px;text-align:center}' +
+    '#smview-bar button{all:unset;cursor:pointer;margin-left:8px;padding:3px 10px;border-radius:7px;background:#fff;color:#5b2a86;font-weight:700}' +
+    '@media (max-width:640px){#smbar .va span{display:none}#smbar .va select{max-width:130px}}' +
     '#smnag{background:#fdf3e0;color:#7a4a24;font:500 13px Inter,sans-serif;padding:9px 20px;text-align:center}' +
     '#smnag a{color:#B23A1B;font-weight:700}';
   document.head.appendChild(css);
@@ -136,6 +154,10 @@
         '<a href="' + h(SM.signInUrl()) + '">Sign in</a>';
     } else {
       bar.innerHTML =
+        (SM.canViewAs ? '<label class="va"><span>View as</span><select id="smview" aria-label="View the site as">' +
+          '<option value="">' + h(u.view_as ? (u.real_name || 'Me') + ' (me)' : 'Me') + '</option>' +
+          (u.view_as ? '<option value="' + h(u.email) + '" selected>' + h(u.name) + '</option>' : '') +
+          '</select></label>' : '') +
         '<span class="who">' + h(u.name) + (u.role === 'admin' ? '<span class="role">Admin</span>' : '') + '</span>' +
         '<button type="button" id="smbell" aria-haspopup="true" aria-expanded="false" aria-controls="smpanel" aria-label="Alerts">' +
           BELL + '<b id="smcount"' + (SM.unread ? '' : ' hidden') + '>' + (SM.unread > 99 ? '99+' : SM.unread) + '</b></button>' +
@@ -143,6 +165,22 @@
         '<button type="button" class="l" id="smout">Sign out</button>' +
         '<div id="smpanel" role="dialog" aria-label="Alerts" hidden></div>';
       document.getElementById('smbell').addEventListener('click', togglePanel);
+      var sel = document.getElementById('smview');
+      if (sel) {
+        var filled = false;
+        var fill = function () {
+          if (filled) { return; }
+          filled = true;
+          loadPeople().then(function (list) {
+            list.forEach(function (p) {
+              if (u.view_as && p.email === u.email) { return; }
+              var o = document.createElement('option'); o.value = p.email; o.textContent = p.name + ' — ' + p.sees; sel.appendChild(o);
+            });
+          }, function () { filled = false; /* not an admin after all */ });
+        };
+        fill();
+        sel.addEventListener('change', function () { SM.viewAs(sel.value); });
+      }
       document.getElementById('smout').addEventListener('click', function () {
         /* every page needs a sign-in now, so signing out goes back to the front door */
         SM.logout().then(function () { location.replace('login.html'); });
@@ -150,7 +188,14 @@
     }
     /* first sign-in with a temporary password: nudge to choose a real one */
     if (nag) { nag.remove(); nag = null; }
-    if (u && u.must_change_password && here() !== 'account.html') {
+    if (u && u.view_as) {
+      nag = document.createElement('div');
+      nag.id = 'smview-bar';
+      nag.innerHTML = '👁 You\'re viewing the site as <b>' + h(u.name) + '</b> (' + h(u.email) + ') — exactly what they see. Read-only: nothing you do here saves. ' +
+        '<button type="button" id="smview-off">Back to me</button>';
+      bar.after(nag);
+      document.getElementById('smview-off').addEventListener('click', function () { SM.viewAs(''); });
+    } else if (u && u.must_change_password && here() !== 'account.html') {
       nag = document.createElement('div');
       nag.id = 'smnag';
       nag.innerHTML = 'You\'re using a temporary password. <a href="account.html#password">Choose your own</a>.';
@@ -256,7 +301,7 @@
       '<p>' + h(why || 'Use your Sanctuary Microsoft account — the same login as Outlook and Teams.') + '</p></div>' +
       '<a class="smgo" href="' + h(SM.signInUrl(next)) + '">Sign in →</a></div>';
   };
-  SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.msConfigured = !!j.microsoft; return j.user; }, function () { return null; })
+  SM.ready = SM.api('GET', '/api/auth').then(function (j) { SM.msConfigured = !!j.microsoft; SM.canViewAs = !!j.can_view_as; return j.user; }, function () { return null; })
     .then(function (u) { setUser(u); return u; });
   drawBar();
 })();
