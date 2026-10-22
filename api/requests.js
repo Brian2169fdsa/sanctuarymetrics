@@ -38,6 +38,8 @@
      PATCH ?order=<id> {status, …}        admin: move an order along
      DELETE ?handout=<id>                 the person who logged it, or an admin
    A request above that asks for prints also adds a "Requested" order.
+
+   ?pal=… is the PAL Forward email tracker (pal-email.html) — see lib/pal.js.
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
@@ -264,6 +266,7 @@ module.exports = async function handler(req, res) {
     return sendJSON(res, 405, { error: 'method', message: 'Method not allowed.' });
   }
   const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+  if (q.pal) { return require('../lib/pal')(req, res, who, String(q.pal)); }
 
   try {
     /* ── order tracking ── */

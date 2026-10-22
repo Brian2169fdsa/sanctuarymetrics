@@ -116,7 +116,7 @@ function shell(inner) {
     return '<button class="ca-tab" role="tab" data-tab="' + id + '" aria-selected="' + (view === id || (id === 'roster' && view === 'staff')) + '">' + label +
       (count ? '<small>' + count + '</small>' : '') + '</button>';
   };
-  $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access · Site Administrator', 'Admins only', '') +
+  $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access · Site Administrator', 'Admins only', 'cpao') +
     '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 10px">HEAplus access</h2>' +
     setupWarnings() +
     '<div class="ca-tabs" role="tablist">' +

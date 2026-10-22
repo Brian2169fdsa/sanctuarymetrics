@@ -13,5 +13,11 @@
       "path": "/api/cpao",
       "schedule": "0 15 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/pal-email",
+      "destination": "/pal-email.html"
+    }
   ]
 }

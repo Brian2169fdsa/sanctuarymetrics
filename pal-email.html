@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sanctuary Recovery Centers — PAL Email Send</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.pal-kpis{grid-template-columns:repeat(5,1fr)}
+.prog{position:relative;height:22px;border-radius:11px;background:#e6eef3;overflow:hidden;margin:6px 0 6px}
+.prog .fill{position:absolute;left:0;top:0;bottom:0;background:#2E8B6F;border-radius:11px 0 0 11px;transition:width .3s}
+.prog .tick{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.85)}
+.prog-lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.gc{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.gc.sent{background:#f5fbf8;border-color:#cfe8dc}
+.gc-top{display:flex;justify-content:space-between;align-items:center}
+.gc b{font-family:Fraunces,serif;font-size:18px;font-weight:600}
+.chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px}
+.chip.sent{background:#e6f4ee;color:#1f6b4f}.chip.pending{background:#fff4e5;color:#8a5200}
+.gc .meta{font-size:12.5px;color:var(--muted)}
+.gc button{font:700 12.5px Inter,sans-serif;border-radius:8px;padding:8px 10px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);margin-top:2px}
+.gc button.go{background:#2C5468;border-color:#2C5468;color:#fff}
+.gc button.go:hover{background:#16263B}
+.gc button[disabled]{opacity:.5;cursor:wait}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.insight{font-weight:700;font-size:15px;margin:10px 0 0;color:var(--ink)}
+.ct-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0}
+.ct-tools label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.ct-tools input,.ct-tools select{font:400 14px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.ct-tools input{min-width:220px}
+details.ct>summary{cursor:pointer;font-family:Fraunces,serif;font-size:18px;font-weight:600;list-style:none}
+details.ct>summary::before{content:'▸ ';color:var(--muted)}
+details.ct[open]>summary::before{content:'▾ '}
+.sortbtn{all:unset;cursor:pointer;font:inherit;text-transform:inherit;letter-spacing:inherit}
+.sortbtn:focus-visible{outline:2px solid var(--blue)}
+.ct-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.ct-wrap table{margin:0}
+.ct-wrap thead th{position:sticky;top:0;background:#fff;z-index:1}
+.notes-grid{display:grid;grid-template-columns:1fr 220px;gap:16px}
+.notes-grid textarea{width:100%;box-sizing:border-box;min-height:150px;font:400 14px/1.5 Inter,sans-serif;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;resize:vertical}
+.ctr{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;margin:0 0 8px}
+.ctr span{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ctr .n{display:flex;align-items:center;gap:6px}
+.ctr input{width:64px;text-align:center;font:700 18px Inter,sans-serif;border:1px solid var(--line);border-radius:8px;padding:4px}
+.ctr button{all:unset;cursor:pointer;width:28px;height:28px;border-radius:8px;border:1px solid var(--line);text-align:center;line-height:28px;font-weight:700}
+.ctr button:focus-visible{outline:2px solid var(--blue)}
+.msg{padding:10px 12px;border-radius:9px;font-size:13.5px;margin:10px 0 0}
+.msg.err{background:#fbeae6;color:#8f2f1b}.msg.ok{background:#e9f5ee;color:#1f5a37}.msg[hidden]{display:none}
+@media (max-width:720px){
+  .pal-kpis{grid-template-columns:repeat(2,1fr)}
+  .groups{grid-template-columns:repeat(2,1fr);gap:8px}
+  .notes-grid{grid-template-columns:1fr}
+  .ct-tools input{min-width:0;width:100%}
+}
+@media (max-width:380px){ .groups{grid-template-columns:1fr} }
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script>var LOGO = 'print/sanctuary-logo.png';  /* this page skips data.js */</script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── PAL Forward 2026: outreach email send tracker ────────────────────────
+   Data: Supabase pal_contacts + pal_campaign (supabase/pal-email.sql),
+   through /api/requests?pal=… (lib/pal.js) — Reports access only. The
+   contact list isn't in the repository: an admin loads it with Import CSV.
+   Every number on the page is counted from the rows, so marking a group
+   sent updates the KPIs, the bar, the chart and the table at once. */
+var EVENT = { date: '2026-11-13', name: 'PAL Forward 2026', when: 'Fri, Nov 13, 2026 · 5:30–8:00 PM',
+              where: 'Phoenix Bible Church, 6060 N. 7th Ave, Phoenix · virtual option available' };
+var API = '/api/requests?pal=';
+var D = null, ERR = '';
+var TBL = { q: '', group: '', status: '', sort: 'domain', dir: 1, open: false };
+
+function $(id) { return document.getElementById(id); }
+function api(method, which, body, raw) {
+  return fetch(API + which, { method: method, credentials: 'same-origin',
+    headers: { 'Content-Type': raw ? 'application/octet-stream' : 'application/json' },
+    body: raw ? body : body ? JSON.stringify(body) : undefined }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) { throw new Error(j.message || 'Request failed (' + r.status + ')'); }
+      return j;
+    });
+  });
+}
+function todayPhx() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }); }
+function dayLabel(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''; }
+function daysUntil(d) { return Math.round((new Date(d + 'T12:00:00Z') - new Date(todayPhx() + 'T12:00:00Z')) / 864e5); }
+
+/* everything the page shows, counted from the rows */
+function stats() {
+  var c = D.contacts, groups = {}, domains = {};
+  c.forEach(function (x) {
+    var g = groups[x.grp] || (groups[x.grp] = { n: 0, sent: 0, dates: {} });
+    g.n++;
+    if (x.status === 'sent') { g.sent++; if (x.sent_date) { g.dates[x.sent_date] = 1; } }
+    var d = domains[x.domain] || (domains[x.domain] = { sent: 0, pending: 0 });
+    d[x.status === 'sent' ? 'sent' : 'pending']++;
+  });
+  var sent = c.filter(function (x) { return x.status === 'sent'; }).length;
+  return { total: c.length, sent: sent, remaining: c.length - sent, groups: groups, domains: domains,
+           groupIds: Object.keys(groups).map(Number).sort(function (a, b) { return a - b; }) };
+}
+
+function render() {
+  var head = pageHeader('PAL Email Send', EVENT.name + ' &nbsp;·&nbsp; ' + EVENT.when, esc(EVENT.where), 'pal');
+  if (ERR) { $('sheet').innerHTML = head + '<section><div class="msg err">' + esc(ERR) + '</div></section>' + pageFooter('PAL email tracker'); return; }
+  if (!D) { $('sheet').innerHTML = head + '<section><p class="sub">Loading…</p></section>'; return; }
+  if (!D.contacts.length) {
+    $('sheet').innerHTML = head + '<section><div class="eyebrow">PAL Email Send</div><h2 style="font-size:26px;margin:6px 0 10px">No contacts loaded yet</h2>' +
+      (D.admin ? '<p class="lead">Import the send tracker CSV (columns: email, domain, group, status, sent_date). It\'s stored privately in Supabase, not in the site\'s code.</p>' + importBox()
+               : '<p class="lead">An admin needs to import the contact list first.</p>') + '</section>' + pageFooter('PAL email tracker');
+    wireImport(); return;
+  }
+  var s = stats(), pct = s.total ? s.sent / s.total * 100 : 0, days = daysUntil(EVENT.date);
+  $('sheet').innerHTML = head +
+    '<section><div class="eyebrow">Outreach campaign</div><h2 style="font-size:26px;margin:6px 0 14px">PAL Forward invitations</h2>' +
+      kpis([
+        { lab: 'Total contacts', num: fmt(s.total), note: s.groupIds.length + ' send groups' },
+        { lab: 'Sent', num: fmt(s.sent) },
+        { lab: 'Remaining', num: fmt(s.remaining) },
+        { lab: 'Percent complete', num: r1(pct).replace(/\.0$/, '') + '%' },
+        { lab: 'Days until event', num: days < 0 ? 'Done' : String(days), note: days === 0 ? 'Today!' : dayLabel(EVENT.date) }
+      ]).replace('class="kpis"', 'class="kpis pal-kpis"') +
+      progress(s) +
+    '</section>' +
+    '<section><h3 style="font-family:Fraunces,serif;font-size:21px;margin:0 0 12px">Send groups</h3>' +
+      '<div class="groups">' + s.groupIds.map(function (g) { return groupCard(g, s.groups[g]); }).join('') + '</div>' +
+      '<div class="msg err" id="g-err" hidden></div></section>' +
+    '<section><h3 style="font-family:Fraunces,serif;font-size:21px;margin:0 0 6px">Top domains</h3>' +
+      '<div class="legend"><span><i style="background:#2E8B6F"></i>Sent</span><span><i style="background:#E0A64B"></i>Pending</span></div>' +
+      '<div class="card" id="dom">' + domainChart(s) + '</div>' + insight(s) + '</section>' +
+    '<section><details class="ct" id="ct"' + (TBL.open ? ' open' : '') + '><summary>Contacts (' + fmt(s.total) + ')</summary><div id="ct-body">' + (TBL.open ? contactTable() : '') + '</div></details></section>' +
+    '<section><h3 style="font-family:Fraunces,serif;font-size:21px;margin:0 0 10px">Notes &amp; follow-up</h3>' + notesBox() + '</section>' +
+    (D.admin ? '<section><details><summary style="cursor:pointer;font-weight:600">Re-import the CSV (admins)</summary>' + importBox() + '</details></section>' : '') +
+    pageFooter('PAL email send tracker (Supabase), updated live');
+  wire();
+}
+
+function progress(s) {
+  var ticks = '', run = 0;
+  s.groupIds.forEach(function (g, i) {
+    run += s.groups[g].n;
+    if (i < s.groupIds.length - 1) { ticks += '<span class="tick" style="left:' + (run / s.total * 100) + '%" title="End of group ' + g + '"></span>'; }
+  });
+  return '<div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="' + s.total + '" aria-valuenow="' + s.sent + '" aria-label="Emails sent">' +
+    '<div class="fill" style="width:' + (s.sent / s.total * 100) + '%"></div>' + ticks + '</div>' +
+    '<div class="prog-lab"><span>' + fmt(s.sent) + ' sent</span><span>' + s.groupIds.length + ' groups</span><span>' + fmt(s.remaining) + ' to go</span></div>';
+}
+function groupCard(g, x) {
+  var sent = x.sent === x.n, partial = x.sent > 0 && !sent;
+  var dates = Object.keys(x.dates).sort();
+  return '<div class="gc' + (sent ? ' sent' : '') + '"><div class="gc-top"><b>Group ' + g + '</b>' +
+    '<span class="chip ' + (sent ? 'sent' : 'pending') + '">' + (sent ? 'Sent' : partial ? 'Partly sent' : 'Pending') + '</span></div>' +
+    '<div class="meta">' + fmt(x.n) + ' contacts' + (partial ? ' · ' + fmt(x.sent) + ' sent' : '') +
+      (dates.length ? ' · ' + dates.map(dayLabel).join(', ') : '') + '</div>' +
+    (sent ? '<button type="button" data-g="' + g + '" data-to="pending">Mark as pending</button>'
+          : '<button type="button" class="go" data-g="' + g + '" data-to="sent">Mark as sent</button>') + '</div>';
+}
+
+/* stacked horizontal bars, same geometry as ui.js hbar() */
+function domainChart(s) {
+  var top = Object.keys(s.domains).map(function (k) { var d = s.domains[k]; return { label: k, sent: d.sent, pending: d.pending, n: d.sent + d.pending }; })
+    .sort(function (a, b) { return b.n - a.n || (a.label < b.label ? -1 : 1); }).slice(0, 15);
+  var W = chartW(false), max = top.length ? top[0].n : 1, out;
+  if (isCompact(W)) {
+    var rowH = 46;
+    out = '<svg viewBox="0 0 ' + W + ' ' + (top.length * rowH + 4) + '" class="chart" role="img" aria-label="Top domains, sent and pending">';
+    top.forEach(function (d, i) {
+      var y = i * rowH, ws = d.sent / max * W, wp = d.pending / max * W;
+      out += '<text x="0" y="' + (y + 12) + '" class="hlab">' + esc(d.label) + '</text>' +
+        '<text x="' + W + '" y="' + (y + 12) + '" text-anchor="end" class="hval">' + fmt(d.n) + (d.pending ? ' · ' + d.pending + ' pending' : '') + '</text>' +
+        '<rect x="0" y="' + (y + 20) + '" width="' + r1(ws) + '" height="14" rx="3" fill="#2E8B6F"/>' +
+        '<rect x="' + r1(ws) + '" y="' + (y + 20) + '" width="' + r1(wp) + '" height="14" rx="3" fill="#E0A64B"/>';
+    });
+    return out + '</svg>';
+  }
+  var barX = Math.min(220, Math.max(140, Math.round(W * 0.27))), maxW = W - barX - 110, rowH2 = 34, bh = 20;
+  out = '<svg viewBox="0 0 ' + W + ' ' + (top.length * rowH2 + 18) + '" class="chart" role="img" aria-label="Top domains, sent and pending">';
+  top.forEach(function (d, i) {
+    var y = 10 + i * rowH2, ws = d.sent / max * maxW, wp = d.pending / max * maxW, tb = y + 15;
+    out += '<text x="0" y="' + tb + '" class="hlab">' + esc(d.label) + '</text>' +
+      '<rect x="' + barX + '" y="' + y + '" width="' + r1(ws) + '" height="' + bh + '" rx="3" fill="#2E8B6F"><title>' + d.sent + ' sent</title></rect>' +
+      (wp ? '<rect x="' + r1(barX + ws) + '" y="' + y + '" width="' + r1(wp) + '" height="' + bh + '" rx="3" fill="#E0A64B"><title>' + d.pending + ' pending</title></rect>' : '') +
+      '<text x="' + r1(barX + ws + wp + 8) + '" y="' + tb + '" class="hval">' + fmt(d.n) + (d.pending ? ' (' + d.pending + ' pending)' : '') + '</text>';
+  });
+  return out + '</svg>';
+}
+function insight(s) {
+  if (!s.remaining) { return '<p class="insight">Every invitation is out — ' + fmt(s.total) + ' contacts across ' + Object.keys(s.domains).length + ' organizations.</p>'; }
+  var list = Object.keys(s.domains).map(function (k) { return { k: k, p: s.domains[k].pending }; }).sort(function (a, b) { return b.p - a.p; });
+  var top = list[0], share = Math.round(top.p / s.remaining * 100);
+  var orgs = list.filter(function (x) { return x.p; }).length;
+  return '<p class="insight">' + esc(top.k) + ' holds the most unsent invitations: ' + fmt(top.p) + ' of the ' + fmt(s.remaining) +
+    ' still pending (' + share + '%), spread across ' + orgs + ' organization' + (orgs === 1 ? '' : 's') + ' in all.</p>';
+}
+
+/* ── contact table ────────────────────────────────────────────────────── */
+function filtered() {
+  var q = TBL.q.toLowerCase();
+  return D.contacts.filter(function (c) {
+    return (!q || c.email.indexOf(q) >= 0 || c.domain.indexOf(q) >= 0) &&
+      (!TBL.group || String(c.grp) === TBL.group) && (!TBL.status || c.status === TBL.status);
+  }).sort(function (a, b) {
+    var k = TBL.sort, av = k === 'grp' ? a.grp : a[k] || '', bv = k === 'grp' ? b.grp : b[k] || '';
+    return (av < bv ? -1 : av > bv ? 1 : (a.email < b.email ? -1 : 1)) * TBL.dir;
+  });
+}
+function contactTable() {
+  var s = stats(), rows = filtered();
+  var th = function (k, label) { return '<th><button type="button" class="sortbtn" data-sort="' + k + '">' + label + (TBL.sort === k ? (TBL.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>'; };
+  return '<div class="ct-tools">' +
+      '<label>Search<input id="ct-q" type="search" placeholder="Email or domain" value="' + esc(TBL.q) + '"></label>' +
+      '<label>Group<select id="ct-g"><option value="">All</option>' + s.groupIds.map(function (g) { return '<option' + (TBL.group === String(g) ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select></label>' +
+      '<label>Status<select id="ct-s"><option value="">All</option><option value="sent"' + (TBL.status === 'sent' ? ' selected' : '') + '>Sent</option><option value="pending"' + (TBL.status === 'pending' ? ' selected' : '') + '>Pending</option></select></label>' +
+      '<button type="button" class="btn" id="ct-x">Export ' + fmt(rows.length) + ' as CSV</button></div>' +
+    '<div class="ct-wrap"><table><thead><tr>' + th('email', 'Email') + th('domain', 'Domain') + th('grp', 'Group') + th('status', 'Status') + '<th>Sent</th></tr></thead><tbody>' +
+      rows.slice(0, 500).map(function (c) {
+        return '<tr><td>' + esc(c.email) + '</td><td>' + esc(c.domain) + '</td><td>' + c.grp + '</td><td><span class="chip ' + c.status + '">' + (c.status === 'sent' ? 'Sent' : 'Pending') + '</span></td><td>' + dayLabel(c.sent_date) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+    (rows.length > 500 ? '<p class="sub" style="margin-top:6px">Showing the first 500 of ' + fmt(rows.length) + ' — search or filter to narrow it, or export them all.</p>' : '');
+}
+function drawTable() { $('ct-body').innerHTML = contactTable(); applyDataLabels($('ct-body')); wireTable(); }
+function exportCsv() {
+  var lines = ['email,domain,group,status,sent_date'].concat(filtered().map(function (c) { return [c.email, c.domain, c.grp, c.status, c.sent_date || ''].join(','); }));
+  var blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'pal_email_send_' + todayPhx() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+}
+function wireTable() {
+  var q = $('ct-q');
+  q.addEventListener('input', function () {
+    TBL.q = q.value.trim(); var pos = q.selectionStart; drawTable();
+    var n = $('ct-q'); n.focus(); n.setSelectionRange(pos, pos);
+  });
+  $('ct-g').addEventListener('change', function () { TBL.group = $('ct-g').value; drawTable(); });
+  $('ct-s').addEventListener('change', function () { TBL.status = $('ct-s').value; drawTable(); });
+  $('ct-x').addEventListener('click', exportCsv);
+  document.querySelectorAll('[data-sort]').forEach(function (b) {
+    b.addEventListener('click', function () { var k = b.getAttribute('data-sort'); TBL.dir = TBL.sort === k ? -TBL.dir : 1; TBL.sort = k; drawTable(); });
+  });
+}
+
+/* ── notes + counters ─────────────────────────────────────────────────── */
+function notesBox() {
+  var c = D.campaign;
+  var ctr = function (k, label) {
+    return '<div class="ctr"><span>' + label + '</span><div class="n"><button type="button" data-dec="' + k + '" aria-label="One fewer ' + label + '">−</button>' +
+      '<input id="c-' + k + '" type="number" min="0" value="' + (c[k] || 0) + '" aria-label="' + label + '"><button type="button" data-inc="' + k + '" aria-label="One more ' + label + '">+</button></div></div>';
+  };
+  return '<div class="notes-grid"><div><textarea id="c-notes" maxlength="20000" aria-label="Notes" placeholder="Replies, bounces, RSVPs, who to follow up with…">' + esc(c.notes || '') + '</textarea></div>' +
+    '<div>' + ctr('replies', 'Replies') + ctr('bounces', 'Bounces') + ctr('rsvps', 'RSVPs') +
+    '<button type="button" class="btn" id="c-save" style="width:100%">Save notes</button>' +
+    '<p class="sub" style="margin:8px 0 0">' + (c.updated_by_name ? 'Last saved by ' + esc(c.updated_by_name) + ' · ' + new Date(c.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Phoenix' }) : 'Not saved yet') + '</p></div></div>' +
+    '<div class="msg" id="c-msg" hidden></div>';
+}
+function importBox() {
+  return '<div class="card" style="margin-top:12px"><label class="sub" style="display:block;margin:0 0 8px">CSV file<br><input type="file" id="imp" accept=".csv,text/csv"></label>' +
+    '<p class="sub" style="margin:0">Rows are matched by email: existing contacts are updated, new ones added.</p><div class="msg" id="imp-msg" hidden></div></div>';
+}
+function wireImport() {
+  var f = $('imp');
+  if (!f) { return; }
+  f.addEventListener('change', function () {
+    var file = f.files[0], m = $('imp-msg');
+    if (!file) { return; }
+    m.hidden = false; m.className = 'msg'; m.textContent = 'Importing…';
+    file.text().then(function (text) { return api('POST', 'import', text, true); }).then(function (j) {
+      return load().then(function () { var mm = $('imp-msg'); if (mm) { mm.hidden = false; mm.className = 'msg ok'; mm.textContent = 'Imported ' + fmt(j.imported) + ' contacts.'; } });
+    }, function (e) { m.className = 'msg err'; m.textContent = e.message; });
+  });
+}
+
+function wire() {
+  document.querySelectorAll('[data-g]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var g = +b.getAttribute('data-g'), to = b.getAttribute('data-to');
+      if (to === 'pending' && !confirm('Mark group ' + g + ' as not sent?')) { return; }
+      b.disabled = true;
+      api('POST', 'group', { group: g, status: to }).then(function (j) {
+        D.contacts.forEach(function (c) { if (c.grp === g) { c.status = j.status; c.sent_date = j.sent_date; } });
+        render();
+      }, function (e) { b.disabled = false; var x = $('g-err'); x.hidden = false; x.textContent = e.message; });
+    });
+  });
+  $('ct').addEventListener('toggle', function () { TBL.open = $('ct').open; if (TBL.open && !$('ct-q')) { drawTable(); } });
+  if (TBL.open) { applyDataLabels($('ct-body')); wireTable(); }
+  document.querySelectorAll('[data-inc],[data-dec]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.getAttribute('data-inc') || b.getAttribute('data-dec'), i = $('c-' + k);
+      i.value = Math.max(0, (+i.value || 0) + (b.hasAttribute('data-inc') ? 1 : -1));
+    });
+  });
+  $('c-save').addEventListener('click', function () {
+    var btn = $('c-save'), m = $('c-msg');
+    btn.disabled = true;
+    api('POST', 'campaign', { notes: $('c-notes').value, replies: +$('c-replies').value || 0, bounces: +$('c-bounces').value || 0, rsvps: +$('c-rsvps').value || 0 })
+      .then(function (j) { D.campaign = j.campaign; btn.disabled = false; render(); var mm = $('c-msg'); mm.hidden = false; mm.className = 'msg ok'; mm.textContent = 'Saved.'; },
+            function (e) { btn.disabled = false; m.hidden = false; m.className = 'msg err'; m.textContent = e.message; });
+  });
+  wireImport();
+}
+
+function load() {
+  return api('GET', '1').then(function (j) { D = j; ERR = ''; render(); }, function (e) { ERR = e.message; render(); });
+}
+var resizeT;
+window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { if (D && $('dom')) { $('dom').innerHTML = domainChart(stats()); } }, 200); });
+SM.ready.then(function (me) {
+  if (!me) { $('sheet').innerHTML = SM.signInCard('pal-email.html'); return; }
+  render(); load();
+});
+</script>
+</body></html>

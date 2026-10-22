@@ -209,6 +209,8 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="print.html"' + (current === 'print' ? ' aria-current="page"' : '') + '>Print orders</a>' +
       '<a href="website.html"' + (current === 'website' ? ' aria-current="page"' : '') + '>Website edits</a>' +
       '<a href="sanctuaryci.html" data-need="reports"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
+      '<a href="pal-email.html" data-need="reports"' + (current === 'pal' ? ' aria-current="page"' : '') + '>PAL Email Send</a>' +
+      '<a href="cpao-admin.html" data-need="admin"' + (current === 'cpao' ? ' aria-current="page"' : '') + '>HEAplus (CP-AO)</a>' +
       '<a class="navbtn" href="costs.html" data-need="costs">Cost cutting</a>' +
     '</nav><hr class="phoenix">';
 }

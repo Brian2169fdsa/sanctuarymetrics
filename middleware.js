@@ -25,7 +25,7 @@ const OPEN_PAGES = new Set(['/login.html', '/account.html']);
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 
 const ADMIN_PAGES = new Set(['/cpao-admin.html']);
-const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html']);
+const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/pal-email.html', '/pal-email']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
 
