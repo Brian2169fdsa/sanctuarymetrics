@@ -36,7 +36,7 @@
      GET  ?action=preview_pdf&id=   their CP-101 PDF (made on the fly before countersigning)
      POST ?action=invite | update | reveal | countersign | send_back | status | followup
                  | settings | batch | push {id} (Add/Remove form for one person now)
-                 | mark_sent | rotate | purge
+                 | mark_sent | send_batch {id} (email it to CPAO from the site admin's mailbox) | rotate | purge
 
    CRON (vercel.json, daily 15:00 UTC = 8:00 Phoenix): GET ?action=cron with
    Authorization: Bearer <CRON_SECRET>. Builds the weekly batch on
@@ -645,14 +645,40 @@ async function buildBatch(req, actor, only) {
   await db('PATCH', 'cpao_batches', '?id=eq.' + batch.id, { org_form_storage_key: base + orgName, bundle_storage_key: base + bundleName, project_id: p.id });
   let drafted = false;
   try {
-    drafted = await G.draftToCpao('HEAplus user access — ' + R.C.dba + ' — ' + R.mdy(weekOf),
-      'Hello CP-AO Operations Team,\n\nAttached is our Organization User Application with ' + nAdd + ' add' + (nAdd === 1 ? '' : 's') +
-      ' and ' + nRemove + ' removal' + (nRemove === 1 ? '' : 's') + ', and the Individual User Application for each person being added.\n\nThank you,\n' +
-      R.C.site_admin_name + '\n' + R.C.site_admin_title + ', ' + R.C.dba + '\n' + R.C.site_admin_email,
-      [{ name: orgName, bytes: org }].concat(files));
+    const m = cpaoEmail(weekOf, nAdd, nRemove);
+    drafted = await G.draftToCpao(m.subject, m.text, [{ name: orgName, bytes: org }].concat(files));
   } catch (e) { await audit(actor, 'outlook_draft_failed', null, null, req); }
   await audit(actor, 'batch_built', null, { batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: drafted }, req);
   return { ok: true, batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: drafted };
+}
+
+/* the email to CP-AO Operations (an Outlook draft, or "Send to CPAO") */
+function cpaoEmail(weekOf, nAdd, nRemove) {
+  return { subject: 'HEAplus user access — ' + R.C.dba + ' — ' + R.mdy(weekOf),
+    text: 'Hello CP-AO Operations Team,\n\nAttached is our Organization User Application with ' + nAdd + ' add' + (nAdd === 1 ? '' : 's') +
+      ' and ' + nRemove + ' removal' + (nRemove === 1 ? '' : 's') + (nAdd ? ', and the Individual User Application for each person being added' : '') +
+      '.\n\nThank you,\n' + R.C.site_admin_name + '\n' + R.C.site_admin_title + ', ' + R.C.dba + '\n' + R.C.site_admin_email };
+}
+
+/* "Send to CPAO": Brian's click emails the Org form and every CP-101 in the
+   batch from his mailbox to CP-AO Operations, then marks the batch sent */
+async function sendBatch(req, me, id) {
+  if (!UUID.test(String(id || ''))) { throw bad('Which batch?'); }
+  const b = (await db('GET', 'cpao_batches', '?id=eq.' + id + '&select=*'))[0];
+  if (!b) { throw bad('That batch isn\'t here any more.', 404); }
+  if (b.status !== 'draft') { throw bad('That batch was already sent.'); }
+  if (!b.org_form_storage_key) { throw bad('The files for this batch are gone — build it again.'); }
+  const files = [{ name: b.org_form_storage_key.split('/').pop(), bytes: await S.download(BUCKET, b.org_form_storage_key) }];
+  for (const a of await db('GET', 'cpao_applications', '?batch_id=eq.' + id + '&select=pdf_storage_key&order=created_at.asc')) {
+    if (a.pdf_storage_key) { files.push({ name: a.pdf_storage_key.split('/').pop(), bytes: await S.download(BUCKET, a.pdf_storage_key) }); }
+  }
+  const nAdd = (b.rows || []).filter(function (r) { return /^Add/.test(r.action); }).length;
+  const m = cpaoEmail(b.week_of, nAdd, (b.rows || []).length - nAdd);
+  try { await G.sendToCpao(m.subject, m.text, files); }
+  catch (e) { await audit(me.email, 'batch_email_failed', null, { batch_id: id, code: e.code || 'error' }, req); throw bad(e.message, e.code === 'graph' ? 502 : 400); }
+  await audit(me.email, 'batch_emailed', null, { batch_id: id, to: R.C.cpao_ops_email, files: files.length }, req);
+  await markSent(req, me, id);
+  return { ok: true, to: R.C.cpao_ops_email, from: R.C.site_admin_email, files: files.length };
 }
 
 async function markSent(req, me, id) {
@@ -859,7 +885,7 @@ async function selfRoute(req, res, action, me) {
   return sendJSON(res, 200, { self: true, mine: mine, site_admin: R.C.site_admin_name });
 }
 
-const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, rotate: 1, purge: 1 };
+const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1 };
 
 async function adminRoute(req, res, action, me, q) {
   if (req.method === 'GET') {
@@ -946,6 +972,7 @@ async function adminRoute(req, res, action, me, q) {
       return sendJSON(res, 200, await buildBatch(req, me.email, [s.id]));
     }
     case 'mark_sent': return sendJSON(res, 200, await markSent(req, me, b.id));
+    case 'send_batch': return sendJSON(res, 200, await sendBatch(req, me, b.id));
     case 'rotate': return sendJSON(res, 200, await rotate(req, me));
     case 'purge': { const r = await purge(); await audit(me.email, 'purge_run', null, r, req); return sendJSON(res, 200, Object.assign({ ok: true }, r)); }
   }
