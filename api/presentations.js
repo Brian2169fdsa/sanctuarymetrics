@@ -23,68 +23,19 @@
 
 const { sendJSON, readBody, supabase } = require('../lib/db');
 const A = require('../lib/auth');
+const S = require('../lib/storage');
 
 const BUCKET = 'presentations';
 const ID = /^[0-9a-f-]{36}$/i;
 const MAX_SLIDES = 200;
 const MAX_IMAGE = 3 * 1024 * 1024;
-const SIGN_SECONDS = 60 * 60;
 const SHAREPOINT = /^https:\/\/[a-z0-9-]+\.sharepoint\.com\/\S+$/i;
 const COLS = 'id,title,description,category,sharepoint_url,slide_count,status,created_by_name,created_at,updated_at';
 
 function str(v, max) { return v === null || v === undefined ? '' : String(v).trim().slice(0, max); }
-function bad(message) { const e = new Error(message); e.bad = true; return e; }
+const bad = S.bad;
 
-/* ── Supabase storage ─────────────────────────────────────────────────── */
-function storage(method, path, body, headers) {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/storage/v1/' + path, {
-    method: method,
-    headers: Object.assign({ apikey: key, Authorization: 'Bearer ' + key }, headers || {}),
-    body: body
-  }).then(function (r) {
-    return r.text().then(function (text) {
-      if (!r.ok) { const e = new Error('Storage ' + r.status + ': ' + text.slice(0, 300)); e.status = r.status; throw e; }
-      return text ? JSON.parse(text) : null;
-    });
-  });
-}
-/* signed links for many objects in one call; returns path → absolute URL */
-async function sign(paths) {
-  if (!paths.length) { return {}; }
-  const rows = await storage('POST', 'object/sign/' + BUCKET, JSON.stringify({ expiresIn: SIGN_SECONDS, paths: paths }),
-                             { 'Content-Type': 'application/json' });
-  const base = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/storage/v1';
-  const out = {};
-  (rows || []).forEach(function (r) { if (r.signedURL && r.path) { out[r.path] = base + r.signedURL; } });
-  return out;
-}
 function slidePath(id, kind, n) { return id + '/' + kind + n + '.webp'; }
-
-/* raw request body as a Buffer, refusing anything over the limit */
-function readRaw(req, limit) {
-  if (Buffer.isBuffer(req.body)) {
-    return req.body.length > limit ? Promise.reject(bad('That image is too big.')) : Promise.resolve(req.body);
-  }
-  return new Promise(function (resolve, reject) {
-    const chunks = [];
-    let size = 0;
-    req.on('data', function (c) {
-      size += c.length;
-      if (size > limit) { req.destroy(); reject(bad('That image is too big.')); return; }
-      chunks.push(c);
-    });
-    req.on('end', function () { resolve(Buffer.concat(chunks)); });
-    req.on('error', reject);
-  });
-}
-/* the first bytes say what an image really is, whatever the header claims */
-function imageType(buf) {
-  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') { return 'image/webp'; }
-  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) { return 'image/jpeg'; }
-  if (buf.length > 8 && buf.toString('hex', 0, 8) === '89504e470d0a1a0a') { return 'image/png'; }
-  return null;
-}
 
 function cleanFields(b, creating) {
   const out = {};
@@ -133,7 +84,7 @@ module.exports = async function handler(req, res) {
         if (!deck || (deck.status !== 'ready' && !admin)) { return sendJSON(res, 404, { error: 'not_found', message: 'That presentation isn\'t here.' }); }
         const paths = [];
         for (let n = 1; n <= deck.slide_count; n++) { paths.push(slidePath(deck.id, 's', n), slidePath(deck.id, 't', n)); }
-        const urls = await sign(paths);
+        const urls = await S.sign(BUCKET, paths);
         deck.slides = [];
         for (let n = 1; n <= deck.slide_count; n++) {
           deck.slides.push({ n: n, full: urls[slidePath(deck.id, 's', n)] || null, thumb: urls[slidePath(deck.id, 't', n)] || null });
@@ -142,7 +93,7 @@ module.exports = async function handler(req, res) {
       }
       const decks = await supabase('GET', '?select=' + COLS + (admin ? '' : '&status=eq.ready') + '&order=created_at.desc',
                                    null, null, 'presentations');
-      const covers = await sign(decks.filter(function (d) { return d.slide_count > 0; })
+      const covers = await S.sign(BUCKET, decks.filter(function (d) { return d.slide_count > 0; })
                                      .map(function (d) { return slidePath(d.id, 't', 1); }));
       decks.forEach(function (d) { d.cover = covers[slidePath(d.id, 't', 1)] || null; });
       return sendJSON(res, 200, { decks: decks, admin: admin });
@@ -166,11 +117,10 @@ module.exports = async function handler(req, res) {
       const n = Number(q.get('n')), kind = q.get('kind');
       if (!Number.isInteger(n) || n < 1 || n > deck.slide_count) { throw bad('That slide number is out of range.'); }
       if (kind !== 's' && kind !== 't') { throw bad('Unknown image kind.'); }
-      const buf = await readRaw(req, MAX_IMAGE);
-      const type = imageType(buf);
+      const buf = await S.readRaw(req, MAX_IMAGE);
+      const type = S.imageType(buf);
       if (!type) { throw bad('Slides must be WebP, JPEG or PNG images.'); }
-      await storage('POST', 'object/' + BUCKET + '/' + slidePath(deck.id, kind, n), buf,
-                    { 'Content-Type': type, 'x-upsert': 'true', 'Cache-Control': 'max-age=3600' });
+      await S.upload(BUCKET, slidePath(deck.id, kind, n), buf, type);
       return sendJSON(res, 200, { ok: true });
     }
 
@@ -184,9 +134,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'DELETE') {
       const paths = [];
       for (let n = 1; n <= deck.slide_count; n++) { paths.push(slidePath(deck.id, 's', n), slidePath(deck.id, 't', n)); }
-      if (paths.length) {
-        await storage('DELETE', 'object/' + BUCKET, JSON.stringify({ prefixes: paths }), { 'Content-Type': 'application/json' });
-      }
+      await S.remove(BUCKET, paths);
       await supabase('DELETE', '?id=eq.' + deck.id, null, { Prefer: 'return=minimal' }, 'presentations');
       return sendJSON(res, 200, { ok: true });
     }

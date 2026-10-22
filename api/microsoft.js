@@ -18,14 +18,15 @@
        linked by Microsoft's object ID after the first sign-in, before that by
        email (either Sanctuary domain). Accounts are created by an admin.
      - the master admin (ADMIN_EMAILS); their account is created on first sign-in
-     - with MS_AUTO_CREATE=true, anyone else in the tenant, as a member
+     - anyone else in the tenant, as staff (no reports or cost pages until an
+       admin turns them on under People) — set MS_AUTO_CREATE=false to stop that
 
    Environment (Vercel → Settings → Environment Variables):
      MS_CLIENT_ID       the sign-in app's application (client) ID
      MS_CLIENT_SECRET   its client secret
      MS_TENANT_ID       optional; defaults to the Sanctuary tenant
      MS_REDIRECT_URI    optional; defaults to https://<this host>/api/microsoft
-     MS_AUTO_CREATE     optional; "true" lets anyone in the tenant in as a member
+     MS_AUTO_CREATE     optional; "false" stops new people signing themselves in
    Setup steps: tools/register-signin-app.ps1, or MICROSOFT_SIGNIN.md.
    ========================================================================== */
 
@@ -113,8 +114,9 @@ module.exports = async function handler(req, res) {
   const oid = GUID.test(claims.oid || '') ? claims.oid.toLowerCase() : null;
 
   try {
+    const cols = await A.userCols();
     const find = function (filter) {
-      return supabase('GET', '?' + filter + '&select=' + A.USER_COLS + '&limit=2', null, null, 'app_users');
+      return supabase('GET', '?' + filter + '&select=' + cols + '&limit=2', null, null, 'app_users');
     };
     /* 1. the account already linked to this Microsoft identity */
     let u = null;
@@ -127,12 +129,13 @@ module.exports = async function handler(req, res) {
     }
     if (!u) {
       const isAdmin = A.adminEmails().indexOf(email) >= 0;
-      if (!isAdmin && process.env.MS_AUTO_CREATE !== 'true') { return fail(res, 'noaccount', email); }
-      u = (await supabase('POST', '?select=' + A.USER_COLS, { email: email, name: String(claims.name || email.split('@')[0]).slice(0, 80),
+      if (!isAdmin && process.env.MS_AUTO_CREATE === 'false') { return fail(res, 'noaccount', email); }
+      u = (await supabase('POST', '?select=' + (await A.userCols()), { email: email, name: String(claims.name || email.split('@')[0]).slice(0, 80),
         role: isAdmin ? 'admin' : 'member', must_change_password: false }, null, 'app_users'))[0];
       if (!isAdmin) {
         await A.sendAlerts((await A.admins()).map(function (a) { return a.id; }), {
-          title: u.name + ' joined with Microsoft sign-in', body: email, link: 'account.html#people' });
+          title: u.name + ' joined as staff', body: email + ' — turn on Reports or Cost management under People if they need them.',
+          link: 'account.html#people' });
       }
     }
     if (u.disabled) { return fail(res, 'disabled', email); }

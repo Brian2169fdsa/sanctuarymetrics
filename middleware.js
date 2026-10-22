@@ -12,10 +12,21 @@
      sends anyone else to login.html on its own)
    - /api/*: each function checks access itself, and sanctuaryci.org posts
      analytics to /api/collect
-   - images, fonts, scripts and styles, so login.html can draw itself        */
+   - images, fonts, scripts and styles, so login.html can draw itself
+
+   Then by access level (the same rules as access() in lib/auth.js):
+   - the reports need Reports access (or admin)
+   - the cost-cutting pages need Cost management access (or admin)
+   - everything else is for all staff
+   Someone opening a page they can't use lands on home.html, which shows
+   what they can open.                                                       */
 
 const OPEN_PAGES = new Set(['/login.html', '/account.html']);
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
+
+const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html']);
+const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
+  '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
 
 export const config = { matcher: '/((?!api/).*)' };
 
@@ -35,16 +46,23 @@ function cookie(request, name) {
   return '';
 }
 
-async function signedIn(request) {
+/* the signed-in account's access, or null; reads the access columns when
+   supabase/accounts.sql has added them, and the old setup when not */
+async function account(request) {
   const token = cookie(request, 'sm_session');
-  if (!token || token.length > 100) { return false; }
+  if (!token || token.length > 100) { return null; }
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const url = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_sessions?token_hash=eq.' + (await sha256(token)) +
-    '&expires_at=gt.' + encodeURIComponent(new Date().toISOString()) + '&select=user:app_users(disabled)';
-  const r = await fetch(url, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
-  if (!r.ok) { return false; }
+  const base = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_sessions?token_hash=eq.' + (await sha256(token)) +
+    '&expires_at=gt.' + encodeURIComponent(new Date().toISOString()) + '&select=user:app_users(';
+  const get = (cols) => fetch(base + cols + ')', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  let r = await get('disabled,role,access_reports,access_costs');
+  if (r.status === 400) { r = await get('disabled,role'); }
+  if (!r.ok) { return null; }
   const rows = await r.json();
-  return !!(rows[0] && rows[0].user && !rows[0].user.disabled);
+  const u = rows[0] && rows[0].user;
+  if (!u || u.disabled) { return null; }
+  const admin = u.role === 'admin';
+  return { reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
 }
 
 export default async function middleware(request) {
@@ -52,12 +70,21 @@ export default async function middleware(request) {
   if (OPEN_PAGES.has(path) || ASSET.test(path)) { return; }
   /* accounts not set up on this deployment: nobody could sign in, so don't lock the site */
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) { return; }
+  let who = null;
   try {
-    if (await signedIn(request)) { return; }
+    who = await account(request);
   } catch (e) {
     /* Supabase didn't answer — fall through to the sign-in page, which says so */
   }
-  const page = path.replace(/^\/+/, '') || 'index.html';
+  if (who) {
+    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs)) {
+      const home = new URL('/home.html', request.url);
+      if (path !== '/') { home.searchParams.set('denied', path.replace(/^\/+/, '')); }
+      return new Response(null, { status: 302, headers: { Location: home.toString(), 'Cache-Control': 'no-store' } });
+    }
+    return;
+  }
+  const page = path.replace(/^\/+/, '') || 'home.html';
   const login = new URL('/login.html', request.url);
   if (/^[a-z0-9-]+\.html$/i.test(page)) { login.searchParams.set('next', page); }
   return new Response(null, { status: 302, headers: { Location: login.toString(), 'Cache-Control': 'no-store' } });

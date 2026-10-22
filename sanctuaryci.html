@@ -26,14 +26,14 @@
 /* ── sanctuaryci.org metrics ──────────────────────────────────────────────
    Website: live, first-party analytics. sanctuaryci.org loads analytics.js,
    which posts anonymous events to /api/collect → Supabase site_events.
-   This page reads the totals from /api/site-stats (team password), which
+   This page reads the totals from /api/collect (Reports access), which
    calls the site_stats() SQL function — see supabase/site-analytics.sql.
 
    Social channels: still read from data/sanctuaryci-metrics.json (same
    schema as data/metrics.json, see pipeline/README.md). Until that file
    exists they show "not connected yet". Nothing is estimated.             */
 var SITE = 'sanctuaryci.org';
-var STATS_API = '/api/site-stats';
+var STATS_API = '/api/collect';
 var PW_KEY = 'src_projects_pw';   /* same team password as the Projects page */
 var CI_SOURCE = 'data/sanctuaryci-metrics.json';
 var CI_SOCIAL = ['facebook', 'instagram', 'linkedin'];

@@ -19,10 +19,11 @@ const { sendJSON, readBody, passwordOk, supabase } = require('../lib/db');
 const A = require('../lib/auth');
 
 function pub(u) {
-  return u ? { id: u.id, email: u.email, name: u.name, role: u.role, must_change_password: !!u.must_change_password } : null;
+  return u ? { id: u.id, email: u.email, name: u.name, role: u.role, must_change_password: !!u.must_change_password,
+               access: A.access(u) } : null;
 }
 async function byEmail(email) {
-  const rows = await supabase('GET', '?email=eq.' + encodeURIComponent(email) + '&select=' + A.USER_COLS +
+  const rows = await supabase('GET', '?email=eq.' + encodeURIComponent(email) + '&select=' + (await A.userCols()) +
                               ',password_hash,failed_logins,locked_until', null, null, 'app_users');
   return rows[0] || null;
 }

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Sanctuary metrics: every table and function in one paste.
 -- Supabase → SQL Editor → New query → paste all of this → Run. Safe to re-run.
--- Built from supabase/accounts, site-analytics, cost-cutting, google-cutover and presentations .sql.
+-- Built from supabase/accounts, site-analytics, cost-cutting, google-cutover, presentations and social .sql.
 -- ============================================================================
 
 
@@ -30,6 +30,18 @@ create table if not exists public.app_users (
 
 -- Microsoft sign-in links an account to its Entra object ID on first use
 alter table public.app_users add column if not exists ms_oid text unique;
+
+-- What each person may open, beyond the staff pages everyone gets (admins get
+-- everything). Accounts that existed before these columns keep seeing the
+-- reports; new staff start with neither until an admin turns one on.
+alter table public.app_users add column if not exists access_reports boolean;
+alter table public.app_users add column if not exists access_costs   boolean;
+update public.app_users set access_reports = true  where access_reports is null;
+update public.app_users set access_costs   = false where access_costs   is null;
+alter table public.app_users alter column access_reports set default false;
+alter table public.app_users alter column access_reports set not null;
+alter table public.app_users alter column access_costs   set default false;
+alter table public.app_users alter column access_costs   set not null;
 
 create table if not exists public.app_sessions (
   token_hash  text primary key,             -- sha256 of the cookie token, never the token itself
@@ -440,6 +452,53 @@ alter table public.presentations enable row level security;
 -- the private bucket for the slide images
 insert into storage.buckets (id, name, public)
 values ('presentations', 'presentations', false)
+on conflict (id) do update set public = false;
+
+
+
+-- ────────────────────────────── social.sql ──────────────────────────────
+-- ============================================================================
+-- Social media: event photos the team sends in, Claude's draft posts, and
+-- what got published. Run once in Supabase → SQL Editor (it's also in
+-- ALL.sql). Safe to re-run.
+--
+-- Photos are images in a PRIVATE storage bucket, "social", one folder per
+-- submission: <post id>/p<n>.webp (full size) and <post id>/t<n>.webp
+-- (thumbnail). The site's server function (api/social.js) signs short-lived
+-- links for signed-in staff only.
+-- ============================================================================
+
+create table if not exists public.social_posts (
+  id               uuid primary key default gen_random_uuid(),
+  event_title      text not null check (length(event_title) between 1 and 200),
+  event_date       date,
+  location         text,
+  description      text not null check (length(description) between 1 and 3000),
+  photo_count      integer not null default 0,
+  consent          boolean not null default false,   -- submitter confirmed the photos are OK to share
+  status           text not null default 'uploading'
+                   check (status in ('uploading', 'new', 'posted', 'archived')),
+  created_by       uuid references public.app_users (id) on delete set null,
+  created_by_name  text,
+  project_id       uuid,                              -- the task on the Projects page
+  draft            jsonb,                             -- {facebook, instagram, linkedin, hashtags[], alt_text[], privacy_check}
+  draft_model      text,
+  drafted_at       timestamptz,
+  draft_error      text,
+  posted_where     text,
+  post_url         text,
+  posted_at        timestamptz,
+  posted_by_name   text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+create index if not exists social_posts_time on public.social_posts (created_at desc);
+create index if not exists social_posts_status on public.social_posts (status);
+alter table public.social_posts enable row level security;
+
+-- the private bucket for the photos
+insert into storage.buckets (id, name, public)
+values ('social', 'social', false)
 on conflict (id) do update set public = false;
 
 

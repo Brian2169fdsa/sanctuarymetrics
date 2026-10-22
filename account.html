@@ -26,6 +26,8 @@ details.ac-setup summary{cursor:pointer;font-weight:600;color:var(--teal);font-s
 .ac-users td{vertical-align:middle}
 .ac-users select{font-family:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--line);border-radius:7px}
 .ac-acts{display:flex;gap:6px;flex-wrap:wrap}
+.ac-chk{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;margin:2px 0;cursor:pointer}
+.ac-chk input{width:15px;height:15px;accent-color:#2C5468}
 .btn.sm{min-height:0;padding:5px 10px;font-size:11.5px}
 .btn.lt{background:#fff!important;color:var(--teal)!important;border:1px solid var(--line)!important}
 .btn.lt:hover{background:#eef5f8!important}
@@ -171,8 +173,11 @@ function adminSection(me) {
       '<td><b>' + SM.h(u.name) + '</b><div class="sub" style="margin:2px 0 0">' + SM.h(u.email) + '</div></td>' +
       '<td>' + (self ? '<span class="tag hot">Admin</span>' :
         '<select data-role="' + u.id + '" aria-label="Role for ' + SM.h(u.name) + '">' +
-          '<option value="member"' + (u.role === 'member' ? ' selected' : '') + '>Member</option>' +
+          '<option value="member"' + (u.role === 'member' ? ' selected' : '') + '>Staff</option>' +
           '<option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>') + '</td>' +
+      '<td>' + (u.role === 'admin' ? '<span class="sub" style="margin:0">Everything</span>' :
+        '<label class="ac-chk"><input type="checkbox" data-acc="access_reports" data-id="' + u.id + '"' + (u.access_reports ? ' checked' : '') + '> Reports</label>' +
+        '<label class="ac-chk"><input type="checkbox" data-acc="access_costs" data-id="' + u.id + '"' + (u.access_costs ? ' checked' : '') + '> Cost management</label>') + '</td>' +
       '<td>' + (u.disabled ? 'Turned off' : (u.must_change_password ? 'Temporary password' : 'Active')) + '</td>' +
       '<td style="white-space:nowrap">' + SM.h(when(u.last_login_at)) + '</td>' +
       '<td>' + (self ? '' : '<div class="ac-acts">' +
@@ -187,13 +192,13 @@ function adminSection(me) {
       '<form class="ac-form" id="f-add" novalidate>' +
       '<label class="ac-f">Name<input id="u-name" type="text" maxlength="80" placeholder="e.g. Jane Smith"></label>' +
       '<label class="ac-f">Email<input id="u-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label>' +
-      '<label class="ac-f">Role<select id="u-role"><option value="member">Member — projects, messages, alerts</option>' +
-        '<option value="admin">Admin — also manages people and sends alerts</option></select></label>' +
+      '<label class="ac-f">Role<select id="u-role"><option value="member">Staff — print shop, social media, website edits, their requests</option>' +
+        '<option value="admin">Admin — everything, plus people, requests and the social queue</option></select></label>' +
       '<div class="ac-foot" style="align-self:end"><button class="btn" type="submit" id="u-go">Create account</button></div>' +
       '<div class="ac-msg" id="u-msg" role="alert" hidden></div>' +
     '</form><div id="u-temp"></div></div>' +
     '<div class="card"><h3>Everyone with an account</h3><div class="tw"><table class="ac-users"><thead><tr>' +
-      '<th>Person</th><th>Role</th><th>Status</th><th>Last sign-in</th><th><span class="vh">Actions</span></th></tr></thead>' +
+      '<th>Person</th><th>Role</th><th>Can also open</th><th>Status</th><th>Last sign-in</th><th><span class="vh">Actions</span></th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div><div id="r-temp"></div></div>' +
     '</section>' +
     '<section id="send"><div class="eyebrow">Admin</div><h2 style="font-size:24px;margin:6px 0 12px">Send an alert</h2>' +
@@ -307,6 +312,12 @@ function wire() {
         document.getElementById('u-temp').scrollIntoView({ block: 'center' });
       });
     }, function (err) { busy(btn, false, 'Create account'); msg('u-msg', 'err', err.message); });
+  });
+  document.querySelectorAll('[data-acc]').forEach(function (c) {
+    c.addEventListener('change', function () {
+      var body = {}; body[c.getAttribute('data-acc')] = c.checked;
+      api('PATCH', '/api/users?id=' + c.getAttribute('data-id'), body).then(load, function (err) { alert(err.message); load(); });
+    });
   });
   document.querySelectorAll('[data-role]').forEach(function (s) {
     s.addEventListener('change', function () {

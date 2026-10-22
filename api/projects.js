@@ -44,6 +44,11 @@
      seed_key = <title>   the page's edits to an L10 rock (status, importance,
                           due date) — the rock itself still comes from data.js
 
+   Who sees what: people with Reports access (and admins) see and edit the
+   whole list. Staff see only the requests they filed themselves (print,
+   website, flyer, presentation, social…) and can't change them — they follow
+   along and use each one's messages.
+
    Routes (all need a signed-in account — see api/auth.js — or the old
    X-Projects-Password header):
      GET                  list every row
@@ -54,7 +59,7 @@
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
-const { authorize } = require('../lib/auth');
+const { authorize, access } = require('../lib/auth');
 
 /* the only columns the page may write, with their maximum lengths */
 const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, prev_status: 120, source: 200,
@@ -112,14 +117,19 @@ async function handler(req, res) {
     return sendJSON(res, 401, { error: 'signin', message: 'Sign in to see the project list.' });
   }
   const me = who.user || null;
+  /* staff (signed in, no Reports access) only follow their own requests */
+  const staff = !!me && !access(me).reports;
 
   const id = new URL(req.url, 'http://x').searchParams.get('id');
   const now = new Date().toISOString();
 
   try {
     if (req.method === 'GET') {
-      const rows = await supabase('GET', '?select=*&order=created_at.asc');
-      return sendJSON(res, 200, { rows: rows });
+      const rows = await supabase('GET', '?select=*' + (staff ? '&seed_key=is.null&created_by=eq.' + me.id : '') + '&order=created_at.asc');
+      return sendJSON(res, 200, { rows: rows, staff: staff });
+    }
+    if (staff) {
+      return sendJSON(res, 403, { error: 'access', message: 'Your requests are tracked here; marketing updates them. Use the messages to ask about one.' });
     }
 
     if (req.method === 'POST') {

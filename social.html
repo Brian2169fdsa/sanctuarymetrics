@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary Recovery Centers — Social Media</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+/* ── sending photos ── */
+.so-wrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:start}
+.so-form{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.so-f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.so-f input,.so-f textarea{font:400 14px Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;line-height:1.45}
+.so-f textarea{resize:vertical}
+.so-f input:focus,.so-f textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.so-wide{grid-column:1/-1}
+.so-drop{grid-column:1/-1;border:2px dashed #b9cdd8;border-radius:12px;padding:22px;text-align:center;background:var(--paper);cursor:pointer;font-size:14px}
+.so-drop.over{border-color:var(--blue);background:#eaf5fb}
+.so-drop b{display:block;font-size:15px;margin-bottom:4px}
+.so-drop span{color:var(--muted);font-size:12.5px}
+.so-thumbs{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+.so-thumbs figure{margin:0;position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#e6eef3}
+.so-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.so-thumbs button{all:unset;cursor:pointer;position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:11px;
+  background:rgba(1,23,59,.75);color:#fff;text-align:center;line-height:22px;font-size:14px}
+.so-consent{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.5;background:#fdf6ec;
+  border:1px solid #f1dfc2;border-radius:10px;padding:11px 13px;cursor:pointer}
+.so-consent input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:#2C5468}
+.so-bar{grid-column:1/-1;height:8px;border-radius:4px;background:#e6eef3;overflow:hidden}
+.so-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1C9AD6,#EE6A2C);transition:width .2s}
+.so-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
+.so-ok{padding:14px 16px;border-radius:12px;background:#e9f5ee;color:#1f5a37;font-size:14px;line-height:1.5;margin-bottom:16px}
+.so-err[hidden],.so-bar[hidden],.so-ok[hidden]{display:none}
+.so-foot{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.so-tips{font-size:13.5px;line-height:1.55;color:var(--ink)}
+.so-tips li{margin:4px 0}
+/* ── lists of posts ── */
+.so-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 16px}
+.so-tab{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:600}
+.so-tab[aria-pressed="true"]{background:#16263B;border-color:#16263B;color:#fff}
+.so-tab small{font-weight:500;opacity:.7;margin-left:4px}
+.so-tab:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.so-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.so-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:#fff;
+  overflow:hidden;transition:box-shadow .15s,transform .15s}
+.so-card:hover{box-shadow:0 12px 26px rgba(22,38,59,.12);transform:translateY(-2px)}
+.so-card:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.so-mosaic{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;aspect-ratio:16/10;background:#e6eef3}
+.so-mosaic img{width:100%;height:100%;object-fit:cover;display:block}
+.so-mosaic.n1{grid-template-columns:1fr}
+.so-mosaic.n1 img{grid-row:span 2}
+.so-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
+.so-body b{font-family:Fraunces,serif;font-size:17px;font-weight:600;line-height:1.25}
+.so-body span{font-size:12.5px;color:var(--muted)}
+.so-st{align-self:flex-start;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;margin-bottom:2px}
+.so-st.new{background:#fde9de;color:#b34d1f}
+.so-st.posted{background:#e2f3e8;color:#1f6b3d}
+.so-st.archived{background:#eceff1;color:#5d6b73}
+.so-st.uploading{background:#fdf3e0;color:#7a4a24}
+.so-empty{padding:30px 20px;text-align:center;color:var(--muted);border:1px dashed #cfdbe2;border-radius:14px;background:var(--paper)}
+/* ── one post (admins review here) ── */
+.sp-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
+.sp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;align-items:start;margin-top:12px}
+.sp-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sp-photos a{display:block;border-radius:9px;overflow:hidden;aspect-ratio:1;background:#e6eef3;position:relative}
+.sp-photos img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-photos i{position:absolute;left:5px;bottom:5px;background:rgba(1,23,59,.78);color:#fff;font:700 10.5px/1 Inter,sans-serif;font-style:normal;padding:3px 6px;border-radius:8px}
+.sp-facts{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px}
+.sp-facts dt{font-weight:700;color:var(--muted)}
+.sp-facts dd{margin:0}
+.sp-desc{white-space:pre-line;font-size:14px;line-height:1.55;background:var(--paper);border-radius:10px;padding:12px 14px;margin-top:12px}
+.sp-ed{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px}
+.sp-ed h3{font-family:Fraunces,serif;font-size:19px;font-weight:600;margin:0}
+.sp-priv{font-size:13px;line-height:1.5;border-radius:10px;padding:10px 12px;background:#fdf6ec;border:1px solid #f1dfc2;color:#6b4417}
+.sp-plat{display:flex;gap:6px;flex-wrap:wrap}
+.sp-plat button{all:unset;cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:13px;font-weight:600}
+.sp-plat button[aria-pressed="true"]{background:#2C5468;border-color:#2C5468;color:#fff}
+.sp-plat button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sp-ed textarea{width:100%;box-sizing:border-box;min-height:190px;font:400 14px Inter,sans-serif;line-height:1.5;color:var(--ink);
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px;resize:vertical}
+.sp-ed textarea:focus,.sp-ed input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.sp-tags{font-size:13px;color:#1C6E9A;line-height:1.6;word-break:break-word}
+.sp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sp-row input[type=text],.sp-row input[type=url]{flex:1;min-width:180px;font:400 14px Inter,sans-serif;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.sp-chk{display:flex;gap:6px;align-items:center;font-size:13px}
+.sp-note{font-size:12.5px;color:var(--muted)}
+.sp-done{padding:11px 13px;border-radius:10px;background:#e2f3e8;color:#1f5a37;font-size:13.5px}
+.btn.lt{background:#fff!important;color:#2C5468!important;border:1px solid var(--line)!important}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:900px){
+  .so-wrap,.sp{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .so-form{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="chat.js" defer></script>
+<script>
+/* ── social media ─────────────────────────────────────────────────────────
+   Staff: send photos and a few words from an event. Admins: a queue of what
+   came in, with Claude's drafts for Facebook, Instagram and LinkedIn to
+   edit, copy and post, then mark as posted. Server: api/social.js (photos in
+   a private Supabase bucket; Claude drafts on submit; Teams heads-up).    */
+var API = '/api/social';
+var MAX_PHOTOS = 10, FULL_W = 1600, THUMB_W = 400;
+var POSTS = null, POST = null, ADMIN = false, TAB = 'new', ERR = '', PLAT = 'facebook';
+var PHOTOS = [];   /* [{file, url}] picked for the next submission */
+var STATUS = { uploading: 'Not sent yet', 'new': 'Waiting to post', posted: 'Posted', archived: 'Archived' };
+
+function when(iso) { return iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
+function day(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
+function postId() { var m = location.hash.match(/^#post=([0-9a-f-]{36})$/i); return m ? m[1] : null; }
+
+/* ── staff: send photos ───────────────────────────────────────────────── */
+function sendHtml() {
+  return '<section id="send"><div class="eyebrow">Social media</div>' +
+    '<h2 style="font-size:28px;margin:6px 0 0">Share photos from an event</h2>' +
+    '<p class="lead">Send a few photos and tell us what happened. Marketing gets them right away, Claude drafts the posts, ' +
+    'and you\'ll get an alert when they\'re live.</p>' +
+    '<div class="so-ok" id="so-ok" role="status" hidden></div>' +
+    '<div class="so-wrap"><div class="card"><form class="so-form" id="so-form" novalidate>' +
+      '<label class="so-f so-wide">What was it?<input id="so-t" maxlength="200" placeholder="e.g. Housing & Employment Resource Fair"></label>' +
+      '<label class="so-f">When<input type="date" id="so-d"></label>' +
+      '<label class="so-f">Where<input id="so-l" maxlength="200" placeholder="e.g. Roadrunner Home, Phoenix"></label>' +
+      '<label class="so-f so-wide">What happened?<textarea id="so-x" rows="5" maxlength="3000" ' +
+        'placeholder="Who was there (staff and partners — no clients by name), what you did, why it mattered, anyone to thank…"></textarea></label>' +
+      '<label class="so-drop" id="so-drop" for="so-file"><b>Add photos</b><span>Drag them here or click to choose — up to ' + MAX_PHOTOS +
+        ' JPEG, PNG or iPhone-exported photos.</span><input type="file" id="so-file" class="vh" multiple accept="image/jpeg,image/png,image/webp"></label>' +
+      '<div class="so-thumbs" id="so-thumbs"></div>' +
+      '<label class="so-consent"><input type="checkbox" id="so-c"><span><b>These photos are OK to share publicly.</b> ' +
+        'Everyone recognizable agreed to be photographed for Sanctuary\'s social media, and no one in them can be identified ' +
+        'as a client or patient.</span></label>' +
+      '<div class="so-bar" id="so-bar" hidden><i id="so-bar-i"></i></div>' +
+      '<div class="so-err" id="so-err" role="alert" hidden></div>' +
+      '<div class="so-foot"><button type="submit" class="btn" id="so-go">Send to marketing</button>' +
+        '<span class="sub" style="margin:0">Sent as ' + esc((SM.me || {}).name || '') + '.</span></div>' +
+    '</form></div>' +
+    '<div class="card so-tips"><h3 style="margin-top:0">Photos that work well</h3><ul>' +
+      '<li>Natural, candid moments: people talking, setting up, working together.</li>' +
+      '<li>Staff, partners and the space itself — the room, the signs, the food, the crowd from behind.</li>' +
+      '<li>Wide shots plus a couple of close-ups. Landscape and portrait both work.</li>' +
+      '<li><b>Never</b> a client\'s face, name badge, paperwork or anything on a screen.</li></ul>' +
+      '<p class="sub" style="margin:0">Not sure? Send it anyway and say so in the description — marketing checks every photo before anything is posted.</p></div>' +
+    '</div></section>';
+}
+function drawThumbs() {
+  var box = document.getElementById('so-thumbs');
+  if (!box) { return; }
+  box.innerHTML = PHOTOS.map(function (p, i) {
+    return '<figure><img src="' + esc(p.url) + '" alt="Photo ' + (i + 1) + '"><button type="button" data-rm="' + i + '" aria-label="Remove photo ' + (i + 1) + '">×</button></figure>';
+  }).join('');
+}
+function addPhotos(list) {
+  var files = Array.prototype.slice.call(list || []).filter(function (f) { return /^image\/(jpeg|png|webp)$/.test(f.type); });
+  var room = MAX_PHOTOS - PHOTOS.length;
+  if (files.length > room) { sendErr('Up to ' + MAX_PHOTOS + ' photos — the first ' + room + ' were added.'); files = files.slice(0, room); }
+  files.forEach(function (f) { PHOTOS.push({ file: f, url: URL.createObjectURL(f) }); });
+  drawThumbs();
+}
+function sendErr(t) { var el = document.getElementById('so-err'); el.textContent = t || ''; el.hidden = !t; }
+/* one photo → WebP at most w wide (also strips location and camera data) */
+function toWebp(blob, w) {
+  return createImageBitmap(blob, { imageOrientation: 'from-image' }).then(function (bmp) {
+    var scale = Math.min(1, w / Math.max(bmp.width, bmp.height));
+    var c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return new Promise(function (ok, no) {
+      c.toBlob(function (b) { b ? ok(b) : no(new Error('Couldn\'t read one of the photos.')); }, 'image/webp', w > 1000 ? 0.85 : 0.78);
+    });
+  });
+}
+function put(id, n, kind, blob) {
+  return fetch(API + '?id=' + id + '&n=' + n + '&kind=' + kind, { method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'image/webp' }, body: blob }).then(function (r) {
+    if (!r.ok) { return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Upload failed (' + r.status + ')'); }); }
+  });
+}
+function send() {
+  var v = function (id) { return document.getElementById(id).value.trim(); };
+  if (!v('so-t')) { sendErr('Give the event a name.'); document.getElementById('so-t').focus(); return; }
+  if (!v('so-x')) { sendErr('Say a few words about what happened.'); document.getElementById('so-x').focus(); return; }
+  if (!PHOTOS.length) { sendErr('Add at least one photo.'); return; }
+  if (!document.getElementById('so-c').checked) { sendErr('Please confirm the photos are OK to share.'); return; }
+  var go = document.getElementById('so-go'), bar = document.getElementById('so-bar'), fill = document.getElementById('so-bar-i');
+  go.disabled = true; bar.hidden = false; sendErr('');
+  var total = PHOTOS.length, done = 0, id;
+  go.textContent = 'Uploading…';
+  SM.api('POST', API, { event_title: v('so-t'), event_date: v('so-d'), location: v('so-l'), description: v('so-x'),
+                        consent: true, photo_count: total }).then(function (j) {
+    id = j.post.id;
+    var next = 0;
+    function worker() {
+      if (next >= total) { return Promise.resolve(); }
+      var i = next++, f = PHOTOS[i].file;
+      return toWebp(f, FULL_W).then(function (b) { return put(id, i + 1, 'p', b); })
+        .then(function () { return toWebp(f, THUMB_W); }).then(function (b) { return put(id, i + 1, 't', b); })
+        .then(function () { done++; fill.style.width = Math.round(done / total * 90) + '%'; go.textContent = 'Uploading ' + done + ' / ' + total + '…'; })
+        .then(worker);
+    }
+    return Promise.all([worker(), worker(), worker()]);
+  }).then(function () {
+    go.textContent = 'Sending to marketing…';
+    return SM.api('POST', API + '?id=' + id + '&action=submit');
+  }).then(function () {
+    fill.style.width = '100%';
+    PHOTOS = [];
+    return SM.api('GET', API).then(function (j) { POSTS = j.posts; }, function () { POSTS = []; });
+  }).then(function () {
+    render();
+    var ok = document.getElementById('so-ok');
+    ok.innerHTML = '<b>Thank you!</b> Your photos are with marketing. You\'ll get an alert when the post is live — ' +
+      'and you can follow along under <a href="projects.html">My requests</a>.';
+    ok.hidden = false;
+    ok.scrollIntoView({ block: 'center' });
+  }, function (e) {
+    go.disabled = false; go.textContent = 'Send to marketing'; bar.hidden = true;
+    sendErr(e.message);
+  });
+}
+
+/* ── lists ────────────────────────────────────────────────────────────── */
+function card(p) {
+  var ph = p.photos || [];
+  return '<a class="so-card" href="#post=' + esc(p.id) + '">' +
+    '<div class="so-mosaic' + (ph.length === 1 ? ' n1' : '') + '">' + ph.slice(0, 4).map(function (x) {
+      return x.thumb ? '<img src="' + esc(x.thumb) + '" alt="" loading="lazy">' : '<span></span>';
+    }).join('') + '</div>' +
+    '<div class="so-body"><span class="so-st ' + esc(p.status) + '">' + esc(STATUS[p.status] || p.status) + '</span>' +
+      '<b>' + esc(p.event_title) + '</b>' +
+      '<span>' + esc([p.event_date ? day(p.event_date) : '', p.location].filter(Boolean).join(' · ')) + '</span>' +
+      '<span>' + p.photo_count + ' photo' + (p.photo_count === 1 ? '' : 's') + ' · from ' + esc(p.created_by_name || '—') + ' · ' + esc(when(p.created_at)) + '</span>' +
+    '</div></a>';
+}
+function queueHtml() {
+  var all = POSTS || [];
+  var counts = { 'new': 0, posted: 0, archived: 0 };
+  all.forEach(function (p) { if (counts[p.status] !== undefined) { counts[p.status]++; } });
+  var list = all.filter(function (p) { return p.status === TAB; });
+  return '<section id="queue"><div class="eyebrow">Admin</div>' +
+    '<h2 style="font-size:24px;margin:6px 0 0">Posts from the team</h2>' +
+    '<p class="lead">Open one to see the photos and Claude\'s drafts. Edit, copy, post it, then mark it posted — the sender gets an alert.</p>' +
+    '<div class="so-tabs" role="group" aria-label="Show">' + [['new', 'To post'], ['posted', 'Posted'], ['archived', 'Archived']].map(function (t) {
+      return '<button type="button" class="so-tab" data-tab="' + t[0] + '" aria-pressed="' + (TAB === t[0]) + '">' + t[1] + '<small>' + counts[t[0]] + '</small></button>';
+    }).join('') + '</div>' +
+    (POSTS === null ? '<p class="sub">Loading…</p>'
+      : list.length ? '<div class="so-grid">' + list.map(card).join('') + '</div>'
+      : '<div class="so-empty">' + (TAB === 'new' ? 'Nothing waiting — you\'re all caught up.' : 'Nothing here yet.') + '</div>') +
+  '</section>';
+}
+function mineHtml() {
+  var mine = (POSTS || []).filter(function (p) { return p.status !== 'uploading'; });
+  if (!mine.length) { return ''; }
+  return '<section><div class="eyebrow">Yours</div><h2 style="font-size:22px;margin:6px 0 12px">Photos you\'ve sent</h2>' +
+    '<div class="so-grid">' + mine.map(card).join('') + '</div></section>';
+}
+
+/* ── one post ─────────────────────────────────────────────────────────── */
+var PLATS = [['facebook', 'Facebook'], ['instagram', 'Instagram'], ['linkedin', 'LinkedIn']];
+var OPEN_URL = { facebook: 'https://business.facebook.com/latest/composer', instagram: 'https://business.facebook.com/latest/composer',
+                 linkedin: 'https://www.linkedin.com/company/' };
+function postHtml() {
+  var p = POST;
+  if (!p) { return '<section><a class="sp-back" href="#">← All posts</a><p class="sub">' + esc(ERR || 'Loading…') + '</p></section>'; }
+  var d = p.draft || {};
+  var left = '<div><div class="sp-photos">' + (p.photos || []).map(function (x) {
+      return '<a href="' + esc(x.full || x.thumb || '#') + '" target="_blank" rel="noopener" download="' + esc(p.event_title) + '-' + x.n + '.webp" ' +
+        'title="Open full size to save">' + (x.thumb ? '<img src="' + esc(x.thumb) + '" alt="' + esc((d.alt_text || [])[x.n - 1] || 'Photo ' + x.n) + '">' : '') +
+        '<i>' + x.n + '</i></a>';
+    }).join('') + '</div>' +
+    '<p class="sp-note">Click a photo to open it full size, then save it to post.</p>' +
+    '<dl class="sp-facts"><dt>From</dt><dd>' + esc(p.created_by_name || '—') + ', ' + esc(when(p.created_at)) + '</dd>' +
+      (p.event_date ? '<dt>When</dt><dd>' + esc(day(p.event_date)) + '</dd>' : '') +
+      (p.location ? '<dt>Where</dt><dd>' + esc(p.location) + '</dd>' : '') +
+      '<dt>Consent</dt><dd>' + (p.consent ? 'Sender confirmed the photos are OK to share' : '—') + '</dd></dl>' +
+    '<div class="sp-desc">' + esc(p.description) + '</div></div>';
+  var right;
+  if (!ADMIN) {
+    right = '<div class="sp-ed"><h3>' + esc(STATUS[p.status] || p.status) + '</h3>' +
+      (p.status === 'posted' ? '<div class="sp-done">Posted' + (p.posted_where ? ' on ' + esc(p.posted_where) : '') +
+        (p.post_url ? ' — <a href="' + esc(p.post_url) + '" target="_blank" rel="noopener">see it</a>' : '') + '. Thank you!</div>'
+        : '<p class="sub" style="margin:0">Marketing has your photos. You\'ll get an alert when the post is live.</p>') +
+      (p.status !== 'posted' ? '<button type="button" class="btn lt" id="sp-del">Withdraw these photos</button>' : '') + '</div>';
+  } else {
+    var text = d[PLAT] || '';
+    right = '<div class="sp-ed"><h3>Draft posts</h3>' +
+      (p.draft_error ? '<div class="warn" style="margin:0">' + esc(p.draft_error) + '</div>' : '') +
+      (!p.draft && !p.draft_error ? '<p class="sub" style="margin:0">No draft yet — click <b>Redraft</b>.</p>' : '') +
+      (d.privacy_check ? '<div class="sp-priv"><b>Privacy check:</b> ' + esc(d.privacy_check) + '</div>' : '') +
+      '<div class="sp-plat" role="group" aria-label="Platform">' + PLATS.map(function (x) {
+        return '<button type="button" data-plat="' + x[0] + '" aria-pressed="' + (PLAT === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      '<label class="vh" for="sp-text">Post text</label><textarea id="sp-text">' + esc(text) + '</textarea>' +
+      (d.hashtags && d.hashtags.length ? '<div class="sp-tags" id="sp-tags">' + esc(d.hashtags.join(' ')) + '</div>' : '') +
+      '<div class="sp-row">' +
+        '<button type="button" class="btn" id="sp-copy">Copy ' + (PLAT === 'linkedin' ? 'LinkedIn' : PLAT === 'instagram' ? 'Instagram' : 'Facebook') + ' post</button>' +
+        '<a class="btn lt" href="' + OPEN_URL[PLAT] + '" target="_blank" rel="noopener" style="text-decoration:none">Open ' +
+          (PLAT === 'linkedin' ? 'LinkedIn' : 'Meta Business Suite') + ' ↗</a>' +
+        '<button type="button" class="btn lt" id="sp-save">Save edits</button></div>' +
+      '<div class="sp-row"><input type="text" id="sp-ins" maxlength="500" placeholder="Redraft with a note, e.g. shorter, thank ASU by name, more upbeat">' +
+        '<button type="button" class="btn lt" id="sp-redraft">Redraft</button></div>' +
+      '<p class="sp-note" id="sp-msg" role="status"></p>' +
+      (p.status === 'posted'
+        ? '<div class="sp-done">Posted' + (p.posted_where ? ' on ' + esc(p.posted_where) : '') + ' by ' + esc(p.posted_by_name || '') + ', ' + esc(when(p.posted_at)) +
+          (p.post_url ? ' — <a href="' + esc(p.post_url) + '" target="_blank" rel="noopener">view</a>' : '') + '</div>' +
+          '<div class="sp-row"><button type="button" class="btn lt" data-status="new">Move back to “To post”</button></div>'
+        : '<div style="border-top:1px solid var(--line);padding-top:12px"><b style="font-size:14px">Mark as posted</b>' +
+          '<div class="sp-row" style="margin-top:8px">' + ['Facebook', 'Instagram', 'LinkedIn', 'Other'].map(function (w) {
+            return '<label class="sp-chk"><input type="checkbox" class="sp-where" value="' + w + '"> ' + w + '</label>';
+          }).join('') + '</div>' +
+          '<div class="sp-row" style="margin-top:8px"><input type="url" id="sp-url" maxlength="500" placeholder="Link to the post (optional)">' +
+          '<button type="button" class="btn" data-status="posted">Mark posted</button></div>' +
+          '<div class="sp-row" style="margin-top:8px">' + (p.status === 'archived'
+            ? '<button type="button" class="btn lt" data-status="new">Move back to “To post”</button>'
+            : '<button type="button" class="btn lt" data-status="archived">Archive — won\'t post</button>') +
+          '<button type="button" class="btn lt" id="sp-del">Delete</button></div></div>') +
+    '</div>';
+  }
+  return '<section><a class="sp-back" href="#">' + (ADMIN ? '← All posts' : '← Social media') + '</a>' +
+    '<div class="eyebrow">' + esc(STATUS[p.status] || p.status) + '</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">' + esc(p.event_title) + '</h2>' +
+    '<div class="sp">' + left + right + '</div></section>';
+}
+function msg(t) { var el = document.getElementById('sp-msg'); if (el) { el.textContent = t || ''; } }
+function wirePost() {
+  var p = POST, ta = document.getElementById('sp-text');
+  document.querySelectorAll('[data-plat]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (ta && POST.draft) { POST.draft[PLAT] = ta.value; }
+      PLAT = b.getAttribute('data-plat'); render();
+    });
+  });
+  if (ta) { ta.addEventListener('input', function () { POST.draft = POST.draft || {}; POST.draft[PLAT] = ta.value; msg('Unsaved edits.'); }); }
+  var copy = document.getElementById('sp-copy');
+  if (copy) {
+    copy.addEventListener('click', function () {
+      var d = POST.draft || {}, tags = (d.hashtags || []).join(' ');
+      var text = ta.value + (tags && ta.value.indexOf(tags.split(' ')[0]) < 0 ? '\n\n' + tags : '');
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+        msg('Copied — with the hashtags. Paste it into the post.');
+      }, function () { ta.select(); msg('Press Ctrl+C (⌘C) to copy.'); });
+    });
+  }
+  var save = document.getElementById('sp-save');
+  if (save) {
+    save.addEventListener('click', function () {
+      if (ta) { POST.draft = POST.draft || {}; POST.draft[PLAT] = ta.value; }
+      SM.api('PATCH', API + '?id=' + p.id, { draft: POST.draft }).then(function (j) { POST = j.post; render(); msg('Saved.'); },
+        function (e) { msg(e.message); });
+    });
+  }
+  var re = document.getElementById('sp-redraft');
+  if (re) {
+    re.addEventListener('click', function () {
+      re.disabled = true; re.textContent = 'Claude is drafting…'; msg('This takes about half a minute.');
+      SM.api('POST', API + '?id=' + p.id + '&action=draft', { instructions: document.getElementById('sp-ins').value.trim() })
+        .then(function (j) { POST = j.post; render(); msg(POST.draft_error ? '' : 'New draft ready.'); },
+              function (e) { re.disabled = false; re.textContent = 'Redraft'; msg(e.message); });
+    });
+  }
+  document.querySelectorAll('[data-status]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var body = { status: b.getAttribute('data-status') };
+      if (body.status === 'posted') {
+        body.posted_where = Array.prototype.slice.call(document.querySelectorAll('.sp-where:checked')).map(function (c) { return c.value; });
+        body.post_url = document.getElementById('sp-url').value.trim();
+        if (!body.posted_where.length) { msg('Tick where you posted it.'); return; }
+      }
+      SM.api('PATCH', API + '?id=' + p.id, body).then(function (j) { POST = j.post; POSTS = null; render(); }, function (e) { msg(e.message); });
+    });
+  });
+  var del = document.getElementById('sp-del');
+  if (del) {
+    del.addEventListener('click', function () {
+      if (!confirm(ADMIN ? 'Delete these photos and drafts for good?' : 'Withdraw these photos? Marketing won\'t post them.')) { return; }
+      SM.api('DELETE', API + '?id=' + p.id).then(function () { POSTS = null; POST = null; location.hash = ''; }, function (e) { alert(e.message); });
+    });
+  }
+}
+
+/* ── page ─────────────────────────────────────────────────────────────── */
+function render() {
+  var id = postId();
+  var body = id ? postHtml() : ADMIN ? queueHtml() + sendHtml() : sendHtml() + mineHtml();
+  if (ERR && !id) { body = '<section><div class="warn">' + esc(ERR) + '</div></section>' + body; }
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Social Media', 'Event photos → posts &nbsp;·&nbsp; Internal', ADMIN ? 'Review, post and track' : 'Share what the team is up to', 'social') +
+    body + pageFooter('social media');
+  if (id && POST) { wirePost(); return; }
+  document.querySelectorAll('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { TAB = b.getAttribute('data-tab'); render(); }); });
+  var form = document.getElementById('so-form');
+  if (form) {
+    drawThumbs();
+    form.addEventListener('submit', function (e) { e.preventDefault(); send(); });
+    form.addEventListener('input', function () { sendErr(''); });
+    var drop = document.getElementById('so-drop');
+    ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function () { drop.classList.remove('over'); }); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); addPhotos(e.dataTransfer.files); });
+    document.getElementById('so-file').addEventListener('change', function () { addPhotos(this.files); this.value = ''; });
+    document.getElementById('so-thumbs').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-rm]');
+      if (b) { var i = +b.getAttribute('data-rm'); URL.revokeObjectURL(PHOTOS[i].url); PHOTOS.splice(i, 1); drawThumbs(); }
+    });
+  }
+}
+function load() {
+  ERR = '';
+  var id = postId();
+  if (id) {
+    if (POST && POST.id === id) { render(); return; }
+    POST = null; render();
+    SM.api('GET', API + '?id=' + id).then(function (j) { POST = j.post; ADMIN = j.admin; PLAT = 'facebook'; render(); },
+      function (e) { ERR = e.message; render(); });
+    return;
+  }
+  POST = null; render();
+  SM.api('GET', API).then(function (j) { POSTS = j.posts; ADMIN = j.admin; render(); },
+    function (e) { POSTS = []; ERR = e.message; render(); });
+}
+window.addEventListener('hashchange', load);
+SM.ready.then(function () { ADMIN = SM.can('admin'); load(); });
+</script>
+</body></html>

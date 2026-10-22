@@ -23,6 +23,18 @@ create table if not exists public.app_users (
 -- Microsoft sign-in links an account to its Entra object ID on first use
 alter table public.app_users add column if not exists ms_oid text unique;
 
+-- What each person may open, beyond the staff pages everyone gets (admins get
+-- everything). Accounts that existed before these columns keep seeing the
+-- reports; new staff start with neither until an admin turns one on.
+alter table public.app_users add column if not exists access_reports boolean;
+alter table public.app_users add column if not exists access_costs   boolean;
+update public.app_users set access_reports = true  where access_reports is null;
+update public.app_users set access_costs   = false where access_costs   is null;
+alter table public.app_users alter column access_reports set default false;
+alter table public.app_users alter column access_reports set not null;
+alter table public.app_users alter column access_costs   set default false;
+alter table public.app_users alter column access_costs   set not null;
+
 create table if not exists public.app_sessions (
   token_hash  text primary key,             -- sha256 of the cookie token, never the token itself
   user_id     uuid not null references public.app_users (id) on delete cascade,
