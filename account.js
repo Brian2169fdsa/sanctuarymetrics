@@ -51,6 +51,7 @@
     root.toggle('sm-no-reports', !acc.reports);
     root.toggle('sm-no-costs', !acc.costs);
     root.toggle('sm-no-admin', !acc.admin);
+    root.toggle('sm-no-cpao-mail', !acc.cpao_mail);
   }
   SM.can = function (what) { return !!(SM.me && SM.me.access && SM.me.access[what]); };
   function setUser(u) {
@@ -73,7 +74,7 @@
   /* ── styles ── */
   var css = document.createElement('style');
   css.textContent =
-    '.sm-no-reports [data-need="reports"],.sm-no-costs [data-need="costs"],.sm-no-admin [data-need="admin"],' +
+    '.sm-no-reports [data-need="reports"],.sm-no-costs [data-need="costs"],.sm-no-admin [data-need="admin"],.sm-no-cpao-mail [data-need="cpao-mail"],' +
       'html:not(.sm-no-reports) [data-need="staff-only"]{display:none!important}' +
     '#smbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:8px 20px;font:500 13px Inter,sans-serif;' +
       'background:#16263B;color:#dfe8ee;position:relative;z-index:50;flex-wrap:wrap}' +

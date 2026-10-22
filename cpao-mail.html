@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sanctuary Recovery Centers — CPAO Mail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.cm{max-width:640px}
+.fq{display:flex;flex-direction:column;gap:6px;margin:0 0 16px}
+.fq>label,.fq>.lbl{font-size:14px;font-weight:600;color:var(--ink)}
+.fq select,.fq input[type=date],.fq input[type=text],.fq textarea{font:400 15px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid #b9c7cf;border-radius:10px;padding:10px 12px}
+.fq textarea{resize:vertical;min-height:70px}
+.fq .hint{font-size:13px;color:#4f5f68}
+.kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kinds label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:14px;cursor:pointer}
+.kinds input{width:18px;height:18px;margin:0}
+.drop{border:2px dashed #9fb3bf;border-radius:12px;background:#fff;padding:22px;text-align:center;font-size:14px;color:#4f5f68}
+.drop.has{border-color:#2E8B6F;color:#1f5a37;background:#f5fbf8}
+.msg{padding:12px 14px;border-radius:10px;font-size:14.5px;margin:0 0 14px}
+.msg.err{background:#fbeae6;color:#8f2f1b}.msg.ok{background:#e9f5ee;color:#1f5a37}.msg[hidden]{display:none}
+@media (max-width:560px){ .kinds{grid-template-columns:1fr} }
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script>var LOGO = 'print/sanctuary-logo.png';  /* this page skips data.js */</script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── CPAO mail: upload a letter AHCCCS mailed to Sanctuary ─────────────────
+   For the people in CPAO_MAIL_UPLOADERS (and admins). Pick who it's about,
+   what it says, and the scan or photo; it's filed privately on that person's
+   CP-AO record and Brian gets an alert and a task (api/cpao.js). */
+var D = null;
+function $(id) { return document.getElementById(id); }
+function shell(inner) {
+  $('sheet').innerHTML = pageHeader('CPAO Mail', 'Letters from AHCCCS about HEAplus access', 'Goes straight to Brian', 'cpao-mail') +
+    '<section><div class="cm">' + inner + '</div></section>' + pageFooter('CPAO mail');
+}
+function form() {
+  shell('<div class="eyebrow">CPAO mail</div><h2 style="font-size:26px;margin:6px 0 6px">Upload a letter from CPAO</h2>' +
+    '<p class="lead">When AHCCCS mails Sanctuary a letter about someone\'s HEAplus access, scan it or take a clear photo and upload it here. ' +
+      'It\'s saved privately on their record and Brian gets an alert right away.</p>' +
+    '<div class="msg ok" id="ok" role="status" hidden></div><div class="msg err" id="err" role="alert" hidden></div>' +
+    '<form id="f" novalidate>' +
+    '<div class="fq"><label for="who">Who is the letter about?</label><select id="who"><option value="">Pick a person…</option>' +
+      D.people.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select>' +
+      '<span class="hint">Only people whose application has gone to CPAO are listed. Don\'t see them? Tell Brian.</span></div>' +
+    '<div class="fq" role="radiogroup" aria-labelledby="k-l"><span class="lbl" id="k-l">What does the letter say?</span><div class="kinds">' +
+      Object.keys(D.kinds).map(function (k) { return '<label><input type="radio" name="kind" value="' + k + '"> ' + esc(D.kinds[k]) + '</label>'; }).join('') + '</div></div>' +
+    '<div class="fq"><label for="date">Date on the letter</label><input type="date" id="date" style="max-width:220px"></div>' +
+    '<div class="fq"><span class="lbl">The letter</span><label class="drop" id="drop" for="file">Tap to choose the scan or photo (PDF, JPG or PNG, up to 4 MB)</label>' +
+      '<input type="file" id="file" accept="application/pdf,image/jpeg,image/png" hidden></div>' +
+    '<div class="fq"><label for="note">Anything Brian should know (optional)</label><textarea id="note" maxlength="500" placeholder="e.g. Second page was missing from the envelope"></textarea>' +
+      '<span class="hint">No SSNs or birth dates here.</span></div>' +
+    '<button type="submit" class="btn" id="go" style="min-height:46px;padding:0 22px">Upload and alert Brian</button></form>');
+  $('file').addEventListener('change', function () {
+    var f = $('file').files[0];
+    $('drop').classList.toggle('has', !!f);
+    $('drop').textContent = f ? '✓ ' + f.name + ' — tap to change' : 'Tap to choose the scan or photo (PDF, JPG or PNG, up to 4 MB)';
+  });
+  $('f').addEventListener('submit', function (e) { e.preventDefault(); upload(); });
+  $('f').addEventListener('change', function () { show('err', ''); });
+}
+function show(id, text) { var m = $(id); m.hidden = !text; m.textContent = text || ''; if (text) { m.scrollIntoView({ block: 'center' }); } }
+function upload() {
+  show('err', ''); show('ok', '');
+  var who = $('who').value, kind = (document.querySelector('input[name=kind]:checked') || {}).value, f = $('file').files[0];
+  if (!who) { return show('err', 'Pick who the letter is about.'); }
+  if (!kind) { return show('err', 'Pick what the letter says.'); }
+  if (!f) { return show('err', 'Choose the scan or photo of the letter.'); }
+  if (f.size > 4000000) { return show('err', 'That file is over 4 MB — scan it at a lower resolution, or take a photo instead.'); }
+  var b = $('go'); b.disabled = true; b.textContent = 'Uploading…';
+  fetch('/api/cpao?action=mail_upload&id=' + encodeURIComponent(who) + '&kind=' + encodeURIComponent(kind) + '&date=' + encodeURIComponent($('date').value), {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/octet-stream', 'X-Note': encodeURIComponent($('note').value.trim()) },
+    body: f
+  }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); })
+    .then(function () {
+      var name = $('who').selectedOptions[0].textContent;
+      form();
+      show('ok', 'Uploaded — Brian has been alerted about ' + name + '\'s letter. You can upload another.');
+    }, function (e) { b.disabled = false; b.textContent = 'Upload and alert Brian'; show('err', e.message); });
+}
+SM.ready.then(function (me) {
+  if (!me) { $('sheet').innerHTML = SM.signInCard('cpao-mail.html'); return; }
+  SM.api('GET', '/api/cpao?action=mail_people').then(function (j) { D = j; form(); },
+    function (e) { shell('<div class="msg err">' + esc(e.message) + '</div>'); });
+});
+</script>
+</body></html>

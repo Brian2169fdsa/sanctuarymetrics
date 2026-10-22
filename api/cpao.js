@@ -652,12 +652,49 @@ async function rotate(req, me) {
 /* signed 5-minute link to one of our files; only keys we stored */
 async function fileLink(req, me, key) {
   key = str(key, 300);
-  if (!/^(applications|batches)\/[A-Za-z0-9._\/-]+\.pdf$/.test(key) || key.indexOf('..') >= 0) { throw bad('Which file?'); }
-  const known = (await db('GET', 'cpao_applications', '?pdf_storage_key=eq.' + encodeURIComponent(key) + '&select=staff_id')).concat(
-    await db('GET', 'cpao_batches', '?or=(org_form_storage_key.eq.' + encodeURIComponent(key) + ',bundle_storage_key.eq.' + encodeURIComponent(key) + ')&select=id'));
+  if (!/^(applications|batches)\/[A-Za-z0-9._\/-]+\.pdf$/.test(key) && !/^mail\/[0-9a-f-]{36}\/[0-9]+\.(pdf|jpg|png)$/.test(key)) { throw bad('Which file?'); }
+  if (key.indexOf('..') >= 0) { throw bad('Which file?'); }
+  const known = /^mail\//.test(key)
+    ? (await db('GET', 'cpao_staff', '?followups=cs.' + encodeURIComponent(JSON.stringify([{ file: key }])) + '&select=id')).map(function (r) { return { staff_id: r.id }; })
+    : (await db('GET', 'cpao_applications', '?pdf_storage_key=eq.' + encodeURIComponent(key) + '&select=staff_id')).concat(
+      await db('GET', 'cpao_batches', '?or=(org_form_storage_key.eq.' + encodeURIComponent(key) + ',bundle_storage_key.eq.' + encodeURIComponent(key) + ')&select=id'));
   if (!known.length) { throw bad('That file isn\'t here any more.', 404); }
   await audit(me.email, 'download', known[0].staff_id || null, { file: key.split('/').pop() }, req);
   return { url: await signedLink(key) };
+}
+
+/* ── CPAO mail: letters AHCCCS posts to Sanctuary ──────────────────────────
+   Elyssa (CPAO_MAIL_UPLOADERS) uploads the scan or photo; it's filed on the
+   person's record, and Brian gets an alert and a task to act on it. */
+const LETTER_KINDS = { approved: 'Approved — training assigned', denied: 'Denied', correction: 'Correction or more information needed',
+                       final: 'Final approval', other: 'Other' };
+const LETTER_TYPES = { pdf: 'application/pdf', jpg: 'image/jpeg', png: 'image/png' };
+async function mailPeople() {
+  /* name only: the uploader doesn't need anything else */
+  const rows = await db('GET', 'cpao_staff', '?status=in.(sent_to_cpao,cpao_correction_requested,approved_training_assigned,training_complete,certs_sent_to_cpao,final_approved,queued_for_batch,countersigned)&select=id,first_name,last_name&order=last_name.asc');
+  return { people: rows.map(function (r) { return { id: r.id, name: r.first_name + ' ' + r.last_name }; }), kinds: LETTER_KINDS };
+}
+async function mailUpload(req, me, q) {
+  const s = await staffById(q.id);
+  const kind = LETTER_KINDS[q.kind] ? q.kind : null;
+  if (!kind) { throw bad('Pick what the letter says.'); }
+  const on = str(q.date, 10);
+  if (on && !R.isDate(on)) { throw bad('The letter date isn\'t a date.'); }
+  const noteText = str(decodeURIComponent(String(req.headers['x-note'] || '')), 500);
+  const raw = await S.readRaw(req, 4000000);
+  const ext = raw.toString('ascii', 0, 5) === '%PDF-' ? 'pdf' : S.imageType(raw) === 'image/jpeg' ? 'jpg' : S.imageType(raw) === 'image/png' ? 'png' : null;
+  if (!ext) { throw bad('Upload the letter as a PDF, JPG or PNG.'); }
+  const key = 'mail/' + s.id + '/' + Date.now() + '.' + ext;
+  await S.upload(BUCKET, key, raw, LETTER_TYPES[ext]);
+  const name = s.first_name + ' ' + s.last_name;
+  const entry = { at: nowIso(), by: me.name || me.email, kind: 'letter', letter: kind, file: key, due: null,
+                  text: 'CPAO letter — ' + LETTER_KINDS[kind] + (on ? ' (dated ' + R.mdy(on) + ')' : '') + (noteText ? ': ' + noteText : '') };
+  const p = await project('CPAO letter for ' + name + ': ' + LETTER_KINDS[kind],
+    entry.text + '\n\nUploaded by ' + entry.by + '. Open their record to view the letter and move them to the next step: ' +
+    site(req) + '/cpao-admin.html#staff=' + s.id, R.addBusinessDays(R.today(), 1), me, kind === 'denied' || kind === 'correction' ? 'Hot' : 'Med');
+  await setStaff(s.id, { followups: (s.followups || []).concat([entry]).slice(-100) }, 'CPAO letter uploaded: ' + LETTER_KINDS[kind]);
+  await audit(me.email, 'letter_upload', s.id, { kind: kind, project_id: p.id }, req);
+  return { ok: true };
 }
 
 async function adminRoute(req, res, action, me, q) {
@@ -766,6 +803,12 @@ module.exports = async function handler(req, res) {
     if (STAFF_ACTIONS[action]) { return await staffRoute(req, res, action); }
     const me = await currentUser(req);
     if (!me) { return sendJSON(res, 401, { error: 'signin', message: 'Sign in first.' }); }
+    if (action === 'mail_people' || action === 'mail_upload') {
+      if (!access(me).cpao_mail) { return sendJSON(res, 403, { error: 'forbidden', message: 'Ask Brian to add you as a CPAO mail uploader.' }); }
+      if (action === 'mail_people' && req.method === 'GET') { return sendJSON(res, 200, await mailPeople()); }
+      if (action === 'mail_upload' && req.method === 'POST') { return sendJSON(res, 200, await mailUpload(req, me, q)); }
+      throw bad('Unknown action.', 404);
+    }
     if (!access(me).admin) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can open this.' }); }
     return await adminRoute(req, res, action, me, q);
   } catch (e) {

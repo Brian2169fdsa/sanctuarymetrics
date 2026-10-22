@@ -211,6 +211,7 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="sanctuaryci.html" data-need="reports"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
       '<a href="pal-email.html" data-need="reports"' + (current === 'pal' ? ' aria-current="page"' : '') + '>PAL Email Send</a>' +
       '<a href="cpao-admin.html" data-need="admin"' + (current === 'cpao' ? ' aria-current="page"' : '') + '>HEAplus (CP-AO)</a>' +
+      '<a href="cpao-mail.html" data-need="cpao-mail"' + (current === 'cpao-mail' ? ' aria-current="page"' : '') + '>CPAO mail</a>' +
       '<a class="navbtn" href="costs.html" data-need="costs">Cost cutting</a>' +
     '</nav><hr class="phoenix">';
 }
