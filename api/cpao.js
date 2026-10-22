@@ -283,8 +283,13 @@ async function invite(req, me, b) {
   const fields = { invite_token_hash: K.hashToken(link), invite_expires_at: new Date(Date.now() + INVITE_DAYS * 864e5).toISOString(), invite_failures: 0 };
   if (b.id) {
     s = await staffById(b.id);
-    if (!editable(s)) { throw bad('Their application is already in — re-invite only works before it\'s submitted, or after "Send back".'); }
-    s = await setStaff(s.id, fields, 'Invite re-sent');
+    if (s.status === 'denied') {
+      /* a fresh application after a denial */
+      s = await setStaff(s.id, Object.assign(fields, { status: 'invited' }), 'Invited to reapply');
+    } else {
+      if (!editable(s)) { throw bad('Their application is already in — re-invite only works before it\'s submitted, or after "Send back".'); }
+      s = await setStaff(s.id, fields, 'Invite re-sent');
+    }
   } else {
     const row = {
       first_name: str(b.first_name, 40), last_name: str(b.last_name, 40), email: str(b.email, 200).toLowerCase(),
@@ -426,9 +431,26 @@ async function setStatus(req, me, b) {
   const fields = { status: to };
   if ('heaplus_username' in b) { fields.heaplus_username = str(b.heaplus_username, 80) || null; }
   const name = s.first_name + ' ' + s.last_name;
+  /* a denial needs the reason from CPAO's letter; it's logged as a follow-up
+     and Brian gets a task to let the person know */
+  let denial = null;
+  if (to === 'denied') {
+    const reason = str(b.reason, 1000);
+    if (!reason) { throw bad('Add the reason CPAO gave for the denial.'); }
+    const on = str(b.letter_date, 10);
+    if (on && !R.isDate(on)) { throw bad('The letter date isn\'t a date.'); }
+    denial = { at: nowIso(), by: me.name || me.email, kind: 'denial', due: null,
+               text: 'Denied by AHCCCS' + (on ? ' (letter dated ' + R.mdy(on) + ')' : '') + ': ' + reason };
+    fields.followups = (s.followups || []).concat([denial]).slice(-100);
+  }
   /* moving on means the open task for the last step is done */
   if (s.project_id && to !== s.status) { await closeProject(s.project_id); fields.project_id = null; }
-  if (STATUS_TASK[to]) {
+  if (denial) {
+    const p = await project('Let ' + name + ' know their HEAplus application was denied',
+      denial.text + '\n\nTell them in person or by phone (not by email with details). If the reason can be fixed, you can invite them to reapply from their page: ' +
+      site(req) + '/cpao-admin.html#staff=' + s.id, R.addBusinessDays(R.today(), 1), me, 'Hot');
+    fields.project_id = p.id;
+  } else if (STATUS_TASK[to]) {
     const p = await project(STATUS_TASK[to](name), 'Status changed to ' + to.replace(/_/g, ' ') + '.\n\nOpen: ' + site(req) + '/cpao-admin.html#staff=' + s.id,
       R.addBusinessDays(R.today(), 2), me);
     fields.project_id = p.id;

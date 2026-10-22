@@ -55,6 +55,13 @@ The steps and timings live in `cpao/process.js`, and both pages read them from t
 - **Tasks:** "Certificates turned in" and "Final approval" add tasks for you, and moving on closes the previous task.
 - **Follow-ups:** each person has a follow-up log for CPAO questions, corrections, calls and emails. A reminder date adds a task on the Projects page.
 
+**Opening a person:** click a name on the roster to open them in a pop-up. It shows where they are in the 10 steps, what they submitted, the automatic check, follow-ups and every action. **Open full page ↗** gives the same view as its own page.
+
+**If AHCCCS denies an application:**
+1. Open the person and use **CPAO denied it?** to enter the reason and the letter date.
+2. The denial is logged in their follow-ups, and you get a "Let … know" task due the next business day. Tell them privately, in person or by phone.
+3. If the reason can be fixed, press **Invite them to reapply**. They start again at step 1.
+
 ## Staff picker (invite from Microsoft 365)
 
 **+ Invite someone** opens a search box over your Microsoft 365 staff list. It filters as you type.

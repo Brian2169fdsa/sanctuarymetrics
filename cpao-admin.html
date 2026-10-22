@@ -87,6 +87,14 @@
 .fu li{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;margin:0 0 6px;font-size:13.5px}
 .fu .sm{font-size:12px;color:var(--muted)}
 .how{margin-top:26px}
+dialog.pop{border:0;border-radius:16px;padding:0;width:min(1040px,calc(100% - 24px));max-height:92vh;box-shadow:0 24px 60px rgba(22,38,59,.35);background:#fff}
+dialog.pop::backdrop{background:rgba(22,38,59,.55)}
+.pop-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.pop-top a{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none}
+.pop-x{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;text-align:center;line-height:34px;font-size:20px;color:var(--ink)}
+.pop-x:hover{background:#eef3f6}.pop-x:focus-visible{outline:2px solid var(--blue)}
+.pop-body{padding:16px 20px 22px}
+.deny{border-color:#f0c9bd;background:#fff8f6}
 dialog.gate{border:0;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 32px);box-shadow:0 24px 60px rgba(22,38,59,.35)}
 dialog.gate::backdrop{background:rgba(22,38,59,.55)}
 .gate-in{padding:22px 24px}
@@ -133,7 +141,26 @@ var NEXT = {
 };
 /* the statuses Brian sets by hand once the application is with CPAO */
 var AFTER_CPAO = ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
-                  'final_approved', 'active', 'denied', 'remove_requested', 'removed'];
+                  'final_approved', 'active', 'remove_requested', 'removed'];
+/* once it's with CPAO, a denial can be recorded (with the reason) */
+var CAN_DENY = ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao', 'final_approved'];
+function denialCard(s) {
+  if (s.status === 'denied') {
+    var d = (s.followups || []).filter(function (f) { return f.kind === 'denial'; }).pop();
+    return '<div class="card deny"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 6px">Denied</div>' +
+      (d ? '<p style="font-size:13.5px;margin:0 0 6px">' + esc(d.text) + '</p><p class="sub" style="margin:0 0 8px">Recorded ' + when(d.at) + ' by ' + esc(d.by || '') + '</p>' : '') +
+      '<ol style="font-size:13.5px;line-height:1.5;margin:0;padding-left:18px">' +
+        '<li>Let them know privately — in person or by phone (there\'s a task for this on the Projects page).</li>' +
+        '<li>If the reason can be fixed, press <b>Invite them to reapply</b> above. They start again at step 1.</li></ol></div>';
+  }
+  if (CAN_DENY.indexOf(s.status) < 0) { return ''; }
+  return '<div class="card"><details><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600">CPAO denied it?</summary>' +
+    '<p class="sub" style="margin:8px 0 10px">Record it here with the reason from CPAO\'s letter or email. It\'s logged on their page and you get a task to let them know.</p>' +
+    '<div class="f2"><label class="fl wide">Reason CPAO gave<textarea id="dn-reason" rows="2" maxlength="1000" placeholder="e.g. Background check — see CPAO letter"></textarea>' +
+      '<span class="fh">Keep it short and factual; no SSNs or birth dates.</span></label>' +
+    '<label class="fl">Letter / email date<input type="date" id="dn-date"></label></div>' +
+    '<div class="btnrow"><button class="btn warm" id="dn-go">Record denial</button></div></details></div>';
+}
 /* the one-click "next step" for each status */
 var NEXT_STEP = {
   sent_to_cpao: ['approved_training_assigned', 'CPAO approved — training assigned'],
@@ -244,7 +271,7 @@ function rosterView() {
     (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th></tr></thead><tbody>' +
       list.map(function (s) {
         return '<tr><td><input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '"></td>' +
-          '<td><a class="nm" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
+          '<td><a class="nm" data-open="' + s.id + '" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
             '<div class="sm">' + esc(s.title_position || '') + (s.title_position ? ' · ' : '') + esc(s.email) + '</div></td>' +
           '<td>' + stageCell(s) + '</td>' +
           '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
@@ -263,6 +290,12 @@ function rosterView() {
   wireRoster();
 }
 function wireRoster() {
+  document.querySelectorAll('[data-open]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) { return; }   /* new tab → full page */
+      e.preventDefault(); openStaff(a.getAttribute('data-open'));
+    });
+  });
   document.querySelectorAll('[data-f]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); rosterView(); }); });
   $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
   wireDir();
@@ -403,9 +436,34 @@ function wireCopy() {
 }
 
 /* ── one person ───────────────────────────────────────────────────────── */
+/* a person opens in a pop-up from the roster (#staff=<id> is the full page) */
+function popOpen() { var d = $('pop'); return d && d.open ? d : null; }
+function openStaff(id) {
+  var old = $('pop');
+  if (old) { old.remove(); }
+  document.body.insertAdjacentHTML('beforeend', '<dialog class="pop" id="pop" aria-label="Person"><div class="pop-top">' +
+    '<a href="#staff=' + esc(id) + '" id="pop-full">Open full page ↗</a><button type="button" class="pop-x" id="pop-x" aria-label="Close">×</button></div>' +
+    '<div class="pop-body" id="pop-body"><p class="sub">Loading…</p></div></dialog>');
+  var d = $('pop');
+  d.showModal();
+  var close = function () { d.close(); d.remove(); };
+  $('pop-x').addEventListener('click', close);
+  $('pop-full').addEventListener('click', function () { d.remove(); });
+  d.addEventListener('click', function (e) { if (e.target === d) { close(); } });
+  d.addEventListener('close', function () { if ($('pop')) { $('pop').remove(); } });
+  staffView(id);
+}
 function staffView(id) {
-  shell('<p class="sub">Loading…</p>');
-  api('GET', 'detail&id=' + encodeURIComponent(id)).then(function (j) { drawStaff(j); }, function (e) { shell('<div class="note err">' + esc(e.message) + '</div>'); });
+  var into = popOpen();
+  if (into) { $('pop-body').innerHTML = '<p class="sub">Loading…</p>'; } else { shell('<p class="sub">Loading…</p>'); }
+  api('GET', 'detail&id=' + encodeURIComponent(id)).then(function (j) { drawStaff(j); }, function (e) {
+    if (popOpen()) { $('pop-body').innerHTML = '<div class="note err">' + esc(e.message) + '</div>'; } else { shell('<div class="note err">' + esc(e.message) + '</div>'); }
+  });
+}
+/* after a change: redraw the person, and the roster under the pop-up */
+function afterChange(id) {
+  if (popOpen()) { refresh(true); } else { refresh(false); }
+  staffView(id);
 }
 function drawStaff(j) {
   var s = j.staff, a = j.app, ans = (a && a.answers) || {};
@@ -415,7 +473,8 @@ function drawStaff(j) {
     return present ? '<span id="rv-' + field + '">' + label + '</span><button class="reveal" data-reveal="' + field + '">Show</button>' : '—';
   };
   var canSign = ['ready_for_countersign', 'cpao_correction_requested'].indexOf(s.status) >= 0 && a && a.submitted_at;
-  shell('<a class="back" href="#roster">← Roster</a>' +
+  var inPop = !!popOpen();
+  var html = (inPop ? '' : '<a class="back" href="#roster">← Roster</a>') +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">' +
       '<div><h3 style="font-family:Fraunces,serif;font-size:24px;margin:0">' + esc(s.first_name + ' ' + s.last_name) + '</h3>' +
       '<div class="sub" style="margin:4px 0 0">' + pill(s.status) + ' &nbsp;' + esc(NEXT[s.status] || '') + '</div></div>' +
@@ -423,6 +482,7 @@ function drawStaff(j) {
         (canSign ? '<button class="btn" id="sign">Countersign and generate PDF</button>' : '') +
         (a && a.has_pdf ? '<button class="btn alt" id="pdf">Download CP-101</button>' : '') +
         (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0 ? '<button class="btn alt" id="reinv">Re-send invite</button>' : '') +
+        (s.status === 'denied' ? '<button class="btn" id="reinv">Invite them to reapply</button>' : '') +
       '</div></div>' +
     '<div class="note" id="s-note" hidden></div><div id="s-link"></div>' +
     tracker(s) +
@@ -462,6 +522,7 @@ function drawStaff(j) {
             '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
             '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
         '</div>' +
+        denialCard(s) +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Follow-ups</div>' +
           ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
             return '<li>' + esc(f.text) + '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + (f.due ? ' · reminder ' + day(f.due) : '') + '</div></li>';
@@ -484,7 +545,8 @@ function drawStaff(j) {
           '<p class="sub" style="margin:6px 0 0">Use this to go back a step or record a denial. "CPAO wants a correction", "Certificates turned in" and "Final approval" add a task for you on the Projects page. "Removed" deletes their SSN, birth date, address and signature now.</p>' +
           '<div class="btnrow"><button class="btn alt" id="st-go">Update status</button></div></div>' +
       '</div></div>' +
-    '<h3 style="font-family:Fraunces,serif;font-size:19px;margin:22px 0 8px">History</h3><div id="s-audit"><p class="sub">Loading…</p></div>');
+    '<h3 style="font-family:Fraunces,serif;font-size:19px;margin:22px 0 8px">History</h3><div id="s-audit"><p class="sub">Loading…</p></div>';
+  if (inPop) { $('pop-body').innerHTML = html; } else { shell(html); }
   wireStaff(s);
   api('GET', 'audit&id=' + s.id).then(function (x) { $('s-audit').innerHTML = auditTable(x.entries); });
 }
@@ -520,7 +582,7 @@ function wireStaff(s) {
   if ($('sign')) {
     $('sign').addEventListener('click', function () {
       var btn = $('sign'); btn.disabled = true; btn.textContent = 'Generating…';
-      api('POST', 'countersign', { id: s.id }).then(function () { refresh(false); staffView(s.id); },
+      api('POST', 'countersign', { id: s.id }).then(function () { afterChange(s.id); },
         function (e) { btn.disabled = false; btn.textContent = 'Countersign and generate PDF'; note('s-note', 'err', e.message); });
     });
   }
@@ -528,7 +590,10 @@ function wireStaff(s) {
   if ($('reinv')) {
     $('reinv').addEventListener('click', function () {
       api('POST', 'invite', { id: s.id }).then(function (j) {
-        note('s-note', 'ok', j.emailed ? 'Invite emailed again. The old link no longer works.' : 'New link (the old one no longer works):');
+        var again = s.status === 'denied';
+        if (again) { refresh(popOpen() ? true : false); }
+        note('s-note', 'ok', j.emailed ? (again ? 'Invited to reapply — they got an email.' : 'Invite emailed again. The old link no longer works.')
+                                       : (again ? 'Invited to reapply. Send them this link:' : 'New link (the old one no longer works):'));
         if (!j.emailed) { $('s-link').innerHTML = linkBox(j.link); wireCopy(); }
       }, function (e) { note('s-note', 'err', e.message); });
     });
@@ -536,7 +601,7 @@ function wireStaff(s) {
   if ($('sb-go')) {
     $('sb-go').addEventListener('click', function () {
       api('POST', 'send_back', { id: s.id, field: $('sb-field').value, note: $('sb-note').value }).then(function (j) {
-        refresh(false); staffView(s.id);
+        afterChange(s.id);
         setTimeout(function () {
           note('s-note', 'ok', j.emailed ? 'Sent back — they got an email with the link.' : 'Sent back. Send them this link (Teams or Outlook):');
           if (!j.emailed) { $('s-link').innerHTML = linkBox(j.link); wireCopy(); }
@@ -555,20 +620,29 @@ function wireStaff(s) {
     $('nx-go').addEventListener('click', function () {
       var b = $('nx-go'); b.disabled = true;
       api('POST', 'status', { id: s.id, status: b.getAttribute('data-to'), heaplus_username: $('u-user').value })
-        .then(function () { refresh(false); staffView(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
+        .then(function () { afterChange(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
+    });
+  }
+  if ($('dn-go')) {
+    $('dn-go').addEventListener('click', function () {
+      if (!$('dn-reason').value.trim()) { note('s-note', 'err', 'Add the reason CPAO gave for the denial.'); return; }
+      if (!confirm('Record that AHCCCS denied ' + s.first_name + ' ' + s.last_name + '\'s application?')) { return; }
+      var b = $('dn-go'); b.disabled = true;
+      api('POST', 'status', { id: s.id, status: 'denied', reason: $('dn-reason').value, letter_date: $('dn-date').value })
+        .then(function () { afterChange(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
     });
   }
   $('fu-go').addEventListener('click', function () {
     var b = $('fu-go'); b.disabled = true;
     api('POST', 'followup', { id: s.id, text: $('fu-text').value, due: $('fu-due').value })
-      .then(function () { refresh(false); staffView(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
+      .then(function () { afterChange(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
   });
   $('st-go').addEventListener('click', function () {
     var to = $('st-to').value;
     if (!to) { return; }
     if (to === 'removed' && !confirm('Mark as removed? This deletes their SSN, birth date, address and signature now.')) { return; }
     api('POST', 'status', { id: s.id, status: to, confirm_deactivated: $('st-conf').checked, heaplus_username: $('u-user').value })
-      .then(function () { refresh(false); staffView(s.id); }, function (e) { note('s-note', 'err', e.message); });
+      .then(function () { afterChange(s.id); }, function (e) { note('s-note', 'err', e.message); });
   });
 }
 

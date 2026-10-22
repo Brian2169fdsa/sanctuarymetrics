@@ -47,6 +47,13 @@ var CPAO_STAGES = [
     text: 'They can sign in to HEAplus and start helping clients apply.' }
 ];
 var CPAO_TOTAL_TIME = 'About 3 weeks at the quickest, and up to 3–4 months — almost all of it is the AHCCCS background check.';
+/* what happens when AHCCCS says no (usually after the background check, step 5) */
+var CPAO_DENIAL = [
+  'CPAO lets Brian know, usually by letter or email, with the reason.',
+  'Brian records the denial and the reason on the person\'s page. It goes in their follow-up log, and a task is added for Brian to let them know.',
+  'Brian tells the person privately — in person or by phone, not by email with details.',
+  'They can\'t use HEAplus. If the reason can be fixed (a wrong date of birth, a name mismatch, a missing document), Brian can invite them to reapply and the process starts again at step 1.'
+];
 
 /* the stage a status belongs to (null for denied / removal) */
 function cpaoStageOf(status) {
@@ -61,7 +68,9 @@ function cpaoProcessHtml(opts) {
     return '<li class="' + (opts.current && opts.current >= s.n ? (opts.current === s.n ? 'now' : 'done') : '') + '">' +
       '<div class="proc-h"><b>' + s.n + '. ' + esc(s.title) + '</b><span class="proc-t">' + esc(s.time) + '</span></div>' +
       '<div class="proc-w">' + esc(s.who) + '</div><p>' + esc(s.text) + '</p></li>';
-  }).join('') + '</ol><p class="proc-total"><b>How long overall:</b> ' + esc(CPAO_TOTAL_TIME) + '</p>';
+  }).join('') + '</ol><p class="proc-total"><b>How long overall:</b> ' + esc(CPAO_TOTAL_TIME) + '</p>' +
+    '<div class="proc-deny"><b>If AHCCCS denies the application</b><ol>' +
+      CPAO_DENIAL.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol></div>';
 }
 var CPAO_PROCESS_CSS =
   '.proc{list-style:none;margin:0;padding:0;counter-reset:none}' +
@@ -75,5 +84,7 @@ var CPAO_PROCESS_CSS =
   '.proc-t{font-size:12.5px;font-weight:700;color:#14628a;background:#e8f3fb;border-radius:12px;padding:2px 9px;white-space:nowrap}' +
   '.proc-w{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6C7C86;margin-top:2px}' +
   '.proc p{margin:4px 0 0;font-size:13.5px;line-height:1.5;color:#33434c}' +
-  '.proc-total{font-size:14px;margin:4px 0 0;padding:10px 12px;background:#fff8ec;border:1px solid #f1dca6;border-radius:10px}';
+  '.proc-total{font-size:14px;margin:4px 0 0;padding:10px 12px;background:#fff8ec;border:1px solid #f1dca6;border-radius:10px}' +
+  '.proc-deny{font-size:13.5px;margin:10px 0 0;padding:10px 12px;background:#fbf1ef;border:1px solid #f0c9bd;border-radius:10px;line-height:1.5}' +
+  '.proc-deny ol{margin:6px 0 0;padding-left:20px}';
 if (typeof module !== 'undefined') { module.exports = { CPAO_STAGES: CPAO_STAGES }; }
