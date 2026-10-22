@@ -249,7 +249,7 @@ function load() {
   if (!u) { render(); return Promise.resolve(); }
   var jobs = [api('GET', '/api/alerts').then(function (j) { ALERTS = j.alerts || []; })];
   if (u.role === 'admin') {
-    jobs.push(api('GET', '/api/users').then(function (j) { USERS = j.users || []; }));
+    jobs.push(api('GET', '/api/auth?people=1').then(function (j) { USERS = j.users || []; }));
     jobs.push(api('GET', '/api/projects').then(function (j) {
       PROJECTS = (j.rows || []).filter(function (r) { return !r.seed_key; }).map(function (r) { return { ref: 'row:' + r.id, title: r.title }; });
     }, function () { PROJECTS = []; }));
@@ -305,7 +305,7 @@ function wire() {
     e.preventDefault();
     var btn = document.getElementById('u-go'), name = v('u-name'), email = v('u-email');
     busy(btn, true, 'Creating…');
-    api('POST', '/api/users', { name: name, email: email, role: v('u-role') }).then(function (j) {
+    api('POST', '/api/auth?people=1', { name: name, email: email, role: v('u-role') }).then(function (j) {
       return load().then(function () {
         document.getElementById('u-temp').innerHTML = tempBox(j.user.name, j.user.email, j.temp_password, false);
         wireCopy();
@@ -316,19 +316,19 @@ function wire() {
   document.querySelectorAll('[data-acc]').forEach(function (c) {
     c.addEventListener('change', function () {
       var body = {}; body[c.getAttribute('data-acc')] = c.checked;
-      api('PATCH', '/api/users?id=' + c.getAttribute('data-id'), body).then(load, function (err) { alert(err.message); load(); });
+      api('PATCH', '/api/auth?people=1&id=' + c.getAttribute('data-id'), body).then(load, function (err) { alert(err.message); load(); });
     });
   });
   document.querySelectorAll('[data-role]').forEach(function (s) {
     s.addEventListener('change', function () {
-      api('PATCH', '/api/users?id=' + s.getAttribute('data-role'), { role: s.value }).then(load, function (err) { alert(err.message); load(); });
+      api('PATCH', '/api/auth?people=1&id=' + s.getAttribute('data-role'), { role: s.value }).then(load, function (err) { alert(err.message); load(); });
     });
   });
   document.querySelectorAll('[data-reset]').forEach(function (b) {
     b.addEventListener('click', function () {
       var u = USERS.filter(function (x) { return x.id === b.getAttribute('data-reset'); })[0];
       if (!confirm('Give ' + u.name + ' a new temporary password? Their current one stops working and they\'re signed out.')) { return; }
-      api('PATCH', '/api/users?id=' + u.id, { reset_password: true }).then(function (j) {
+      api('PATCH', '/api/auth?people=1&id=' + u.id, { reset_password: true }).then(function (j) {
         return load().then(function () {
           document.getElementById('r-temp').innerHTML = tempBox(u.name, u.email, j.temp_password, true);
           wireCopy();
@@ -339,7 +339,7 @@ function wire() {
   });
   document.querySelectorAll('[data-off]').forEach(function (b) {
     b.addEventListener('click', function () {
-      api('PATCH', '/api/users?id=' + b.getAttribute('data-off'), { disabled: b.getAttribute('data-to') === 'true' })
+      api('PATCH', '/api/auth?people=1&id=' + b.getAttribute('data-off'), { disabled: b.getAttribute('data-to') === 'true' })
         .then(load, function (err) { alert(err.message); });
     });
   });
@@ -347,7 +347,7 @@ function wire() {
     b.addEventListener('click', function () {
       var u = USERS.filter(function (x) { return x.id === b.getAttribute('data-del'); })[0];
       if (!confirm('Delete ' + u.name + '\'s account? Their messages stay, shown under their name.')) { return; }
-      api('DELETE', '/api/users?id=' + u.id).then(load, function (err) { alert(err.message); });
+      api('DELETE', '/api/auth?people=1&id=' + u.id).then(load, function (err) { alert(err.message); });
     });
   });
   document.querySelectorAll('input[name="to"]').forEach(function (r) {

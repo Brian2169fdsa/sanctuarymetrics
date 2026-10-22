@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Sanctuary Recovery Centers — HEAplus Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+/* mobile first: most people fill this in on a phone. One job on this page, so no site menu. */
+.topnav{display:none}
+.ap{max-width:640px;margin:0 auto}
+.ap h2{font-size:24px;margin:4px 0 6px}
+.ap .lead{font-size:15px}
+.st{display:flex;gap:4px;margin:14px 0 18px;list-style:none;padding:0}
+.st li{flex:1;height:6px;border-radius:3px;background:#dfe7ec}
+.st li.done{background:#2E8B6F}
+.st li.now{background:#2C5468}
+.st-lab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fq{display:flex;flex-direction:column;gap:6px;margin:0 0 16px}
+.fq>label,.fq>.lbl{font-size:14px;font-weight:600;color:var(--ink)}
+.fq input[type=text],.fq input[type=email],.fq input[type=tel],.fq input[type=date],.fq input[type=password],.fq select{
+  font:400 16px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid #b9c7cf;border-radius:10px;padding:12px 13px;width:100%;box-sizing:border-box}
+.fq input:focus,.fq select:focus{outline:3px solid #1C9AD6;outline-offset:1px}
+.fq .hint{font-size:13px;color:#4f5f68}
+.fq .err{font-size:13.5px;color:#a3301a;font-weight:600}
+.fq.bad input,.fq.bad select{border-color:#a3301a}
+.row2{display:grid;grid-template-columns:1fr;gap:0 14px}
+.tick{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.4;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin:0 0 16px}
+.tick input{width:22px;height:22px;flex:none;margin:0}
+.tick.bad{border-color:#a3301a}
+.mask{display:flex;gap:8px}
+.mask button{flex:none;font:600 13px Inter,sans-serif;border:1px solid #b9c7cf;background:#fff;border-radius:10px;padding:0 12px;color:var(--ink);cursor:pointer}
+.priv{background:#eef5f9;border:1px solid #d3e3ec;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 18px}
+.cond{height:46vh;min-height:260px;overflow-y:auto;border:1px solid #b9c7cf;border-radius:12px;padding:14px 16px;background:#fff;font-size:14.5px;line-height:1.55}
+.cond h3{font-family:Fraunces,serif;font-size:18px;margin:0 0 8px}
+.cond li{margin:0 0 8px}
+.cond:focus{outline:3px solid #1C9AD6}
+.sigbox{border:2px dashed #9fb3bf;border-radius:12px;background:#fff;touch-action:none;position:relative}
+.sigbox canvas{display:block;width:100%;height:170px;border-radius:12px}
+.sigbox .line{position:absolute;left:16px;right:16px;bottom:38px;border-bottom:1px solid #9fb3bf;pointer-events:none}
+.decl{font-size:13.5px;line-height:1.5;color:#33434c;background:#f6f9fb;border-radius:10px;padding:12px 14px;margin:0 0 14px}
+.nav{display:flex;gap:10px;justify-content:space-between;margin-top:8px;flex-wrap:wrap}
+.nav .btn{min-height:48px;padding:0 22px;font-size:15px}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid #b9c7cf}
+.btn.alt:hover{background:#f3f7fa}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.rev{border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 0 14px}
+.rev h4{display:flex;justify-content:space-between;align-items:center;margin:0;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.rev h4 button{all:unset;cursor:pointer;color:#14628a;font-weight:600;font-size:13px}
+.rev h4 button:focus-visible{outline:2px solid #1C9AD6}
+.rev dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;padding:10px 14px;font-size:14px}
+.rev dt{color:#4f5f68}
+.rev dd{margin:0;font-weight:600;word-break:break-word}
+.msg{padding:12px 14px;border-radius:10px;font-size:14.5px;margin:0 0 14px}
+.msg.err{background:#fbeae6;color:#8f2f1b}
+.msg.ok{background:#e9f5ee;color:#1f5a37}
+.msg[hidden]{display:none}
+.issues{list-style:none;padding:0;margin:0 0 16px}
+.issues li{border:1px solid #f0c9bd;background:#fff6f3;border-radius:10px;padding:10px 12px;margin:0 0 8px;font-size:14.5px}
+.issues li.warn{border-color:#f1dca6;background:#fffaf0}
+.issues button{all:unset;cursor:pointer;color:#14628a;font-weight:700;font-size:13px;display:block;margin-top:4px}
+.done-card{text-align:center;padding:26px 18px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.done-card .big{font-size:44px;line-height:1}
+@media (min-width:620px){ .row2{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script>var LOGO = 'print/sanctuary-logo.png';  /* this page skips data.js */</script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="cpao/cp101-text.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/5.0.4/signature_pad.umd.min.js"
+  integrity="sha384-sAvQstqOmAfqxD54T2ZBU8/E8IQJJuNT4hEHwUULkoBRze+eTQ7tZNcXEA5yPzhE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+/* ── CP-101 Individual User Application: the staff side ───────────────────
+   Opened from the invite link: cpao-apply.html#t=<token>. The token is kept
+   in this tab (sessionStorage) and taken out of the address bar right away,
+   then sent in the X-CPAO-Token header (api/cpao.js). The person must be
+   signed in with the work account the invite went to.
+
+   Seven steps, each saved on Next. Date of birth, SSN and home address are
+   encrypted on the server; the SSN comes back only as its last 4 digits. */
+var TOKEN = null;
+try {
+  var m = /^#t=([\w-]{20,100})$/.exec(location.hash);
+  if (m) { sessionStorage.setItem('cpao_t', m[1]); }
+  TOKEN = sessionStorage.getItem('cpao_t');
+} catch (e) { var m2 = /^#t=([\w-]{20,100})$/.exec(location.hash); TOKEN = m2 ? m2[1] : null; }
+if (location.hash) { history.replaceState(null, '', location.pathname); }
+
+var D = null;          /* what the server sent: staff, step, answers, … */
+var VIEW = 1;          /* the step on screen */
+var ERR = {};          /* field → message from the last save */
+var PAD = null;
+var STEPS = ['About you', 'Identity', 'Contact', 'Role', 'Conditions for access', 'Sign', 'Review and submit'];
+var MONTH = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+
+function api(method, action, body) {
+  return fetch('/api/cpao?action=' + action, {
+    method: method, credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CPAO-Token': TOKEN || '' },
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) { var e = new Error(j.message || 'Something went wrong (' + r.status + ').'); e.status = r.status; e.fields = j.fields; throw e; }
+      return j;
+    });
+  });
+}
+function $(id) { return document.getElementById(id); }
+function v(id) { var el = $(id); return el ? el.value.trim() : ''; }
+function chk(id) { var el = $(id); return !!(el && el.checked); }
+function toIso(s) {
+  var m = MONTH.exec(s || '');
+  if (!m) { return ''; }
+  return m[3] + '-' + ('0' + m[1]).slice(-2) + '-' + ('0' + m[2]).slice(-2);
+}
+function toMdy(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.slice(5, 7) + '/' + iso.slice(8, 10) + '/' + iso.slice(0, 4) : ''; }
+function digits(s) { return String(s || '').replace(/\D/g, ''); }
+
+/* ── field builders ───────────────────────────────────────────────────── */
+function field(id, label, input, hint) {
+  return '<div class="fq' + (ERR[id] ? ' bad' : '') + '" id="f-' + id + '"><label for="' + id + '">' + label + '</label>' + input +
+    (hint ? '<span class="hint" id="h-' + id + '">' + hint + '</span>' : '') +
+    '<span class="err" id="e-' + id + '" role="alert">' + esc(ERR[id] || '') + '</span></div>';
+}
+function text(id, label, value, attrs, hint) {
+  return field(id, label, '<input type="text" id="' + id + '" value="' + esc(value || '') + '" ' + (attrs || '') +
+    (hint ? ' aria-describedby="h-' + id + '"' : '') + '>', hint);
+}
+function masked(id, label, value, attrs, hint) {
+  return field(id, label, '<div class="mask"><input type="password" id="' + id + '" value="' + esc(value || '') + '" autocomplete="off" ' +
+    (attrs || '') + (hint ? ' aria-describedby="h-' + id + '"' : '') + '><button type="button" data-show="' + id + '" aria-label="Show ' + esc(label) + '">Show</button></div>', hint);
+}
+function tick(id, label, checked) {
+  return '<label class="tick' + (ERR[id] ? ' bad' : '') + '"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '><span>' + label +
+    (ERR[id] ? '<br><b style="color:#a3301a" role="alert">' + esc(ERR[id]) + '</b>' : '') + '</span></label>';
+}
+
+/* ── the steps ────────────────────────────────────────────────────────── */
+function step1(a) {
+  return '<div class="priv"><b>About this form.</b> AHCCCS needs this to run a background check before giving you access to ' +
+    'HEAplus (Health-e-Arizona Plus). We collect your legal name, date of birth, Social Security Number, home address and contact ' +
+    'details. Your date of birth, SSN and address are encrypted; only ' + esc(D.site_admin) + ' (the CP-AO Site Administrator) can ' +
+    'open them, every look is logged, and they go only to AHCCCS on the signed form. They\'re deleted 90 days after the form is sent.</div>' +
+    '<p class="lead">Use your <b>legal name exactly as it is on your driver\'s license</b> — no nicknames.</p>' +
+    text('first_name', 'Legal first name', a.first_name, 'autocomplete="given-name" maxlength="40"') +
+    text('middle_initial', 'Middle initial', a.middle_initial, 'maxlength="1" autocomplete="off" style="max-width:90px"' + (a.no_middle_name ? ' disabled' : '')) +
+    tick('no_middle_name', 'I don\'t have a middle name', a.no_middle_name) +
+    text('last_name', 'Legal last name', a.last_name, 'autocomplete="family-name" maxlength="40"') +
+    tick('legal_name_ack', 'My name matches my driver\'s license exactly (no nicknames).', a.legal_name_ack);
+}
+function step2() {
+  var x = D.sensitive;
+  var dob = toMdy(x.date_of_birth);
+  return '<p class="lead">Type each one twice so a typo can\'t slip through — a wrong date of birth is the most common reason AHCCCS sends a form back.</p>' +
+    masked('dob', 'Date of birth', dob, 'inputmode="numeric" placeholder="MM/DD/YYYY" maxlength="10"', 'MM/DD/YYYY') +
+    masked('dob2', 'Date of birth again', dob, 'inputmode="numeric" placeholder="MM/DD/YYYY" maxlength="10"') +
+    (ERR.date_of_birth ? '<p class="msg err" role="alert">' + esc(ERR.date_of_birth) + '</p>' : '') +
+    masked('ssn', 'Social Security Number', '', 'inputmode="numeric" placeholder="###-##-####" maxlength="11"',
+      x.ssn_last4 ? 'Saved — ends in ' + esc(x.ssn_last4) + '. Leave both boxes blank to keep it.' : '9 digits') +
+    masked('ssn2', 'Social Security Number again', '', 'inputmode="numeric" placeholder="###-##-####" maxlength="11"');
+}
+function step3(a) {
+  return text('home_address', 'Home street address', D.sensitive.home_address, 'autocomplete="street-address" maxlength="200"', 'Street and apartment number') +
+    '<div class="row2">' + text('city', 'City', a.city, 'autocomplete="address-level2" maxlength="40"') +
+    text('state', 'State', a.state || 'AZ', 'autocomplete="address-level1" maxlength="2" style="text-transform:uppercase"') + '</div>' +
+    '<div class="row2">' + text('zip', 'ZIP code', a.zip, 'inputmode="numeric" autocomplete="postal-code" maxlength="5"') +
+    text('phone', 'Phone number', a.phone, 'inputmode="tel" autocomplete="tel" maxlength="20"') + '</div>' +
+    field('email', 'Email address', '<input type="email" id="email" value="' + esc(a.email || D.staff.email) + '" autocomplete="email" maxlength="200" aria-describedby="h-email">',
+      'Use your @sanctuaryrecoverycenters.com address so the AHCCCS training emails reach you.');
+}
+function step4(a) {
+  var t = a.title_position || '';
+  return field('title_position', 'Your title', '<select id="title_position"><option value="">Pick one…</option>' + D.titles.map(function (o) {
+      return '<option' + (o === t ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>') +
+    '<div id="other-wrap"' + (t === 'Other' ? '' : ' hidden') + '>' + text('title_other', 'Type your title', a.title_other, 'maxlength="80"') + '</div>' +
+    '<div class="fq' + (ERR.pay_status ? ' bad' : '') + '" role="radiogroup" aria-labelledby="pay-l"><span class="lbl" id="pay-l">Are you…</span>' +
+      '<label class="tick" style="margin:0"><input type="radio" name="pay" value="paid"' + (a.pay_status === 'paid' ? ' checked' : '') + '><span>A paid employee (or otherwise paid for my services)</span></label>' +
+      '<label class="tick" style="margin:0"><input type="radio" name="pay" value="volunteer"' + (a.pay_status === 'volunteer' ? ' checked' : '') + '><span>A volunteer (not paid)</span></label>' +
+      '<span class="err" role="alert">' + esc(ERR.pay_status || '') + '</span></div>' +
+    field('hire_date', 'Hire date', '<input type="date" id="hire_date" value="' + esc(a.hire_date || '') + '">');
+}
+function step5() {
+  var c = CP101_TEXT.conditions;
+  var html = '', inList = false;
+  c.forEach(function (b) {
+    if (b.type === 'li' && !inList) { html += '<ol>'; inList = true; }
+    if (b.type !== 'li' && inList) { html += '</ol>'; inList = false; }
+    html += b.type === 'h' ? '<h3>' + esc(b.text) + '</h3>' : b.type === 'li' ? '<li>' + esc(b.text) + '</li>' : '<p>' + esc(b.text) + '</p>';
+  });
+  if (inList) { html += '</ol>'; }
+  return '<p class="lead">Read the Conditions for Access to HEAplus (pages 2–3 of the form). Scroll to the end to agree.</p>' +
+    '<div class="cond" id="cond" tabindex="0" aria-label="Conditions for Access to HEAplus">' + html + '<p><b>— End of the conditions —</b></p></div>' +
+    '<label class="tick' + (ERR.conditions_ack ? ' bad' : '') + '" style="margin-top:14px"><input type="checkbox" id="agree"' + (D.conditions_agreed ? ' checked' : ' disabled') + '>' +
+    '<span id="agree-l">' + (D.conditions_agreed ? 'I have read and agree to the Conditions for Access.' : 'Scroll to the end of the conditions first.') + '</span></label>';
+}
+function step6() {
+  var today = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', month: '2-digit', day: '2-digit', year: 'numeric' });
+  if (D.wet) {
+    return '<p class="lead">This form needs a pen signature for now.</p>' +
+      '<ol style="font-size:15px;line-height:1.6;padding-left:20px"><li><a href="#" id="print">Download your filled-in form</a> and print all 4 pages.</li>' +
+      '<li>Sign and date page 4 under "Signature of Individual User".</li><li>Scan all 4 pages into <b>one PDF</b> (not photos) and upload it here.</li></ol>' +
+      field('scan', 'Signed form (PDF)', '<input type="file" id="scan" accept="application/pdf">') +
+      (D.signed ? '<p class="msg ok">Your signed form is uploaded. You can upload it again to replace it.</p>' : '');
+  }
+  return '<div class="decl">' + esc(CP101_TEXT.user_declaration) + '</div>' +
+    '<div class="fq' + (ERR.user_signature ? ' bad' : '') + '"><span class="lbl" id="sig-l">Sign with your finger or mouse</span>' +
+    '<div class="sigbox"><canvas id="sig" role="img" aria-labelledby="sig-l"></canvas><div class="line"></div></div>' +
+    '<span class="err" role="alert">' + esc(ERR.user_signature || '') + '</span>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center"><span class="hint">Date: ' + today + '</span>' +
+    '<button type="button" class="btn alt" id="clear" style="min-height:36px;padding:0 14px">Clear</button></div></div>' +
+    (D.signed ? '<p class="msg ok">You\'ve already signed. Sign again only if you want to replace it, or press Next.</p>' : '');
+}
+function step7(a) {
+  var x = D.sensitive;
+  var sec = function (n, title, rows) {
+    return '<div class="rev"><h4>' + title + (D.editable ? '<button type="button" data-go="' + n + '">Edit</button>' : '') + '</h4><dl>' +
+      rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1] || '—') + '</dd>'; }).join('') + '</dl></div>';
+  };
+  return '<p class="lead">Check everything once more. The Sanctuary details (organization, provider ID, website) are filled in for you.</p>' +
+    sec(1, 'About you', [['Legal name', [a.first_name, a.no_middle_name ? '' : a.middle_initial, a.last_name].filter(Boolean).join(' ')],
+      ['Middle initial', a.no_middle_name ? 'No middle name' : a.middle_initial]]) +
+    sec(2, 'Identity', [['Date of birth', toMdy(x.date_of_birth)], ['SSN', x.ssn_last4 ? '•••-••-' + x.ssn_last4 : '']]) +
+    sec(3, 'Contact', [['Home address', x.home_address], ['City, state', [a.city, a.state].filter(Boolean).join(', ')], ['ZIP', a.zip], ['Phone', a.phone], ['Email', a.email]]) +
+    sec(4, 'Role', [['Title', a.title_position === 'Other' ? a.title_other : a.title_position], ['Paid or volunteer', a.pay_status === 'volunteer' ? 'Volunteer' : a.pay_status === 'paid' ? 'Paid employee' : ''], ['Hire date', toMdy(a.hire_date)]]) +
+    sec(5, 'Conditions', [['Agreed', D.conditions_agreed ? 'Yes' : 'Not yet']]) +
+    sec(6, 'Signature', [['Signed', D.signed ? 'Yes' : 'Not yet']]);
+}
+
+/* ── screens ──────────────────────────────────────────────────────────── */
+function shell(inner) {
+  $('sheet').innerHTML = pageHeader('HEAplus Access', 'Individual User Application (CP-101)', 'AHCCCS · ' + esc((D && D.org) || 'Sanctuary Recovery Centers'), '') +
+    '<section><div class="ap">' + inner + '</div></section>' +
+    '<hr class="phoenix"><footer>Sanctuary Recovery Centers · Your answers are encrypted and only used for your AHCCCS application.</footer>';
+}
+function render() {
+  if (!D.editable) { return finished(); }
+  var a = D.answers;
+  var body = [step1, step2, step3, step4, step5, step6, step7][VIEW - 1](a);
+  var issues = (D.issues || []).length ? '<div class="msg err" role="alert"><b>Please fix ' + (D.issues.length === 1 ? 'this' : 'these') + ' and submit again:</b></div>' +
+    '<ul class="issues">' + D.issues.map(function (i) {
+      return '<li class="' + (i.severity === 'warn' ? 'warn' : '') + '">' + esc(i.message_for_staff) +
+        (i.step && i.step <= 7 ? '<button type="button" data-go="' + i.step + '">Go to ' + esc(STEPS[i.step - 1]) + ' →</button>' : '') + '</li>';
+    }).join('') + '</ul>' : '';
+  shell('<span class="st-lab">Step ' + VIEW + ' of 7</span>' +
+    '<ol class="st" aria-hidden="true">' + STEPS.map(function (s, i) { return '<li class="' + (i + 1 < VIEW ? 'done' : i + 1 === VIEW ? 'now' : '') + '"></li>'; }).join('') + '</ol>' +
+    '<h2>' + STEPS[VIEW - 1] + '</h2>' + (VIEW === 7 || VIEW === 1 ? issues : '') +
+    '<form id="stepform" novalidate>' + body +
+    '<p class="msg err" id="formerr" role="alert" hidden></p>' +
+    '<div class="nav">' + (VIEW > 1 ? '<button type="button" class="btn alt" id="back">← Back</button>' : '<span></span>') +
+    '<button type="submit" class="btn" id="next">' + (VIEW === 7 ? 'Submit application' : 'Save and continue →') + '</button></div></form>');
+  wire();
+  var firstBad = document.querySelector('.fq.bad input, .fq.bad select, .tick.bad input');
+  if (firstBad) { firstBad.focus(); }
+}
+function finished() {
+  var st = D.staff.status;
+  var text = st === 'ready_for_countersign' ? 'Your application is in. ' + esc(D.site_admin) + ' will review and countersign it, then send it to AHCCCS with this week\'s batch.'
+    : 'Your application has been sent along. You\'ll get an email from AHCCCS with instructions for the AZLearns training. Processing can take 2 weeks to a month.';
+  shell('<div class="done-card"><div class="big" aria-hidden="true">✓</div><h2>Thank you, ' + esc(D.staff.first_name) + '!</h2>' +
+    '<p class="lead" style="margin:8px auto 0;max-width:460px">' + text + '</p>' +
+    '<p class="sub" style="margin-top:14px">You can close this page.</p></div>');
+  try { sessionStorage.removeItem('cpao_t'); } catch (e) { /* fine */ }
+}
+function problem(title, text) {
+  shell('<div class="done-card"><h2>' + esc(title) + '</h2><p class="lead" style="margin:8px auto 0;max-width:460px">' + esc(text) + '</p></div>');
+}
+
+/* ── collecting a step ────────────────────────────────────────────────── */
+function collect() {
+  var b = { step: VIEW };
+  var local = {};
+  if (VIEW === 1) {
+    b.answers = { first_name: v('first_name'), middle_initial: v('middle_initial'), no_middle_name: chk('no_middle_name'),
+                  last_name: v('last_name'), legal_name_ack: chk('legal_name_ack') };
+  } else if (VIEW === 2) {
+    var d1 = v('dob'), d2 = v('dob2'), s1 = digits(v('ssn')), s2 = digits(v('ssn2'));
+    if (!toIso(d1)) { local.date_of_birth = 'Enter your date of birth as MM/DD/YYYY.'; }
+    else if (d1 !== d2) { local.date_of_birth = 'The two dates of birth don\'t match.'; }
+    if (s1 || s2 || !D.sensitive.ssn_last4) {
+      if (s1.length !== 9) { local.ssn = 'Enter all 9 digits of your Social Security Number.'; }
+      else if (s1 !== s2) { local.ssn = 'The two Social Security Numbers don\'t match.'; }
+    }
+    b.sensitive = { date_of_birth: toIso(d1), ssn: s1 };
+  } else if (VIEW === 3) {
+    b.answers = { city: v('city'), state: v('state').toUpperCase(), zip: v('zip'), phone: v('phone'), email: v('email') };
+    b.sensitive = { home_address: v('home_address') };
+  } else if (VIEW === 4) {
+    var pay = document.querySelector('input[name=pay]:checked');
+    b.answers = { title_position: v('title_position'), title_other: v('title_other'), pay_status: pay ? pay.value : '', hire_date: v('hire_date') };
+  } else if (VIEW === 5) {
+    if (!chk('agree')) { local.conditions_ack = 'Scroll to the end and tick "I agree".'; }
+    b.agree = chk('agree');
+  } else if (VIEW === 6 && !D.wet) {
+    if (PAD && !PAD.isEmpty()) { b.signature = PAD.toDataURL('image/png'); }
+    else if (!D.signed) { local.user_signature = 'Sign in the box first.'; }
+  }
+  return { body: b, local: local };
+}
+/* redraw with errors, keeping whatever was typed */
+function showErrors(errs) {
+  var keep = [];
+  document.querySelectorAll('#stepform input, #stepform select').forEach(function (el) {
+    if (el.type !== 'file') { keep.push({ id: el.id, name: el.name, value: el.value, checked: el.checked, type: el.type }); }
+  });
+  ERR = errs; render();
+  keep.forEach(function (k) {
+    var el = k.id ? $(k.id) : document.querySelector('input[name="' + k.name + '"][value="' + k.value + '"]');
+    if (!el) { return; }
+    if (k.type === 'checkbox' || k.type === 'radio') { el.checked = k.checked; } else { el.value = k.value; }
+  });
+  if ($('no_middle_name') && $('middle_initial')) { $('middle_initial').disabled = $('no_middle_name').checked; }
+  if ($('other-wrap')) { $('other-wrap').hidden = v('title_position') !== 'Other'; }
+}
+function go(n) { VIEW = Math.max(1, Math.min(7, n)); ERR = {}; render(); window.scrollTo(0, 0); }
+function next() {
+  var formErr = $('formerr');
+  if (VIEW === 7) { return submit(); }
+  var c = collect();
+  if (Object.keys(c.local).length) { return showErrors(c.local); }
+  /* step 6 with nothing new drawn and a signature already saved: just move on */
+  if (VIEW === 6 && (D.wet || !c.body.signature)) { return D.signed ? go(7) : showErrors({ user_signature: 'Sign in the box first.' }); }
+  var btn = $('next'); btn.disabled = true; btn.textContent = 'Saving…';
+  api('POST', 'save', c.body).then(function (j) { D = j; go(VIEW + 1); }, function (e) {
+    btn.disabled = false; btn.textContent = 'Save and continue →';
+    if (e.fields) { return showErrors(e.fields); }
+    formErr.hidden = false; formErr.textContent = e.message;
+  });
+}
+function submit() {
+  var btn = $('next'); btn.disabled = true; btn.textContent = 'Checking your application…';
+  api('POST', 'submit').then(function (j) {
+    if (j.status === 'needs_fix') {
+      D.issues = j.issues; D.staff.status = 'needs_fix'; ERR = {};
+      j.issues.forEach(function (i) { ERR[i.field] = i.message_for_staff; });
+      render(); window.scrollTo(0, 0); return;
+    }
+    D.editable = false; D.staff.status = j.status; finished(); window.scrollTo(0, 0);
+  }, function (e) { btn.disabled = false; btn.textContent = 'Submit application'; var f = $('formerr'); f.hidden = false; f.textContent = e.message; });
+}
+
+function wire() {
+  $('stepform').addEventListener('submit', function (e) { e.preventDefault(); next(); });
+  if ($('back')) { $('back').addEventListener('click', function () { go(VIEW - 1); }); }
+  document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { go(+b.getAttribute('data-go')); }); });
+  document.querySelectorAll('[data-show]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var i = $(b.getAttribute('data-show'));
+      var show = i.type === 'password';
+      i.type = show ? 'text' : 'password'; b.textContent = show ? 'Hide' : 'Show';
+    });
+  });
+  var nm = $('no_middle_name');
+  if (nm) { nm.addEventListener('change', function () { var mi = $('middle_initial'); mi.disabled = nm.checked; if (nm.checked) { mi.value = ''; } }); }
+  var tp = $('title_position');
+  if (tp) { tp.addEventListener('change', function () { $('other-wrap').hidden = tp.value !== 'Other'; }); }
+  ['dob', 'dob2'].forEach(function (id) {
+    var el = $(id);
+    if (el) { el.addEventListener('input', function () {
+      var d = digits(el.value).slice(0, 8);
+      el.value = d.length > 4 ? d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4) : d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+    }); }
+  });
+  ['ssn', 'ssn2'].forEach(function (id) {
+    var el = $(id);
+    if (el) { el.addEventListener('input', function () {
+      var d = digits(el.value).slice(0, 9);
+      el.value = d.length > 5 ? d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5) : d.length > 3 ? d.slice(0, 3) + '-' + d.slice(3) : d;
+    }); }
+  });
+  var cond = $('cond');
+  if (cond && !D.conditions_agreed) {
+    var unlock = function () {
+      if (cond.scrollTop + cond.clientHeight >= cond.scrollHeight - 8) {
+        $('agree').disabled = false; $('agree-l').textContent = 'I have read and agree to the Conditions for Access.';
+        cond.removeEventListener('scroll', unlock);
+      }
+    };
+    cond.addEventListener('scroll', unlock); unlock();
+  }
+  var c = $('sig');
+  if (c) {
+    if (typeof SignaturePad === 'undefined') { $('formerr').hidden = false; $('formerr').textContent = 'The signature box didn\'t load. Check your connection and reload the page.'; return; }
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    c.width = c.offsetWidth * ratio; c.height = c.offsetHeight * ratio; c.getContext('2d').scale(ratio, ratio);
+    PAD = new SignaturePad(c, { penColor: '#0b1f3a', backgroundColor: 'rgba(0,0,0,0)', minWidth: 0.8, maxWidth: 2.4 });
+    $('clear').addEventListener('click', function () { PAD.clear(); });
+  }
+  var pr = $('print');
+  if (pr) {
+    pr.addEventListener('click', function (e) {
+      e.preventDefault();
+      fetch('/api/cpao?action=print', { credentials: 'same-origin', headers: { 'X-CPAO-Token': TOKEN } }).then(function (r) {
+        if (!r.ok) { throw new Error('Couldn\'t make the form — try again.'); }
+        return r.blob();
+      }).then(function (b) {
+        var u = URL.createObjectURL(b), a = document.createElement('a');
+        a.href = u; a.download = 'CP-101.pdf'; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+      }, function (err) { $('formerr').hidden = false; $('formerr').textContent = err.message; });
+    });
+  }
+  var sc = $('scan');
+  if (sc) {
+    sc.addEventListener('change', function () {
+      var f = sc.files[0];
+      if (!f) { return; }
+      var fe = $('formerr'); fe.hidden = true;
+      fetch('/api/cpao?action=scan', { method: 'POST', credentials: 'same-origin', headers: { 'X-CPAO-Token': TOKEN, 'Content-Type': 'application/pdf' }, body: f })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw new Error(j.message); } return j; }); })
+        .then(function () { D.signed = true; go(7); }, function (err) { fe.hidden = false; fe.textContent = err.message; });
+    });
+  }
+}
+
+SM.ready.then(function (me) {
+  if (!TOKEN) { return problem('Open the link from your email', 'This page only works from the invite link ' + 'Brian sent you. Open that email and tap the link again.'); }
+  if (!me) { return shell(SM.signInCard('cpao-apply.html', 'Sign in with your Sanctuary Microsoft account — the work email the invite was sent to.')); }
+  api('GET', 'apply').then(function (j) {
+    D = j;
+    VIEW = (D.issues || []).length ? 7 : Math.min(D.step || 1, 7);
+    render();
+  }, function (e) {
+    problem(e.status === 401 ? 'Sign in first' : 'This link can\'t be used', e.message);
+  });
+});
+</script>
+</body></html>

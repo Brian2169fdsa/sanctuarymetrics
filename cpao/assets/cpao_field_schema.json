@@ -1,0 +1,84 @@
+{
+  "_about": "Every field on the two AHCCCS CP-AO forms, who supplies it, validation, and where it lands on the PDF. Coordinates are PDF points, origin bottom-left, page 612x792. y = baseline for drawText.",
+  "constants": {
+    "cpao_name": "Sanctuary Sober Living",
+    "dba": "Sanctuary Recovery Centers",
+    "is_ahcccs_registered_provider": true,
+    "ahcccs_provider_id": "464000604",
+    "website_url": "www.sanctuaryrecoverycenters.com",
+    "agreement_number": "YH18-0024-354",
+    "default_work_address": "1940 E Thunderbird Rd Ste 206, Phoenix, AZ 85022",
+    "site_admin_name": "Brian Reinhart",
+    "site_admin_title": "Director",
+    "site_admin_email": "breinhart@sanctuaryrecoverycenters.com",
+    "cpao_ops_email": "CP-AOOperationsTeam@azahcccs.gov"
+  },
+
+  "cp101_individual_user_application": {
+    "source_pdf": "IndividualUserApplicationForm.pdf (CP-101 rev 12/2024, 4 pages, NOT fillable -> overlay text with pdf-lib)",
+    "fields": [
+      { "key": "cpao_name", "label": "Name of the CP-AO", "filled_by": "system", "page": 1, "x": 150, "y": 384, "size": 10 },
+      { "key": "dba", "label": "DBA, if applicable", "filled_by": "system", "page": 1, "x": 142, "y": 353, "size": 10 },
+      { "key": "is_ahcccs_registered_provider", "label": "Is the organization an AHCCCS registered provider? YES/NO", "filled_by": "system", "page": 1, "type": "checkbox", "yes_mark": { "x": 341.3, "y": 334.5 }, "no_mark": { "x": 392.3, "y": 334.5 }, "mark": "X", "size": 11, "note": "Missing this got a whole batch rejected 6/25/25" },
+      { "key": "ahcccs_provider_id", "label": "AHCCCS Provider ID", "filled_by": "system", "page": 1, "x": 250, "y": 318, "size": 10 },
+      { "key": "website_url", "label": "URL for the organization's website", "filled_by": "system", "page": 1, "x": 236, "y": 301, "size": 10, "note": "Missing this got a whole batch rejected 6/25/25" },
+
+      { "key": "first_name", "label": "First Name", "filled_by": "staff", "required": true, "page": 1, "x": 102, "y": 254, "size": 10, "validate": "Legal name exactly as on driver's license; no nicknames" },
+      { "key": "middle_initial", "label": "MI", "filled_by": "staff", "required": false, "page": 1, "x": 262, "y": 254, "size": 10, "validate": "1 letter or blank; write 'N/A' flag if none (form says all fields must be completed — AI should confirm staff explicitly chose 'No middle name')" },
+      { "key": "last_name", "label": "Last Name", "filled_by": "staff", "required": true, "page": 1, "x": 441, "y": 255, "size": 10 },
+      { "key": "date_of_birth", "label": "Date of Birth", "filled_by": "staff", "required": true, "sensitive": true, "page": 1, "x": 112, "y": 226, "size": 10, "format": "MM/DD/YYYY", "validate": "Age >= 18; this exact field caused the Jared Bakin correction request (8/24/26) — show a confirm-retype step" },
+      { "key": "ssn", "label": "Social Security Number", "filled_by": "staff", "required": true, "sensitive": true, "page": 1, "x": 385, "y": 226, "size": 10, "format": "###-##-####", "validate": "9 digits; area != 000/666/9xx; group != 00; serial != 0000; confirm-retype" },
+      { "key": "home_address", "label": "Home Address", "filled_by": "staff", "required": true, "sensitive": true, "page": 1, "x": 31.3, "y": 189.6, "size": 8, "max_width_pt": 205 },
+      { "key": "city_state", "label": "City and State", "filled_by": "staff", "required": true, "page": 1, "x": 242.9, "y": 189.6, "size": 8, "max_width_pt": 125, "note": "Collect city + state separately in UI, render as 'City, ST'" },
+      { "key": "zip", "label": "ZIP Code", "filled_by": "staff", "required": true, "page": 1, "x": 373.2, "y": 189.6, "size": 8, "format": "#####" },
+      { "key": "phone", "label": "Phone Number", "filled_by": "staff", "required": true, "page": 1, "x": 31.3, "y": 161.6, "size": 8, "format": "###-###-####" },
+      { "key": "email", "label": "Email Address", "filled_by": "staff", "required": true, "page": 1, "x": 242.9, "y": 161.6, "size": 8, "validate": "Prefer @sanctuaryrecoverycenters.com (not the @sanctuaryrc.com alias) so CPAO training emails land in the right mailbox" },
+      { "key": "pay_status", "label": "Select one: volunteer / paid employee", "filled_by": "staff", "required": true, "page": 1, "type": "radio", "options": { "volunteer": { "x": 51.4, "y": 126.7 }, "paid": { "x": 51.4, "y": 110.2 } }, "mark": "X", "size": 11 },
+
+      { "key": "conditions_ack", "label": "Read and agree to Conditions for Access (pages 2-3)", "filled_by": "staff", "required": true, "type": "checkbox_ui_only", "note": "Show the full page 2-3 text in a scroll box; require scroll-to-end + checkbox. Not drawn on PDF; the signature on page 4 is the legal acceptance. Store timestamp + IP in audit log." },
+      { "key": "legal_name_ack", "label": "My name matches my driver's license exactly", "filled_by": "staff", "required": true, "type": "checkbox_ui_only" },
+
+      { "key": "user_signature", "label": "Signature of Individual User", "filled_by": "staff", "required": true, "type": "signature_image", "page": 4, "box": { "x": 30, "y": 506, "w": 270, "h": 22 } },
+      { "key": "user_sign_date", "label": "Date (user)", "filled_by": "system_on_sign", "page": 4, "x": 315, "y": 514, "size": 10 },
+      { "key": "user_printed_name", "label": "Name of Individual User (type or print)", "filled_by": "derived", "derive": "first_name + ' ' + last_name", "page": 4, "x": 30, "y": 472, "size": 10 },
+      { "key": "title_position", "label": "Title/Position of Individual User", "filled_by": "staff", "required": true, "page": 4, "x": 315, "y": 472, "size": 10, "options_hint": ["Case Manager", "Case Manager (Lead)", "IOP Navigator", "BHT", "Client Care Manager", "Revenue Cycle Manager", "Other"] },
+
+      { "key": "sa_signature", "label": "Signature of CP-AO Site Administrator", "filled_by": "site_admin", "required": true, "type": "signature_image", "page": 4, "box": { "x": 30, "y": 241, "w": 400, "h": 22 } },
+      { "key": "sa_sign_date", "label": "Date (site admin)", "filled_by": "system_on_countersign", "page": 4, "x": 464, "y": 249, "size": 10 },
+      { "key": "sa_printed_name", "label": "Name of CP-AO Site Administrator", "filled_by": "system", "value_from": "constants.site_admin_name", "page": 4, "x": 30, "y": 207, "size": 10 }
+    ]
+  },
+
+  "org_user_application": {
+    "source_pdf": "OrganizationUserApplicationForm.pdf (rev 03/2026, 3 pages, FILLABLE AcroForm -> set field values by name)",
+    "rows_per_form": 6,
+    "overflow_rule": "More than 6 users in a batch -> generate additional copies of the form and merge, each copy fully filled in sections 1, 2 and signed",
+    "header_fields": [
+      { "pdf_field": "Name of Legal Entity Name and if applicable the Doing Business as Name", "value": "Sanctuary Sober Living DBA Sanctuary Recovery Centers" },
+      { "pdf_field": "Legal First and Last Name", "value_from": "constants.site_admin_name" },
+      { "pdf_field": "Title", "value_from": "constants.site_admin_title" },
+      { "pdf_field": "fill_46", "label": "Office Telephone (include Extension)", "value_from": "settings.site_admin_phone", "note": "Field is literally named fill_46 in the PDF" },
+      { "pdf_field": "EMail Address", "value_from": "constants.site_admin_email" }
+    ],
+    "row_fields_template": [
+      { "pdf_field": "Legal First and Last NameRow{n}", "from": "first_name + ' ' + last_name" },
+      { "pdf_field": "Work AddressRow{n}", "from": "staff.work_address || constants.default_work_address" },
+      { "pdf_field": "Phone NumberRow{n}", "from": "staff.work_phone || phone" },
+      { "pdf_field": "EmailRow{n}", "from": "email" },
+      { "pdf_field": "Employee Contractor or VolunteerRow{n}", "from": "Employee | Contractor | Volunteer (map pay_status: paid->Employee unless admin sets Contractor)" },
+      { "pdf_field": "Hire DateRow{n}", "from": "staff.hire_date (MM/DD/YYYY) — collect on the staff form or admin roster" },
+      { "pdf_field": "Add or RemoveRow{n}", "from": "Add | Add-SA | Remove | Remove-SA" }
+    ],
+    "signature_fields": [
+      { "pdf_field": "Printed Legal Name", "value_from": "constants.site_admin_name", "page": 3 },
+      { "pdf_field": "Signature", "page": 3, "type": "signature_image", "rect": [37, 432, 553, 454], "note": "Text field; leave empty and draw the site admin signature PNG inside this rect, then flatten" }
+    ]
+  },
+
+  "extra_fields_to_collect_for_org_form": [
+    { "key": "hire_date", "filled_by": "staff_or_admin", "required": true },
+    { "key": "work_address", "filled_by": "admin_default", "default": "1940 E Thunderbird Rd Ste 206, Phoenix, AZ 85022", "note": "Allow the Cave Creek / 11645 N Cave Creek Rd location" },
+    { "key": "worker_type", "filled_by": "admin", "options": ["Employee", "Contractor", "Volunteer"] },
+    { "key": "is_site_admin", "filled_by": "admin", "type": "boolean", "maps_to": "Add-SA / Remove-SA" }
+  ]
+}

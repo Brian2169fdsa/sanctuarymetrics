@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Sanctuary Recovery Centers — CP-AO Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.ca-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.ca-tab{all:unset;box-sizing:border-box;cursor:pointer;padding:8px 15px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:13.5px;font-weight:600;color:var(--ink)}
+.ca-tab[aria-selected="true"]{background:#16263B;border-color:#16263B;color:#fff}
+.ca-tab:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ca-tab small{opacity:.7;font-weight:500;margin-left:4px}
+.warnbox{border:1px solid #f1dca6;background:#fffaf0;border-radius:12px;padding:12px 16px;margin:0 0 16px;font-size:13.5px;line-height:1.55}
+.warnbox b{color:#7a4b00}
+.warnbox ul{margin:6px 0 0;padding-left:18px}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;background:#eef3f6;color:#2C5468;white-space:nowrap}
+.pill.p-invited,.pill.p-in_progress{background:#eef3f6;color:#2C5468}
+.pill.p-needs_fix,.pill.p-cpao_correction_requested{background:#fff4e5;color:#8a5200}
+.pill.p-ready_for_countersign{background:#fdeee6;color:#a8461c}
+.pill.p-countersigned,.pill.p-queued_for_batch,.pill.p-remove_requested{background:#ece9fb;color:#4a3aa8}
+.pill.p-sent_to_cpao,.pill.p-approved_training_assigned,.pill.p-training_complete{background:#e8f3fb;color:#14628a}
+.pill.p-active{background:#e6f4ee;color:#1f6b4f}
+.pill.p-denied,.pill.p-removed{background:#f1f1f1;color:#666}
+.pill.ai-pass{background:#e6f4ee;color:#1f6b4f}.pill.ai-admin_review{background:#fff4e5;color:#8a5200}.pill.ai-fix_required{background:#fbeae6;color:#a3301a}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.filters button{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:5px 10px;border-radius:14px;border:1px solid var(--line);background:#fff}
+.filters button[aria-pressed="true"]{background:#2C5468;color:#fff;border-color:#2C5468}
+.tbl td,.tbl th{font-size:13px;vertical-align:top}
+.tbl a.nm{font-weight:700;color:var(--ink);text-decoration:none}
+.tbl a.nm:hover{text-decoration:underline}
+.tbl .sm{font-size:12px;color:var(--muted)}
+.tbl .next{font-weight:600;color:#a8461c}
+.bulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 0;font-size:13px}
+.bulk[hidden]{display:none}
+.f2{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 14px}
+.fl{display:flex;flex-direction:column;gap:5px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.fl input,.fl select,.fl textarea{font:400 14px Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.fl.wide{grid-column:1/-1}
+.ck{display:flex;gap:8px;align-items:center;font-size:13.5px;color:var(--ink);font-weight:500}
+.ck[hidden]{display:none}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.alt:hover{background:#f3f7fa}
+.btn.warm{background:#C0572B}
+.btn.warm:hover{background:#9c4522}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.note{padding:10px 12px;border-radius:9px;font-size:13.5px;margin:10px 0 0}
+.note.err{background:#fbeae6;color:#8f2f1b}.note.ok{background:#e9f5ee;color:#1f5a37}
+.note[hidden]{display:none}
+.det{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;margin:0}
+.dl dt{color:var(--muted)}.dl dd{margin:0;font-weight:600;word-break:break-word}
+.reveal{all:unset;cursor:pointer;color:#14628a;font-size:12.5px;font-weight:700;margin-left:6px}
+.reveal:focus-visible{outline:2px solid var(--blue)}
+.sigimg{max-width:100%;height:60px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:4px}
+.ai li{margin:0 0 6px;font-size:13.5px}
+.linkbox{display:flex;gap:8px;margin-top:8px}
+.linkbox input{flex:1;font:400 13px Inter,sans-serif;border:1px solid var(--line);border-radius:8px;padding:8px}
+.sigpad{border:2px dashed #9fb3bf;border-radius:12px;background:#fff;max-width:560px;touch-action:none}
+.sigpad canvas{display:block;width:100%;height:150px}
+.back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:10px}
+.audit td{font-size:12.5px}
+@media (max-width:760px){ .det{grid-template-columns:1fr} }
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script>var LOGO = 'print/sanctuary-logo.png';  /* this page skips data.js */</script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/5.0.4/signature_pad.umd.min.js"
+  integrity="sha384-sAvQstqOmAfqxD54T2ZBU8/E8IQJJuNT4hEHwUULkoBRze+eTQ7tZNcXEA5yPzhE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+/* ── CP-AO portal: the site administrator's side ──────────────────────────
+   Admins only (middleware.js + api/cpao.js). Views by hash:
+     #roster (default)  everyone, with status, last and next action
+     #staff=<id>        one person: application, AI check, countersign
+     #batches           the weekly Org form + bundle, Mark as Sent
+     #settings          phone, signature, batch day, retention, key rotation
+     #audit             the audit log
+   SSN, date of birth and home address stay hidden until "Show", which is
+   logged. Downloads are 5-minute links. See CPAO.md. */
+var DATA = null, FILTER = 'open', SEL = {}, PAD = null;
+var LABEL = {
+  invited: 'Invited', in_progress: 'Filling it in', needs_fix: 'Needs a fix', ready_for_countersign: 'Ready to countersign',
+  countersigned: 'Countersigned', queued_for_batch: 'Queued for batch', sent_to_cpao: 'Sent to CPAO',
+  cpao_correction_requested: 'CPAO wants a correction', approved_training_assigned: 'Approved — training assigned',
+  training_complete: 'Training complete', active: 'Active', denied: 'Denied', remove_requested: 'Removal requested', removed: 'Removed'
+};
+var NEXT = {
+  invited: 'Waiting on them to start', in_progress: 'Waiting on them to finish', needs_fix: 'Waiting on their fix',
+  ready_for_countersign: 'You: countersign', countersigned: 'Goes in the next batch', queued_for_batch: 'Goes in the next batch',
+  sent_to_cpao: 'Waiting on CPAO', cpao_correction_requested: 'You: fix and resend', approved_training_assigned: 'They do AZLearns training',
+  training_complete: 'You: create their HEAplus account', active: '—', denied: '—', remove_requested: 'Goes in the next batch (remove)', removed: '—'
+};
+var AFTER_CPAO = ['cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'active', 'denied', 'remove_requested', 'removed'];
+var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function $(id) { return document.getElementById(id); }
+function api(method, action, body) { return SM.api(method, '/api/cpao?action=' + action, body); }
+function when(iso) { return iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Phoenix' }) : ''; }
+function day(d) { return d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
+function pill(s) { return '<span class="pill p-' + s + '">' + esc(LABEL[s] || s) + '</span>'; }
+function note(id, kind, text) { var n = $(id); if (!n) { return; } n.className = 'note ' + kind; n.hidden = !text; n.textContent = text || ''; }
+function openFile(action) {
+  return api('GET', action).then(function (j) { window.open(j.url, '_blank', 'noopener'); });
+}
+
+function shell(inner) {
+  var st = DATA ? DATA.staff : [];
+  var n = function (f) { return st.filter(f).length; };
+  var view = location.hash.replace(/^#/, '').split('=')[0] || 'roster';
+  var tab = function (id, label, count) {
+    return '<button class="ca-tab" role="tab" data-tab="' + id + '" aria-selected="' + (view === id || (id === 'roster' && view === 'staff')) + '">' + label +
+      (count ? '<small>' + count + '</small>' : '') + '</button>';
+  };
+  $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access · Site Administrator', 'Admins only', '') +
+    '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 10px">HEAplus access</h2>' +
+    setupWarnings() +
+    '<div class="ca-tabs" role="tablist">' +
+      tab('roster', 'Roster', n(function (s) { return s.status === 'ready_for_countersign'; }) ? n(function (s) { return s.status === 'ready_for_countersign'; }) + ' to sign' : '') +
+      tab('batches', 'Weekly batches', '') + tab('settings', 'Settings', '') + tab('audit', 'Audit log', '') +
+    '</div>' + inner + '</section>' + pageFooter('CP-AO portal');
+  document.querySelectorAll('[data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { location.hash = b.getAttribute('data-tab'); });
+  });
+}
+function setupWarnings() {
+  if (!DATA) { return ''; }
+  var s = DATA.setup, w = [];
+  if (!s.pii_key) { w.push('<b>CPAO_PII_KEY</b> isn\'t set in Vercel — nothing can be saved until it is (see CPAO.md).'); }
+  if (!DATA.settings.has_signature) { w.push('Draw your <b>signature</b> under Settings — countersigning and the Org form need it.'); }
+  if (!DATA.settings.site_admin_phone) { w.push('Add your <b>office phone</b> under Settings — it goes on the Org form.'); }
+  if (!s.ai) { w.push('<b>ANTHROPIC_API_KEY</b> isn\'t set — every application will come to you for a manual check.'); }
+  if (!s.cron) { w.push('<b>CRON_SECRET</b> isn\'t set — the weekly batch won\'t build itself (use "Build the batch now").'); }
+  if (s.wet) { w.push('Pen-signature mode is on (CPAO_REQUIRE_WET_SIGNATURE): staff print, sign and upload a scan.'); }
+  return w.length ? '<div class="warnbox"><b>Finish setting up</b><ul><li>' + w.join('</li><li>') + '</li></ul></div>' : '';
+}
+
+/* ── roster ───────────────────────────────────────────────────────────── */
+var FILTERS = [['open', 'Open'], ['ready_for_countersign', 'To countersign'], ['waiting', 'With staff'], ['queued', 'Queued'],
+               ['cpao', 'With CPAO'], ['active', 'Active'], ['all', 'All']];
+function matches(s) {
+  switch (FILTER) {
+    case 'open': return ['active', 'denied', 'removed'].indexOf(s.status) < 0;
+    case 'waiting': return ['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0;
+    case 'queued': return ['countersigned', 'queued_for_batch', 'remove_requested'].indexOf(s.status) >= 0;
+    case 'cpao': return ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete'].indexOf(s.status) >= 0;
+    case 'all': return true;
+    default: return s.status === FILTER;
+  }
+}
+function rosterView() {
+  var list = DATA.staff.filter(matches);
+  shell('<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
+      '<div class="filters" role="group" aria-label="Show">' + FILTERS.map(function (f) {
+        return '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>' +
+      '<button class="btn" id="inv-open">+ Invite someone</button></div>' +
+    '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
+      '<label class="fl">First name<input id="i-first" maxlength="40"></label><label class="fl">Last name<input id="i-last" maxlength="40"></label>' +
+      '<label class="fl">Work email<input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label>' +
+      '<label class="fl">Title<select id="i-title"><option value="">—</option>' + DATA.titles.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="fl">Worker type<select id="i-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select></label>' +
+      '<label class="fl">Hire date<input id="i-hire" type="date"></label>' +
+      '<label class="fl wide">Work address<input id="i-addr" maxlength="200" value="' + esc(DATA.constants.default_work_address) + '"></label>' +
+      '<label class="ck"><input type="checkbox" id="i-sa"> Also a Site Administrator (Add-SA)</label>' +
+      '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button></div>' +
+      '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
+    '</form></div>' +
+    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Status</th><th>Last action</th><th>Next</th><th>Check</th></tr></thead><tbody>' +
+      list.map(function (s) {
+        return '<tr><td><input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '"></td>' +
+          '<td><a class="nm" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
+            '<div class="sm">' + esc(s.title_position || '') + (s.title_position ? ' · ' : '') + esc(s.email) + '</div></td>' +
+          '<td>' + pill(s.status) + '</td>' +
+          '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) + '</div></td>' +
+          '<td class="' + (/^You/.test(NEXT[s.status]) ? 'next' : '') + '">' + esc(NEXT[s.status] || '') + '</td>' +
+          '<td>' + (s.app && s.app.ai_status ? '<span class="pill ai-' + s.app.ai_status + '">' + esc(s.app.ai_status.replace('_', ' ')) + '</span>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      : '<div class="placeholder">' + (DATA.staff.length ? 'No one in this view.' : 'No one yet — press <b>+ Invite someone</b> to send the first application.') + '</div>') +
+    '<div class="bulk" id="bulk" hidden><b id="bulk-n"></b>' +
+      '<button class="btn alt" id="b-sa">Mark Add-SA</button>' +
+      '<label class="ck"><input type="checkbox" id="b-conf"> Their HEAplus accounts are already deactivated</label>' +
+      '<button class="btn warm" id="b-rm">Mark for removal</button><span class="note" id="b-note" hidden></span></div>');
+  wireRoster();
+}
+function wireRoster() {
+  document.querySelectorAll('[data-f]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); rosterView(); }); });
+  $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; $('i-first').focus(); });
+  $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
+  $('inv').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = $('i-go'); btn.disabled = true;
+    api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
+      title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value,
+      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked }).then(function (j) {
+      btn.disabled = false;
+      note('i-note', 'ok', j.emailed ? 'Invite emailed to ' + j.staff.email + '.' : (j.email_error || 'Email is off — copy this link and send it to them yourself (Teams or Outlook):'));
+      $('i-link').innerHTML = linkBox(j.link);
+      ['i-first', 'i-last', 'i-email', 'i-hire'].forEach(function (id) { $(id).value = ''; });
+      refresh(false);
+    }, function (err) { btn.disabled = false; note('i-note', 'err', err.message); });
+  });
+  wireCopy();
+  var sync = function () {
+    var ids = Object.keys(SEL).filter(function (k) { return SEL[k]; });
+    $('bulk').hidden = !ids.length; $('bulk-n').textContent = ids.length + ' selected';
+  };
+  document.querySelectorAll('[data-sel]').forEach(function (c) { c.addEventListener('change', function () { SEL[c.getAttribute('data-sel')] = c.checked; sync(); }); });
+  if ($('selall')) {
+    $('selall').addEventListener('change', function () {
+      document.querySelectorAll('[data-sel]').forEach(function (c) { c.checked = $('selall').checked; SEL[c.getAttribute('data-sel')] = c.checked; }); sync();
+    });
+  }
+  var bulk = function (fn) {
+    var ids = Object.keys(SEL).filter(function (k) { return SEL[k]; });
+    return ids.reduce(function (p, id) { return p.then(function () { return fn(id); }); }, Promise.resolve())
+      .then(function () { SEL = {}; return refresh(true); }, function (err) { note('b-note', 'err', err.message); });
+  };
+  $('b-sa').addEventListener('click', function () { bulk(function (id) { return api('POST', 'update', { id: id, is_site_admin: true }); }); });
+  $('b-rm').addEventListener('click', function () {
+    if (!$('b-conf').checked) { note('b-note', 'err', 'Tick the box to confirm their HEAplus accounts are already deactivated.'); return; }
+    bulk(function (id) { return api('POST', 'status', { id: id, status: 'remove_requested', confirm_deactivated: true }); });
+  });
+  sync();
+}
+function linkBox(url) {
+  return '<div class="linkbox"><input readonly value="' + esc(url) + '" aria-label="Invite link"><button type="button" class="btn alt" data-copy>Copy</button></div>' +
+    '<p class="sub" style="margin:6px 0 0">Only works for their own Microsoft sign-in, for 14 days, until they submit.</p>';
+}
+function wireCopy() {
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var i = b.parentNode.querySelector('input'); i.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).then(function () { b.textContent = 'Copied'; }, function () { document.execCommand('copy'); b.textContent = 'Copied'; });
+    });
+  });
+}
+
+/* ── one person ───────────────────────────────────────────────────────── */
+function staffView(id) {
+  shell('<p class="sub">Loading…</p>');
+  api('GET', 'detail&id=' + encodeURIComponent(id)).then(function (j) { drawStaff(j); }, function (e) { shell('<div class="note err">' + esc(e.message) + '</div>'); });
+}
+function drawStaff(j) {
+  var s = j.staff, a = j.app, ans = (a && a.answers) || {};
+  var ai = a && a.ai_check_result;
+  var row = function (k, v) { return '<dt>' + k + '</dt><dd>' + (v === null || v === undefined || v === '' ? '—' : v) + '</dd>'; };
+  var secret = function (field, label, present) {
+    return present ? '<span id="rv-' + field + '">' + label + '</span><button class="reveal" data-reveal="' + field + '">Show</button>' : '—';
+  };
+  var canSign = ['ready_for_countersign', 'cpao_correction_requested'].indexOf(s.status) >= 0 && a && a.submitted_at;
+  shell('<a class="back" href="#roster">← Roster</a>' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">' +
+      '<div><h3 style="font-family:Fraunces,serif;font-size:24px;margin:0">' + esc(s.first_name + ' ' + s.last_name) + '</h3>' +
+      '<div class="sub" style="margin:4px 0 0">' + pill(s.status) + ' &nbsp;' + esc(NEXT[s.status] || '') + '</div></div>' +
+      '<div class="btnrow" style="margin:0">' +
+        (canSign ? '<button class="btn" id="sign">Countersign and generate PDF</button>' : '') +
+        (a && a.has_pdf ? '<button class="btn alt" id="pdf">Download CP-101</button>' : '') +
+        (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0 ? '<button class="btn alt" id="reinv">Re-send invite</button>' : '') +
+      '</div></div>' +
+    '<div class="note" id="s-note" hidden></div><div id="s-link"></div>' +
+    '<div class="det" style="margin-top:16px">' +
+      '<div class="card"><div class="po-sec" style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 10px">Application</div>' +
+        (a ? '<dl class="dl">' +
+          row('Legal name', esc([ans.first_name, ans.no_middle_name ? '' : ans.middle_initial, ans.last_name].filter(Boolean).join(' '))) +
+          row('Middle initial', ans.no_middle_name ? 'No middle name' : esc(ans.middle_initial || '')) +
+          row('Date of birth', a.purged_at ? 'Purged' : secret('date_of_birth', '••/••/••••', a.sensitive.date_of_birth)) +
+          row('SSN', a.purged_at ? 'Purged' : secret('ssn', a.sensitive.ssn_last4 ? '•••-••-' + esc(a.sensitive.ssn_last4) : '', !!a.sensitive.ssn_last4)) +
+          row('Home address', a.purged_at ? 'Purged' : secret('home_address', '••••••', a.sensitive.home_address)) +
+          row('City, state, ZIP', esc([ans.city, ans.state].filter(Boolean).join(', ') + ' ' + (ans.zip || ''))) +
+          row('Phone', esc(ans.phone || '')) + row('Email', esc(ans.email || '')) +
+          row('Title', esc(ans.title_position === 'Other' ? ans.title_other : ans.title_position || '')) +
+          row('Paid or volunteer', ans.pay_status === 'volunteer' ? 'Volunteer' : ans.pay_status === 'paid' ? 'Paid employee' : '') +
+          row('Hire date', day(ans.hire_date)) +
+          row('Conditions agreed', when(a.conditions_agreed_at)) +
+          row('Signed', a.wet_signed ? 'Pen-signed scan uploaded ' + when(a.user_signed_at) : when(a.user_signed_at) + (a.user_ip ? ' <span class="sm">from ' + esc(a.user_ip) + '</span>' : '')) +
+          row('Submitted', when(a.submitted_at)) + row('Countersigned', when(a.sa_signed_at)) +
+          '</dl>' + (j.links.signature ? '<p class="sub" style="margin:10px 0 4px">Their signature</p><img class="sigimg" src="' + esc(j.links.signature) + '" alt="Staff member\'s signature">' : '') +
+          (a.key_problem ? '<div class="note err">' + esc(a.key_problem) + '</div>' : '')
+          : '<p class="sub">They haven\'t opened the invite yet.</p>') +
+      '</div>' +
+      '<div>' +
+        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Automatic check ' +
+          (ai ? '<span class="pill ai-' + ai.status + '">' + esc(ai.status.replace('_', ' ')) + '</span>' : '') + '</div>' +
+          (ai ? '<p style="font-size:13.5px;margin:0 0 8px">' + esc(ai.admin_notes || '') + '</p>' +
+            ((ai.issues || []).length ? '<ul class="ai">' + ai.issues.map(function (i) { return '<li><b>' + esc(i.severity) + '</b> · ' + esc(i.field) + ': ' + esc(i.message_for_staff) + '</li>'; }).join('') + '</ul>' : '') +
+            '<p class="sub" style="margin:0">' + (ai.layer === 'A' ? 'Stopped at the required-field rules.' : 'Checked by ' + esc(ai.model || 'Claude') + ' on a redacted summary — no SSN, birth date or address.') + ' ' + when(ai.checked_at) + '</p>'
+            : '<p class="sub">Runs when they submit.</p>') +
+          (a && a.submitted_at && ['ready_for_countersign', 'cpao_correction_requested'].indexOf(s.status) >= 0 ?
+            '<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600;font-size:13.5px">Send back to them with a note</summary>' +
+            '<div class="f2" style="margin-top:10px"><label class="fl">About<select id="sb-field"><option value="">General</option>' +
+              [['first_name', 'First name'], ['last_name', 'Last name'], ['middle_initial', 'Middle initial'], ['date_of_birth', 'Date of birth'], ['ssn', 'SSN'],
+               ['home_address', 'Home address'], ['zip', 'ZIP'], ['email', 'Email'], ['title_position', 'Title'], ['hire_date', 'Hire date'], ['user_signature', 'Signature']]
+              .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select></label>' +
+            '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
+            '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
+        '</div>' +
+        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">For the Org form</div><form id="upd" class="f2">' +
+          '<label class="fl">Worker type<select id="u-type">' + ['Employee', 'Contractor', 'Volunteer'].map(function (t) { return '<option' + (s.worker_type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></label>' +
+          '<label class="fl">Hire date<input type="date" id="u-hire" value="' + esc(s.hire_date || ans.hire_date || '') + '"></label>' +
+          '<label class="fl wide">Work address<input id="u-addr" maxlength="200" value="' + esc(s.work_address || '') + '"></label>' +
+          '<label class="fl">HEAplus username<input id="u-user" maxlength="80" value="' + esc(s.heaplus_username || '') + '"></label>' +
+          '<label class="ck" style="align-self:end"><input type="checkbox" id="u-sa"' + (s.is_site_admin ? ' checked' : '') + '> Site Administrator (Add-SA)</label>' +
+          '<label class="fl wide">Notes (no SSNs or birth dates here)<textarea id="u-notes" rows="2" maxlength="2000">' + esc(s.notes || '') + '</textarea></label>' +
+          '<div class="btnrow" style="grid-column:1/-1;margin:0"><button class="btn alt" type="submit">Save</button></div></form></div>' +
+        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">After CPAO replies</div>' +
+          '<div class="f2"><label class="fl">Set status<select id="st-to"><option value="">Pick…</option>' +
+            AFTER_CPAO.map(function (k) { return '<option value="' + k + '">' + esc(LABEL[k]) + '</option>'; }).join('') + '</select></label></div>' +
+          '<label class="ck" id="st-conf-w" hidden style="margin-top:8px"><input type="checkbox" id="st-conf"> Their HEAplus account is already deactivated</label>' +
+          '<p class="sub" style="margin:6px 0 0">Correction requested and Training complete add a task for you on the Projects page. Removed deletes their SSN, birth date, address and signature now.</p>' +
+          '<div class="btnrow"><button class="btn alt" id="st-go">Update status</button></div></div>' +
+      '</div></div>' +
+    '<h3 style="font-family:Fraunces,serif;font-size:19px;margin:22px 0 8px">History</h3><div id="s-audit"><p class="sub">Loading…</p></div>');
+  wireStaff(s);
+  api('GET', 'audit&id=' + s.id).then(function (x) { $('s-audit').innerHTML = auditTable(x.entries); });
+}
+function wireStaff(s) {
+  document.querySelectorAll('[data-reveal]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-reveal');
+      if (b.textContent === 'Hide') { staffView(s.id); return; }
+      api('POST', 'reveal', { id: s.id, field: f }).then(function (j) {
+        $('rv-' + f).textContent = j.value; b.textContent = 'Hide';
+        /* hide it again after a minute */
+        setTimeout(function () { if ($('rv-' + f) && b.textContent === 'Hide') { $('rv-' + f).textContent = 'hidden'; b.textContent = 'Show'; } }, 60000);
+      }, function (e) { note('s-note', 'err', e.message); });
+    });
+  });
+  if ($('sign')) {
+    $('sign').addEventListener('click', function () {
+      var btn = $('sign'); btn.disabled = true; btn.textContent = 'Generating…';
+      api('POST', 'countersign', { id: s.id }).then(function () { refresh(false); staffView(s.id); },
+        function (e) { btn.disabled = false; btn.textContent = 'Countersign and generate PDF'; note('s-note', 'err', e.message); });
+    });
+  }
+  if ($('pdf')) { $('pdf').addEventListener('click', function () { openFile('app_pdf&id=' + s.id).catch(function (e) { note('s-note', 'err', e.message); }); }); }
+  if ($('reinv')) {
+    $('reinv').addEventListener('click', function () {
+      api('POST', 'invite', { id: s.id }).then(function (j) {
+        note('s-note', 'ok', j.emailed ? 'Invite emailed again. The old link no longer works.' : 'New link (the old one no longer works):');
+        if (!j.emailed) { $('s-link').innerHTML = linkBox(j.link); wireCopy(); }
+      }, function (e) { note('s-note', 'err', e.message); });
+    });
+  }
+  if ($('sb-go')) {
+    $('sb-go').addEventListener('click', function () {
+      api('POST', 'send_back', { id: s.id, field: $('sb-field').value, note: $('sb-note').value }).then(function (j) {
+        refresh(false); staffView(s.id);
+        setTimeout(function () {
+          note('s-note', 'ok', j.emailed ? 'Sent back — they got an email with the link.' : 'Sent back. Send them this link (Teams or Outlook):');
+          if (!j.emailed) { $('s-link').innerHTML = linkBox(j.link); wireCopy(); }
+        }, 400);
+      }, function (e) { note('s-note', 'err', e.message); });
+    });
+  }
+  $('upd').addEventListener('submit', function (e) {
+    e.preventDefault();
+    api('POST', 'update', { id: s.id, worker_type: $('u-type').value, hire_date: $('u-hire').value, work_address: $('u-addr').value,
+      heaplus_username: $('u-user').value, is_site_admin: $('u-sa').checked, notes: $('u-notes').value })
+      .then(function () { note('s-note', 'ok', 'Saved.'); refresh(false); }, function (er) { note('s-note', 'err', er.message); });
+  });
+  $('st-to').addEventListener('change', function () { $('st-conf-w').hidden = $('st-to').value !== 'remove_requested'; });
+  $('st-go').addEventListener('click', function () {
+    var to = $('st-to').value;
+    if (!to) { return; }
+    if (to === 'removed' && !confirm('Mark as removed? This deletes their SSN, birth date, address and signature now.')) { return; }
+    api('POST', 'status', { id: s.id, status: to, confirm_deactivated: $('st-conf').checked, heaplus_username: $('u-user').value })
+      .then(function () { refresh(false); staffView(s.id); }, function (e) { note('s-note', 'err', e.message); });
+  });
+}
+
+/* ── batches ──────────────────────────────────────────────────────────── */
+function batchesView(open) {
+  var b = DATA.batches;
+  var queued = DATA.staff.filter(function (s) { return s.status === 'queued_for_batch' || s.status === 'remove_requested'; });
+  shell('<div class="card"><b>Next batch:</b> every ' + DAYS[DATA.settings.batch_weekday] + ' at 8:00 am. ' +
+      (queued.length ? queued.length + ' waiting: ' + queued.map(function (s) { return esc(s.first_name + ' ' + s.last_name) + (s.status === 'remove_requested' ? ' (remove)' : ''); }).join(', ') + '.' : 'Nobody waiting right now.') +
+      '<div class="btnrow"><button class="btn" id="build"' + (queued.length ? '' : ' disabled') + '>Build the batch now</button>' +
+      '<span class="sub" style="margin:0">Re-running replaces a batch you haven\'t marked sent yet.</span></div><div class="note" id="b-note" hidden></div></div>' +
+    (b.length ? '<table class="tbl"><thead><tr><th>Week of</th><th>Who</th><th>Status</th><th>Files</th><th></th></tr></thead><tbody>' + b.map(function (x) {
+      return '<tr' + (open === x.id ? ' style="background:#fffaf0"' : '') + '><td>' + day(x.week_of) + '</td>' +
+        '<td>' + (x.rows || []).map(function (r) { return esc(r.name) + ' <span class="sm">' + esc(r.action) + '</span>'; }).join('<br>') + '</td>' +
+        '<td>' + (x.status === 'draft' ? '<span class="pill p-ready_for_countersign">Ready to send</span>' : '<span class="pill p-sent_to_cpao">Sent ' + day(x.sent_at) + '</span>') + '</td>' +
+        '<td>' + (x.bundle_storage_key ? '<button class="btn alt" data-file="' + esc(x.bundle_storage_key) + '">Bundle</button> <button class="btn alt" data-file="' + esc(x.org_form_storage_key) + '">Org form</button>' : '<span class="sm">Removed (retention)</span>') + '</td>' +
+        '<td>' + (x.status === 'draft' ? '<button class="btn" data-sent="' + x.id + '">Mark as Sent</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>' : '<div class="placeholder">No batches yet.</div>') +
+    '<p class="sub" style="margin-top:12px">Send the bundle to <b>' + esc(DATA.constants.cpao_ops_email) + '</b> from your own mailbox — only the site administrator may email CPAO. Then press Mark as Sent.</p>');
+  $('build').addEventListener('click', function () {
+    var btn = $('build'); btn.disabled = true; btn.textContent = 'Building…';
+    api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. A task is on your Projects page.'); }); },
+      function (e) { btn.disabled = false; btn.textContent = 'Build the batch now'; note('b-note', 'err', e.message); });
+  });
+  document.querySelectorAll('[data-file]').forEach(function (x) {
+    x.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(x.getAttribute('data-file'))).catch(function (e) { note('b-note', 'err', e.message); }); });
+  });
+  document.querySelectorAll('[data-sent]').forEach(function (x) {
+    x.addEventListener('click', function () {
+      if (!confirm('Mark this batch as sent to CPAO? Adds move to "Sent to CPAO" and removals to "Removed".')) { return; }
+      api('POST', 'mark_sent', { id: x.getAttribute('data-sent') }).then(function () { return refresh(false).then(function () { batchesView(); }); },
+        function (e) { note('b-note', 'err', e.message); });
+    });
+  });
+}
+
+/* ── settings ─────────────────────────────────────────────────────────── */
+function settingsView() {
+  var st = DATA.settings;
+  shell('<div class="card"><form id="set" class="f2">' +
+      '<label class="fl">Office phone (for the Org form)<input id="s-phone" maxlength="40" value="' + esc(st.site_admin_phone) + '" placeholder="602-555-0100 ext 12"></label>' +
+      '<label class="fl">Build the batch every<select id="s-day">' + DAYS.map(function (d, i) { return '<option value="' + i + '"' + (st.batch_weekday === i ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></label>' +
+      '<label class="fl">Keep generated PDFs (days)<input id="s-keep" type="number" min="30" max="3650" value="' + st.pdf_retention_days + '"></label>' +
+      '<div class="btnrow" style="grid-column:1/-1;margin:0"><button class="btn" type="submit">Save</button></div></form><div class="note" id="set-note" hidden></div></div>' +
+    '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 6px">Your signature</div>' +
+      '<p class="sub" style="margin:0 0 10px">' + (st.has_signature ? 'Saved. Draw a new one to replace it.' : 'Draw it once — it\'s stamped on every CP-101 you countersign and on the Org form.') + '</p>' +
+      '<div class="sigpad"><canvas id="sig" aria-label="Signature pad"></canvas></div>' +
+      '<div class="btnrow"><button class="btn" id="sig-save">Save signature</button><button class="btn alt" id="sig-clear">Clear</button></div><div class="note" id="sig-note" hidden></div></div>' +
+    '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 6px">Housekeeping</div>' +
+      '<p class="sub" style="margin:0 0 10px">These also run on their own every morning. Re-encrypt after rotating CPAO_PII_KEY (CPAO.md).</p>' +
+      '<div class="btnrow" style="margin:0"><button class="btn alt" id="purge">Run the retention purge</button><button class="btn alt" id="rotate">Re-encrypt with the new key</button></div>' +
+      '<div class="note" id="hk-note" hidden></div></div>');
+  $('set').addEventListener('submit', function (e) {
+    e.preventDefault();
+    api('POST', 'settings', { site_admin_phone: $('s-phone').value, batch_weekday: +$('s-day').value, pdf_retention_days: +$('s-keep').value })
+      .then(function () { note('set-note', 'ok', 'Saved.'); refresh(false); }, function (er) { note('set-note', 'err', er.message); });
+  });
+  var c = $('sig');
+  if (typeof SignaturePad !== 'undefined') {
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    c.width = c.offsetWidth * ratio; c.height = c.offsetHeight * ratio; c.getContext('2d').scale(ratio, ratio);
+    PAD = new SignaturePad(c, { penColor: '#0b1f3a', backgroundColor: 'rgba(0,0,0,0)', minWidth: 0.8, maxWidth: 2.4 });
+  } else { note('sig-note', 'err', 'The signature pad didn\'t load — check your connection and reload.'); }
+  $('sig-clear').addEventListener('click', function () { if (PAD) { PAD.clear(); } });
+  $('sig-save').addEventListener('click', function () {
+    if (!PAD || PAD.isEmpty()) { note('sig-note', 'err', 'Draw your signature first.'); return; }
+    api('POST', 'settings', { signature: PAD.toDataURL('image/png') }).then(function () { note('sig-note', 'ok', 'Signature saved.'); refresh(false); },
+      function (er) { note('sig-note', 'err', er.message); });
+  });
+  $('purge').addEventListener('click', function () {
+    api('POST', 'purge', {}).then(function (j) { note('hk-note', 'ok', 'Done: ' + j.purged_applications + ' applications\' personal data and ' + j.purged_pdfs + ' old PDFs removed.'); },
+      function (er) { note('hk-note', 'err', er.message); });
+  });
+  $('rotate').addEventListener('click', function () {
+    api('POST', 'rotate', {}).then(function (j) { note('hk-note', 'ok', 'Re-encrypted ' + j.resealed + ' of ' + j.total + ' applications.'); },
+      function (er) { note('hk-note', 'err', er.message); });
+  });
+}
+
+/* ── audit ────────────────────────────────────────────────────────────── */
+function auditTable(list) {
+  if (!list.length) { return '<p class="sub">Nothing yet.</p>'; }
+  var names = {};
+  (DATA ? DATA.staff : []).forEach(function (s) { names[s.id] = s.first_name + ' ' + s.last_name; });
+  return '<table class="tbl audit"><thead><tr><th>When</th><th>Who</th><th>What</th><th>About</th><th>IP</th></tr></thead><tbody>' + list.map(function (e) {
+    var d = e.detail || {};
+    var extra = d.to ? '→ ' + (LABEL[d.to] || d.to) : d.step ? 'step ' + d.step : d.result ? d.result.status : d.file ? d.file : '';
+    return '<tr><td>' + when(e.at) + '</td><td>' + esc(e.actor) + '</td><td>' + esc(e.action.replace(/_/g, ' ')) + (extra ? ' <span class="sm">' + esc(extra) + '</span>' : '') + '</td>' +
+      '<td>' + esc(names[e.staff_id] || '') + '</td><td class="sm">' + esc(e.ip || '') + '</td></tr>';
+  }).join('') + '</tbody></table>';
+}
+function auditView() {
+  shell('<div id="a-all"><p class="sub">Loading…</p></div>');
+  api('GET', 'audit').then(function (x) { $('a-all').innerHTML = '<p class="sub">The last 200 entries. Every look at an SSN, birth date or address, every download and every signature is here.</p>' + auditTable(x.entries); });
+}
+
+/* ── routing ──────────────────────────────────────────────────────────── */
+function route() {
+  var h = location.hash.replace(/^#/, ''), k = h.split('=')[0], v = h.split('=')[1];
+  if (k === 'staff' && v) { return staffView(v); }
+  if (k === 'batches' || k === 'batch') { return batchesView(v); }
+  if (k === 'settings') { return settingsView(); }
+  if (k === 'audit') { return auditView(); }
+  rosterView();
+}
+function refresh(redraw) {
+  return api('GET', 'roster').then(function (j) { DATA = j; if (redraw) { route(); } });
+}
+window.addEventListener('hashchange', function () { if (DATA) { route(); window.scrollTo(0, 0); } });
+SM.ready.then(function (me) {
+  if (!me) { $('sheet').innerHTML = SM.signInCard('cpao-admin.html'); return; }
+  refresh(true).catch(function (e) {
+    $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access', '', '') + '<section><div class="note err">' + esc(e.message) + '</div></section>';
+  });
+});
+</script>
+</body></html>
