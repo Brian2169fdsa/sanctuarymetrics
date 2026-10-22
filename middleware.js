@@ -28,12 +28,8 @@ const OPEN_PAGES = new Set(['/login.html', '/account.html', '/cpao-apply.html'])
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 
 const ADMIN_PAGES = new Set([]);
-/* the HEAplus tab: admins, plus CPAO mail uploaders (a limited view) */
-const CPAO_PAGES = new Set(['/cpao-admin.html']);
-function cpaoMailUploaders() {
-  return (process.env.CPAO_MAIL_UPLOADERS || 'efischer@sanctuaryrecoverycenters.com')
-    .split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
-}
+/* the HEAplus tab (cpao-admin.html) is open to all staff: api/cpao.js decides
+   who sees the admin side and who sees only their own progress */
 const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/pal-email.html', '/pal-email']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
@@ -65,15 +61,14 @@ async function account(request) {
   const base = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_sessions?token_hash=eq.' + (await sha256(token)) +
     '&expires_at=gt.' + encodeURIComponent(new Date().toISOString()) + '&select=user:app_users(';
   const get = (cols) => fetch(base + cols + ')', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
-  let r = await get('disabled,role,email,access_reports,access_costs');
-  if (r.status === 400) { r = await get('disabled,role,email'); }
+  let r = await get('disabled,role,access_reports,access_costs');
+  if (r.status === 400) { r = await get('disabled,role'); }
   if (!r.ok) { return null; }
   const rows = await r.json();
   const u = rows[0] && rows[0].user;
   if (!u || u.disabled) { return null; }
   const admin = u.role === 'admin';
-  return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true,
-           cpaoMail: admin || cpaoMailUploaders().indexOf(String(u.email || '').toLowerCase()) >= 0 };
+  return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
 }
 
 export default async function middleware(request) {
@@ -88,8 +83,7 @@ export default async function middleware(request) {
     /* Supabase didn't answer — fall through to the sign-in page, which says so */
   }
   if (who) {
-    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin) ||
-        (CPAO_PAGES.has(path) && !who.cpaoMail)) {
+    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin)) {
       const home = new URL('/home.html', request.url);
       if (path !== '/') { home.searchParams.set('denied', path.replace(/^\/+/, '')); }
       return new Response(null, { status: 302, headers: { Location: home.toString(), 'Cache-Control': 'no-store' } });

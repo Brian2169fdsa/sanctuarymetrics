@@ -24,6 +24,7 @@
   font:400 16px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid #b9c7cf;border-radius:10px;padding:12px 13px;width:100%;box-sizing:border-box}
 .fq input:focus,.fq select:focus{outline:3px solid #1C9AD6;outline-offset:1px}
 .fq .hint{font-size:13px;color:#4f5f68}
+.linkbtn{all:unset;cursor:pointer;color:#14628a;font-weight:700;text-decoration:underline}
 .fq .err{font-size:13.5px;color:#a3301a;font-weight:600}
 .fq.bad input,.fq.bad select{border-color:#a3301a}
 .row2{display:grid;grid-template-columns:1fr;gap:0 14px}
@@ -72,6 +73,7 @@
 <script src="account.js"></script>
 <script src="cpao/cp101-text.js"></script>
 <script src="cpao/process.js"></script>
+<script src="cpao/az-places.js"></script>
 <script>document.head.insertAdjacentHTML('beforeend', '<style>' + CPAO_PROCESS_CSS + '</style>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/5.0.4/signature_pad.umd.min.js"
   integrity="sha384-sAvQstqOmAfqxD54T2ZBU8/E8IQJJuNT4hEHwUULkoBRze+eTQ7tZNcXEA5yPzhE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -170,7 +172,8 @@ function step2() {
 }
 function step3(a) {
   return text('home_address', 'Home street address', D.sensitive.home_address, 'autocomplete="street-address" maxlength="200"', 'Street and apartment number') +
-    '<div class="row2">' + text('city', 'City', a.city, 'autocomplete="address-level2" maxlength="40"') +
+    '<div class="row2">' + text('city', 'City', a.city, 'autocomplete="address-level2" maxlength="40" list="az-cities"', '<span id="zip-city"></span>') +
+    '<datalist id="az-cities">' + AZ_CITIES.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
     text('state', 'State', a.state || 'AZ', 'autocomplete="address-level1" maxlength="2" style="text-transform:uppercase"') + '</div>' +
     '<div class="row2">' + text('zip', 'ZIP code', a.zip, 'inputmode="numeric" autocomplete="postal-code" maxlength="5"') +
     text('phone', 'Phone number', a.phone, 'inputmode="tel" autocomplete="tel" maxlength="20"') + '</div>' +
@@ -321,6 +324,7 @@ function showErrors(errs) {
     if (k.type === 'checkbox' || k.type === 'radio') { el.checked = k.checked; } else { el.value = k.value; }
   });
   if ($('no_middle_name') && $('middle_initial')) { $('middle_initial').disabled = $('no_middle_name').checked; }
+  if (ZIP_HINT) { ZIP_HINT(); }
   if ($('other-wrap')) { $('other-wrap').hidden = v('title_position') !== 'Other'; }
 }
 function go(n) { VIEW = Math.max(1, Math.min(7, n)); ERR = {}; render(); window.scrollTo(0, 0); }
@@ -332,6 +336,7 @@ function next() {
   /* step 6 with nothing new drawn and a signature already saved: just move on */
   if (VIEW === 6 && (D.wet || !c.body.signature)) { return D.signed ? go(7) : showErrors({ user_signature: 'Sign in the box first.' }); }
   var btn = $('next'); btn.disabled = true; btn.textContent = 'Saving…';
+  /* the reply drops what the last check said about the fields just fixed */
   api('POST', 'save', c.body).then(function (j) { D = j; go(VIEW + 1); }, function (e) {
     btn.disabled = false; btn.textContent = 'Save and continue →';
     if (e.fields) { return showErrors(e.fields); }
@@ -350,7 +355,23 @@ function submit() {
   }, function (e) { btn.disabled = false; btn.textContent = 'Submit application'; var f = $('formerr'); f.hidden = false; f.textContent = e.message; });
 }
 
+/* type a ZIP: the city fills in (or a one-tap fix shows) from the Arizona list */
+var ZIP_HINT = null;
+function wireZip() {
+  ZIP_HINT = null;
+  if (!$('zip') || !$('city')) { return; }
+  var hint = function () {
+    var z = $('zip').value.trim(), zc = /^\d{5}$/.test(z) && $('state').value.trim().toUpperCase() === 'AZ' ? AZ_ZIPS[z] : null, c = $('city').value.trim();
+    if (zc && !c) { $('city').value = zc; c = zc; }
+    var same = zc && c.toLowerCase().replace(/[.\-\s]+/g, ' ') === zc.toLowerCase().replace(/[.\-\s]+/g, ' ');
+    $('zip-city').innerHTML = zc && !same ? 'ZIP ' + esc(z) + ' is <b>' + esc(zc) + '</b>. <button type="button" id="use-zc" class="linkbtn">Use ' + esc(zc) + '</button>' : '';
+    if ($('use-zc')) { $('use-zc').addEventListener('click', function () { $('city').value = zc; hint(); }); }
+  };
+  ['zip', 'city', 'state'].forEach(function (id) { $(id).addEventListener('input', hint); });
+  ZIP_HINT = hint; hint();
+}
 function wire() {
+  wireZip();
   $('stepform').addEventListener('submit', function (e) { e.preventDefault(); next(); });
   if ($('back')) { $('back').addEventListener('click', function () { go(VIEW - 1); }); }
   document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { go(+b.getAttribute('data-go')); }); });

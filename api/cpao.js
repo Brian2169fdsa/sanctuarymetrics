@@ -19,7 +19,18 @@
      POST ?action=scan   (raw PDF body)     …and the signed scan
      POST ?action=submit                    Layer A + Claude check → routed
 
-   ADMIN (cpao-admin.html; admins only):
+   WHO SEES WHAT on cpao-admin.html (access() in lib/auth.js):
+     cpao_admin   the admin side below — site admins plus CPAO_ADMINS. Only a
+                  site admin may countersign, change settings, build or mark
+                  a batch, rotate the key or purge: those use his signature
+                  or speak for him to CPAO (SITE_ADMIN_ONLY)
+     cpao_mail    the roster, stages and CPAO letter uploads (mailRoute)
+     everyone     their own stage in the process, found by their email
+                  (selfRoute) — no application details — and, once CPAO
+                  approves them, uploading their AZLearns certificates:
+     POST ?action=cert_upload[&id=][&done=1]   (raw PDF/JPG/PNG, X-Course)
+
+   ADMIN (cpao-admin.html; HEAplus admins):
      GET  ?action=roster | detail&id= | audit&id= | file&key= | directory
      POST ?action=invite | update | reveal | countersign | send_back | status | followup
                  | settings | batch | mark_sent | rotate | purge
@@ -187,7 +198,8 @@ function staffView(staff, app, x) {
     sensitive: { date_of_birth: x.date_of_birth || '', home_address: x.home_address || '', ssn_last4: x.ssn ? R.digits(x.ssn).slice(5) : '' },
     conditions_agreed: !!app.conditions_agreed_at, signed: !!(app.user_signature_key || app.wet_signed_upload_key),
     submitted: !!app.submitted_at && !editable(staff),
-    issues: staff.status === 'needs_fix' && ai ? (ai.issues || []) : [],
+    /* the email note is for Brian, not something they must change */
+    issues: staff.status === 'needs_fix' && ai ? (ai.issues || []).filter(function (i) { return !(i.field === 'email' && i.severity === 'warn'); }) : [],
     wet: wetMode(), titles: R.TITLE_OPTIONS, site_admin: R.C.site_admin_name, org: R.C.dba
   };
 }
@@ -253,6 +265,12 @@ async function staffRoute(req, res, action) {
       const errors = R.checkStep(step, answers, sealed);
       if (Object.keys(errors).length) { return sendJSON(res, 400, { error: 'fields', fields: errors, message: 'Fix the highlighted fields.' }); }
       patch.answers = answers;
+      /* fixing a field clears what the last check said about it (the next
+         submit checks everything again) */
+      const ai = app.ai_check_result;
+      if (staff.status === 'needs_fix' && ai && (ai.issues || []).length) {
+        patch.ai_check_result = Object.assign({}, ai, { issues: ai.issues.filter(function (i) { return def.keys.indexOf(i.field) < 0; }) });
+      }
       if (def.keys.some(function (k) { return R.SENSITIVE.indexOf(k) >= 0; })) { patch.sensitive_ciphertext = K.seal(sealed); }
     }
     if (step === 5) {
@@ -687,9 +705,9 @@ async function rotate(req, me) {
 /* signed 5-minute link to one of our files; only keys we stored */
 async function fileLink(req, me, key) {
   key = str(key, 300);
-  if (!/^(applications|batches)\/[A-Za-z0-9._\/-]+\.pdf$/.test(key) && !/^mail\/[0-9a-f-]{36}\/[0-9]+\.(pdf|jpg|png)$/.test(key)) { throw bad('Which file?'); }
+  if (!/^(applications|batches)\/[A-Za-z0-9._\/-]+\.pdf$/.test(key) && !/^(mail|certs)\/[0-9a-f-]{36}\/[0-9]+\.(pdf|jpg|png)$/.test(key)) { throw bad('Which file?'); }
   if (key.indexOf('..') >= 0) { throw bad('Which file?'); }
-  const known = /^mail\//.test(key)
+  const known = /^(mail|certs)\//.test(key)
     ? (await db('GET', 'cpao_staff', '?followups=cs.' + encodeURIComponent(JSON.stringify([{ file: key }])) + '&select=id')).map(function (r) { return { staff_id: r.id }; })
     : (await db('GET', 'cpao_applications', '?pdf_storage_key=eq.' + encodeURIComponent(key) + '&select=staff_id')).concat(
       await db('GET', 'cpao_batches', '?or=(org_form_storage_key.eq.' + encodeURIComponent(key) + ',bundle_storage_key.eq.' + encodeURIComponent(key) + ')&select=id'));
@@ -732,6 +750,44 @@ async function mailUpload(req, me, q) {
   return { ok: true };
 }
 
+/* ── AZLearns certificates ─────────────────────────────────────────────────
+   Once CPAO approves the background check, the person takes the AZLearns
+   courses and uploads each completion certificate here (or an admin does it
+   for them). Ticking "that's all of them" moves them to Certificates turned
+   in, which gives Brian the task to send them to CPAO. */
+const CERT_STATUSES = ['approved_training_assigned', 'training_complete'];
+async function ownRecord(me) {
+  return (await db('GET', 'cpao_staff', '?email=eq.' + encodeURIComponent(String(me.email || '').toLowerCase()) +
+    '&status=not.eq.removed&select=*&order=created_at.desc&limit=1'))[0] || null;
+}
+async function certUpload(req, me, s, q) {
+  if (CERT_STATUSES.indexOf(s.status) < 0) {
+    throw bad('Certificates are uploaded once CPAO has approved the background check and assigned the AZLearns training.');
+  }
+  const course = str(decodeURIComponent(String(req.headers['x-course'] || '')), 120);
+  const raw = await S.readRaw(req, 4000000);
+  const ext = raw.toString('ascii', 0, 5) === '%PDF-' ? 'pdf' : S.imageType(raw) === 'image/jpeg' ? 'jpg' : S.imageType(raw) === 'image/png' ? 'png' : null;
+  if (!ext) { throw bad('Upload the certificate as a PDF, JPG or PNG.'); }
+  const key = 'certs/' + s.id + '/' + Date.now() + '.' + ext;
+  await S.upload(BUCKET, key, raw, LETTER_TYPES[ext]);
+  const name = s.first_name + ' ' + s.last_name;
+  const entry = { at: nowIso(), by: me.name || me.email, kind: 'cert', file: key, due: null,
+                  text: 'AZLearns certificate' + (course ? ': ' + course : '') };
+  const fields = { followups: (s.followups || []).concat([entry]).slice(-100) };
+  const done = q.done === '1' && s.status === 'approved_training_assigned';
+  if (done) {
+    await closeProject(s.project_id);
+    const certs = fields.followups.filter(function (f) { return f.kind === 'cert'; }).length;
+    const p = await project(STATUS_TASK.training_complete(name),
+      name + ' finished the AZLearns training and uploaded ' + certs + ' certificate' + (certs === 1 ? '' : 's') + '. Open their record to download them and send them to CPAO: ' +
+      site(req) + '/cpao-admin.html#staff=' + s.id, R.addBusinessDays(R.today(), 2), me);
+    Object.assign(fields, { status: 'training_complete', project_id: p.id });
+  }
+  await setStaff(s.id, fields, done ? 'Certificates turned in' : 'Certificate uploaded');
+  await audit(me.email, 'cert_upload', s.id, { done: done }, req);
+  return { ok: true, status: fields.status || s.status };
+}
+
 /* CPAO mail uploaders (not admins) see the roster and each person's stage
    and letters — never the application, PII, invites or settings */
 const STAFF_PUBLIC = ['id', 'first_name', 'last_name', 'title_position', 'status', 'stage_dates', 'last_action', 'last_action_at', 'created_at', 'updated_at'];
@@ -760,9 +816,25 @@ async function mailRoute(req, res, action, me, q) {
   return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can do that.' });
 }
 
+/* everyone else on the HEAplus tab: just where they are in the process */
+async function selfRoute(req, res, action, me) {
+  if (req.method !== 'GET' || action !== 'roster') {
+    return sendJSON(res, 403, { error: 'forbidden', message: 'Only the HEAplus admins can do that.' });
+  }
+  const s = await ownRecord(me);
+  if (s) { await audit(me.email, 'view_own_status', s.id, null, req); }
+  /* a denial is told in person first (CPAO_DENIAL), so it isn't shown here */
+  const mine = s ? { first_name: s.first_name, status: s.status === 'denied' ? 'on_hold' : s.status,
+    stage_dates: s.status === 'denied' ? {} : (s.stage_dates || {}), created_at: s.created_at,
+    certs: (s.followups || []).filter(function (f) { return f.kind === 'cert'; }).map(function (f) { return { at: f.at, text: f.text }; }) } : null;
+  return sendJSON(res, 200, { self: true, mine: mine, site_admin: R.C.site_admin_name });
+}
+
+const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, mark_sent: 1, rotate: 1, purge: 1 };
+
 async function adminRoute(req, res, action, me, q) {
   if (req.method === 'GET') {
-    if (action === 'roster') { return sendJSON(res, 200, await roster(me)); }
+    if (action === 'roster') { return sendJSON(res, 200, Object.assign(await roster(me), { sa: access(me).admin })); }
     if (action === 'detail') { return sendJSON(res, 200, await detail(req, me, q.id)); }
     if (action === 'audit') {
       const where = q.id ? '?staff_id=eq.' + (UUID.test(q.id) ? q.id : '0') + '&' : '?';
@@ -869,11 +941,21 @@ module.exports = async function handler(req, res) {
     if (!me) { return sendJSON(res, 401, { error: 'signin', message: 'Sign in first.' }); }
     /* letters are uploaded raw, before any JSON body is read */
     if (action === 'mail_upload' && req.method === 'POST' && access(me).cpao_mail) { return sendJSON(res, 200, await mailUpload(req, me, q)); }
-    if (!access(me).admin) {
-      if (!access(me).cpao_mail) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only the site administrator can open this.' }); }
-      return await mailRoute(req, res, action, me, q);
+    const acc = access(me);
+    /* certificates: the person themself, or a HEAplus admin for someone */
+    if (action === 'cert_upload' && req.method === 'POST') {
+      const s = q.id && acc.cpao_admin ? await staffById(q.id) : await ownRecord(me);
+      if (!s) { throw bad('You\'re not in the HEAplus process yet — ask ' + R.C.site_admin_name + '.', 404); }
+      return sendJSON(res, 200, await certUpload(req, me, s, q));
     }
-    return await adminRoute(req, res, action, me, q);
+    if (acc.cpao_admin) {
+      if (req.method === 'POST' && SITE_ADMIN_ONLY[action] && !acc.admin) {
+        return sendJSON(res, 403, { error: 'forbidden', message: 'Only ' + R.C.site_admin_name + ' (the Site Administrator) can do that — it uses his signature.' });
+      }
+      return await adminRoute(req, res, action, me, q);
+    }
+    if (acc.cpao_mail) { return await mailRoute(req, res, action, me, q); }
+    return await selfRoute(req, res, action, me);
   } catch (e) {
     if (e.bad) { return sendJSON(res, e.status, { error: e.kind || 'bad_request', message: e.message }); }
     if (e.code === 'no_key' || e.code === 'old_key') { return sendJSON(res, 503, { error: e.code, message: e.message }); }
