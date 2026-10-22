@@ -87,6 +87,14 @@
 .fu li{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;margin:0 0 6px;font-size:13.5px}
 .fu .sm{font-size:12px;color:var(--muted)}
 .how{margin-top:26px}
+dialog.gate{border:0;border-radius:16px;padding:0;max-width:560px;width:calc(100% - 32px);box-shadow:0 24px 60px rgba(22,38,59,.35)}
+dialog.gate::backdrop{background:rgba(22,38,59,.55)}
+.gate-in{padding:22px 24px}
+.gate-in h3{font-family:Fraunces,serif;font-size:22px;margin:0 0 6px}
+.gate-in .sigpad canvas{height:160px}
+.gate-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.gate-steps span{background:#eef3f6;border-radius:12px;padding:3px 10px}
+.gate-steps span.done{background:#e6f4ee;color:#1f6b4f}
 @media (max-width:760px){ .det{grid-template-columns:1fr} }
 </style>
 </head>
@@ -658,8 +666,57 @@ function auditView() {
 }
 
 /* ── routing ──────────────────────────────────────────────────────────── */
+/* ── first-time setup: until Brian's signature is saved, a pop-up asks for it
+   every time the CP-AO tab opens (and on each view except Settings). The
+   signature goes on every countersigned CP-101 and the weekly Add/Remove form. */
+var GATE_PAD = null, GATE_VIEW = null, GATE_LATER = false;
+function setupGate(view) {
+  /* "Not now" holds until they move to another view (or reopen the tab),
+     so redraws of the same view don't bring the pop-up straight back */
+  view = view || 'roster';
+  if (view !== GATE_VIEW) { GATE_VIEW = view; GATE_LATER = false; }
+  var old = $('gate');
+  if (old) { old.remove(); }
+  if (!DATA || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
+  document.body.insertAdjacentHTML('beforeend',
+    '<dialog class="gate" id="gate" aria-labelledby="gate-h"><div class="gate-in">' +
+      '<div class="gate-steps"><span>1. Your signature</span><span class="' + (DATA.settings.site_admin_phone ? 'done' : '') + '">2. Office phone</span></div>' +
+      '<h3 id="gate-h">Set up your signature first</h3>' +
+      '<p class="sub" style="margin:0 0 12px">As CP-AO Site Administrator, your signature goes at the bottom of every CP-101 you countersign and on the weekly Add/Remove form. ' +
+        'Draw it once — it\'s reused each time, and you can redraw it under Settings.</p>' +
+      '<div class="sigpad" style="max-width:none"><canvas id="gate-sig" aria-label="Draw your signature"></canvas></div>' +
+      '<div class="btnrow" style="margin-top:8px"><button type="button" class="btn alt" id="gate-clear">Clear</button></div>' +
+      '<label class="fl" style="margin-top:12px">Office phone (for the Add/Remove form)<input id="gate-phone" maxlength="40" placeholder="602-555-0100 ext 12" value="' + esc(DATA.settings.site_admin_phone || '') + '"></label>' +
+      '<div class="note" id="gate-note" hidden></div>' +
+      '<div class="btnrow" style="margin-top:16px"><button type="button" class="btn" id="gate-save">Save and continue</button>' +
+        '<button type="button" class="btn alt" id="gate-later">Not now</button></div>' +
+      '<p class="sub" style="margin:10px 0 0">Until it\'s saved you can invite people, but you can\'t countersign or send the weekly batch — and this will keep popping up.</p>' +
+    '</div></dialog>');
+  var d = $('gate');
+  d.showModal();
+  var c = $('gate-sig');
+  if (typeof SignaturePad === 'undefined') { note('gate-note', 'err', 'The signature pad didn\'t load — check your connection and reload.'); }
+  else {
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    c.width = c.offsetWidth * ratio; c.height = c.offsetHeight * ratio; c.getContext('2d').scale(ratio, ratio);
+    GATE_PAD = new SignaturePad(c, { penColor: '#0b1f3a', backgroundColor: 'rgba(0,0,0,0)', minWidth: 0.8, maxWidth: 2.4 });
+  }
+  $('gate-clear').addEventListener('click', function () { if (GATE_PAD) { GATE_PAD.clear(); } });
+  $('gate-later').addEventListener('click', function () { GATE_LATER = true; d.close(); d.remove(); });
+  d.addEventListener('cancel', function () { GATE_LATER = true; d.remove(); });
+  $('gate-save').addEventListener('click', function () {
+    if (!GATE_PAD || GATE_PAD.isEmpty()) { note('gate-note', 'err', 'Draw your signature in the box first.'); return; }
+    var b = $('gate-save'); b.disabled = true; b.textContent = 'Saving…';
+    var body = { signature: GATE_PAD.toDataURL('image/png') };
+    if ($('gate-phone').value.trim()) { body.site_admin_phone = $('gate-phone').value.trim(); }
+    api('POST', 'settings', body).then(function () {
+      d.close(); d.remove(); refresh(true);
+    }, function (e) { b.disabled = false; b.textContent = 'Save and continue'; note('gate-note', 'err', e.message); });
+  });
+}
 function route() {
   var h = location.hash.replace(/^#/, ''), k = h.split('=')[0], v = h.split('=')[1];
+  setupGate(k);
   if (k === 'staff' && v) { return staffView(v); }
   if (k === 'batches' || k === 'batch') { return batchesView(v); }
   if (k === 'settings') { return settingsView(); }
