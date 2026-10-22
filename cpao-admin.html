@@ -142,7 +142,7 @@ function shell(inner) {
 function setupWarnings() {
   if (!DATA) { return ''; }
   var s = DATA.setup, w = [];
-  if (!s.pii_key) { w.push('<b>CPAO_PII_KEY</b> isn\'t set in Vercel — nothing can be saved until it is (see CPAO.md).'); }
+  if (!s.pii_key) { w.push('<b>CPAO_PII_KEY</b> isn\'t set in Vercel. You can invite people now, but they can\'t fill in the form, and you can\'t countersign, until it is (see CPAO.md).'); }
   if (!DATA.settings.has_signature) { w.push('Draw your <b>signature</b> under Settings — countersigning and the Org form need it.'); }
   if (!DATA.settings.site_admin_phone) { w.push('Add your <b>office phone</b> under Settings — it goes on the Org form.'); }
   if (!s.ai) { w.push('<b>ANTHROPIC_API_KEY</b> isn\'t set — every application will come to you for a manual check.'); }

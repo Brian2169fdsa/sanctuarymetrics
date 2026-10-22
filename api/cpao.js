@@ -684,6 +684,7 @@ async function cron(req, res) {
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const STAFF_ACTIONS = { apply: 1, save: 1, print: 1, scan: 1, submit: 1 };
+const NEEDS_KEY = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, reveal: 1, countersign: 1, rotate: 1 };
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -696,7 +697,9 @@ module.exports = async function handler(req, res) {
     if (action === 'cron' || (!action && process.env.CRON_SECRET && req.headers.authorization === 'Bearer ' + process.env.CRON_SECRET)) {
       return await cron(req, res);
     }
-    if (!K.configured() && action !== 'roster') {
+    /* only the steps that seal or open SSN / birth date / address need the key:
+       the roster, staff picker, invites, settings and batches work without it */
+    if (!K.configured() && NEEDS_KEY[action]) {
       throw bad('The PII key isn\'t set: add CPAO_PII_KEY in Vercel (see CPAO.md).', 503);
     }
     if (STAFF_ACTIONS[action]) { return await staffRoute(req, res, action); }
