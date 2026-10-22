@@ -32,10 +32,26 @@ This replaces the email-and-paper process for HEAplus access:
    - **draw your signature**
    - check the batch day (Monday by default)
 
+## Staff picker (invite from Microsoft 365)
+
+**+ Invite someone** opens a search box over your Microsoft 365 staff list. It filters as you type.
+- **Click a name** to fill the form with their first and last name, work email, job title, hire date and office address, if those are filled in Microsoft.
+- **Tick several** and press **Invite all n** to invite them together.
+- People already on the roster are greyed out.
+- Shared mailboxes and accounts outside the Sanctuary domains don't appear.
+
+**To switch it on (once):**
+1. Go to [Entra admin center](https://entra.microsoft.com) → App registrations → the site's sign-in app (the one whose ID is in `MS_CLIENT_ID`).
+2. Open **API permissions → Add a permission → Microsoft Graph → Application permissions**, add **User.Read.All**, then **Grant admin consent**.
+
+This permission is read-only: it lists names, titles, emails and hire dates. No redeploy is needed.
+
+Until it's granted, the box says what's missing, and you can type the details by hand. Hire date and office address appear only if HR keeps them filled in Microsoft 365. Otherwise, add the hire date by hand; the Org form needs it.
+
 ## How to invite someone
 
 1. Go to **Roster → + Invite someone**.
-2. Enter their name, work email, title and hire date. Tick Site Administrator if they'll be one (Add-SA).
+2. Pick them from Microsoft 365, or type their name, work email, title and hire date. Tick Site Administrator if they'll be one (Add-SA).
 3. Send the link:
    - If email is on, they get Brian's usual note with the link.
    - If not, copy the link shown and send it to them in Teams or Outlook.

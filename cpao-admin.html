@@ -61,6 +61,18 @@
 .linkbox input{flex:1;font:400 13px Inter,sans-serif;border:1px solid var(--line);border-radius:8px;padding:8px}
 .sigpad{border:2px dashed #9fb3bf;border-radius:12px;background:#fff;max-width:560px;touch-action:none}
 .sigpad canvas{display:block;width:100%;height:150px}
+.dir{grid-column:1/-1;position:relative}
+.dir input[type=search]{width:100%;box-sizing:border-box;font:400 15px Inter,sans-serif;border:1px solid #b9c7cf;border-radius:10px;padding:10px 12px;background:#fff}
+.dir-list{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:10px;background:#fff;max-height:300px;overflow:auto}
+.dir-list li{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+.dir-list li:last-child{border-bottom:0}
+.dir-list li.on{opacity:.55}
+.dir-list button{all:unset;cursor:pointer;flex:1;min-width:0}
+.dir-list button:focus-visible{outline:2px solid var(--blue)}
+.dir-list b{display:block}
+.dir-list .sm{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.dir-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:13px}
+.dir-bar[hidden]{display:none}
 .back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:10px}
 .audit td{font-size:12.5px}
 @media (max-width:760px){ .det{grid-template-columns:1fr} }
@@ -159,6 +171,12 @@ function rosterView() {
         return '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>' +
       '<button class="btn" id="inv-open">+ Invite someone</button></div>' +
     '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
+      '<div class="dir"><label class="fl" for="d-q">Pick from Microsoft 365</label>' +
+        '<input type="search" id="d-q" placeholder="Loading the staff list…" autocomplete="off" aria-describedby="d-note">' +
+        '<p class="sub" id="d-note" style="margin:6px 0 0">Click a name to fill the form, or tick several and invite them together.</p>' +
+        '<ul class="dir-list" id="d-list" hidden></ul>' +
+        '<div class="dir-bar" id="d-bar" hidden><b id="d-n"></b><button type="button" class="btn" id="d-go">Invite selected</button>' +
+          '<button type="button" class="btn alt" id="d-clear">Clear</button></div><div id="d-out"></div></div>' +
       '<label class="fl">First name<input id="i-first" maxlength="40"></label><label class="fl">Last name<input id="i-last" maxlength="40"></label>' +
       '<label class="fl">Work email<input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label>' +
       '<label class="fl">Title<select id="i-title"><option value="">—</option>' + DATA.titles.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label>' +
@@ -188,7 +206,8 @@ function rosterView() {
 }
 function wireRoster() {
   document.querySelectorAll('[data-f]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); rosterView(); }); });
-  $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; $('i-first').focus(); });
+  $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
+  wireDir();
   $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
   $('inv').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -225,6 +244,92 @@ function wireRoster() {
     bulk(function (id) { return api('POST', 'status', { id: id, status: 'remove_requested', confirm_deactivated: true }); });
   });
   sync();
+}
+/* ── the Microsoft 365 staff picker ───────────────────────────────────── */
+var DIR = null, DIR_SEL = {};
+function loadDir() {
+  if (DIR) { return drawDir(); }
+  api('GET', 'directory').then(function (j) {
+    DIR = j;
+    $('d-q').placeholder = j.error ? 'Type the details below instead' : 'Search ' + j.users.length + ' people by name, title or email';
+    if (j.error) { $('d-note').innerHTML = '<b style="color:#8a5200">' + esc(j.error) + '</b> See CPAO.md → "Staff picker".'; }
+    drawDir();
+  }, function (e) { $('d-note').textContent = e.message; });
+}
+function drawDir() {
+  var q = $('d-q').value.trim().toLowerCase(), list = $('d-list');
+  if (!DIR || DIR.error || !q) { list.hidden = true; return; }
+  var hits = DIR.users.filter(function (u) {
+    return (u.name + ' ' + u.first_name + ' ' + u.last_name + ' ' + u.email + ' ' + u.title + ' ' + u.department).toLowerCase().indexOf(q) >= 0;
+  }).slice(0, 25);
+  list.hidden = false;
+  list.innerHTML = hits.length ? hits.map(function (u) {
+    return '<li class="' + (u.on_roster ? 'on' : '') + '"><input type="checkbox" data-pick="' + esc(u.email) + '"' + (DIR_SEL[u.email] ? ' checked' : '') +
+      (u.on_roster ? ' disabled' : '') + ' aria-label="Select ' + esc(u.first_name + ' ' + u.last_name) + '">' +
+      '<button type="button" data-fill="' + esc(u.email) + '"' + (u.on_roster ? ' disabled' : '') + '><b>' + esc(u.first_name + ' ' + u.last_name) + '</b>' +
+      '<span class="sm">' + esc([u.title, u.email].filter(Boolean).join(' · ')) + (u.on_roster ? ' · already on the roster' : '') + '</span></button></li>';
+  }).join('') : '<li>No one matches.</li>';
+}
+function byEmail(e) { return DIR.users.filter(function (u) { return u.email === e; })[0]; }
+function inviteBody(u) {
+  return { first_name: u.first_name, last_name: u.last_name, email: u.email, title_position: titleFor(u.title),
+           worker_type: 'Employee', hire_date: u.hire_date, work_address: u.work_address || DATA.constants.default_work_address, is_site_admin: false };
+}
+/* their Microsoft job title, matched to the CP-101 list when it's close */
+function titleFor(t) {
+  var hit = DATA.titles.filter(function (o) { return o.toLowerCase() === String(t || '').toLowerCase(); })[0];
+  return hit || t || '';
+}
+function fillFrom(u) {
+  $('i-first').value = u.first_name; $('i-last').value = u.last_name; $('i-email').value = u.email;
+  var t = titleFor(u.title), sel = $('i-title');
+  if (t && !Array.prototype.some.call(sel.options, function (o) { return o.value === t; })) { sel.add(new Option(t, t)); }
+  sel.value = t;
+  $('i-type').value = 'Employee';
+  $('i-hire').value = u.hire_date || '';
+  if (u.work_address) { $('i-addr').value = u.work_address; }
+  $('d-list').hidden = true; $('d-q').value = '';
+  $('i-go').focus();
+}
+function syncSel() {
+  var n = Object.keys(DIR_SEL).filter(function (k) { return DIR_SEL[k]; }).length;
+  $('d-bar').hidden = !n; $('d-n').textContent = n + ' selected';
+  $('d-go').textContent = 'Invite ' + (n === 1 ? 'them' : 'all ' + n);
+}
+function wireDir() {
+  $('d-q').addEventListener('input', drawDir);
+  $('d-list').addEventListener('click', function (e) {
+    var f = e.target.closest('[data-fill]');
+    if (f) { fillFrom(byEmail(f.getAttribute('data-fill'))); }
+  });
+  $('d-list').addEventListener('change', function (e) {
+    var c = e.target.closest('[data-pick]');
+    if (c) { DIR_SEL[c.getAttribute('data-pick')] = c.checked; syncSel(); }
+  });
+  $('d-clear').addEventListener('click', function () { DIR_SEL = {}; syncSel(); drawDir(); });
+  $('d-go').addEventListener('click', function () {
+    var emails = Object.keys(DIR_SEL).filter(function (k) { return DIR_SEL[k]; });
+    var btn = $('d-go'), out = [];
+    btn.disabled = true;
+    emails.reduce(function (p, e) {
+      return p.then(function () {
+        btn.textContent = 'Inviting ' + (out.length + 1) + ' of ' + emails.length + '…';
+        var u = byEmail(e);
+        return api('POST', 'invite', inviteBody(u)).then(function (j) { out.push({ u: u, j: j }); u.on_roster = true; },
+          function (err) { out.push({ u: u, err: err.message }); });
+      });
+    }, Promise.resolve()).then(function () {
+      DIR_SEL = {}; btn.disabled = false; syncSel(); drawDir();
+      var ok = out.filter(function (o) { return o.j; });
+      $('d-out').innerHTML = '<div class="note ok">' + ok.length + ' invited' + (ok.length && !ok[0].j.emailed ? ' — send each their link (Teams or Outlook):' : ' — emails sent.') + '</div>' +
+        out.map(function (o) {
+          return '<p style="margin:10px 0 0;font-size:13.5px"><b>' + esc(o.u.first_name + ' ' + o.u.last_name) + '</b>' +
+            (o.err ? ' — <span style="color:#a3301a">' + esc(o.err) + '</span>' : '') + '</p>' + (o.j && !o.j.emailed ? linkBox(o.j.link) : '');
+        }).join('');
+      wireCopy();
+      refresh(false);
+    });
+  });
 }
 function linkBox(url) {
   return '<div class="linkbox"><input readonly value="' + esc(url) + '" aria-label="Invite link"><button type="button" class="btn alt" data-copy>Copy</button></div>' +
