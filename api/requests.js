@@ -29,10 +29,19 @@
    deck by deck_id and carries slide_edits: [{slide, change}]; the deck's
    title and SharePoint link are looked up here, not taken from the page.
    Signed-in requests are filed under the account's own name and email.
+
+   Order tracking (supabase/print-orders.sql) — the "Order status" list at
+   the bottom of print.html:
+     GET                                  orders + recent handouts
+     POST {kind: 'handout', …}            log where materials were handed out
+     POST {kind: 'order', …}              admin: add an order by hand
+     PATCH ?order=<id> {status, …}        admin: move an order along
+     DELETE ?handout=<id>                 the person who logged it, or an admin
+   A request above that asks for prints also adds a "Requested" order.
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
-const { authorize, admins, sendAlerts } = require('../lib/auth');
+const { authorize, admins, sendAlerts, access } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [0, 25, 50, 100, 250, 500, 1000],
                      new_flyer: [0, 25, 50, 100, 250, 500, 1000] };
@@ -151,6 +160,95 @@ function toRow(body, user, deck) {
   };
 }
 
+/* ── order tracking ─────────────────────────────────────────────────────── */
+const ORDER_STATUS = ['requested', 'ordered', 'shipped', 'delivered', 'handed_out', 'cancelled'];
+const ORDER_KINDS = ['flyer', 'business_cards', 'presentation', 'other'];
+const UUID = /^[0-9a-f-]{36}$/i;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const NO_TABLES = /(PGRST205|42P01)[\s\S]*print_(orders|handouts)/;
+
+function canManage(who) { return !!who && (who.user ? access(who.user).admin : !!who.legacy && !who.printOnly); }
+function today() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }); }
+function day(v, label) {
+  const d = str(v, 10);
+  if (d && !DAY.test(d)) { throw bad(label + ' must be a date.'); }
+  return d || null;
+}
+function count(v, label, min) {
+  if (v === '' || v === null || v === undefined) { return null; }
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < min || n > 100000) { throw bad(label + ' must be a whole number.'); }
+  return n;
+}
+/* the order fields an admin can set (only the ones present in the body) */
+function orderFields(body, isNew) {
+  const f = {};
+  if (isNew || 'item' in body) {
+    f.item = str(body.item, 200);
+    if (!f.item) { throw bad('Say what was ordered.'); }
+  }
+  if (isNew || 'kind' in body) {
+    f.kind = ORDER_KINDS.indexOf(body.kind) >= 0 ? body.kind : 'other';
+  }
+  if (isNew || 'status' in body) {
+    f.status = isNew && !body.status ? 'ordered' : body.status;
+    if (ORDER_STATUS.indexOf(f.status) < 0) { throw bad('Unknown order status.'); }
+  }
+  if ('quantity' in body) { f.quantity = count(body.quantity, 'Quantity', 0); }
+  if ('expected_on' in body) { f.expected_on = day(body.expected_on, 'Expected'); }
+  if ('delivered_on' in body) { f.delivered_on = day(body.delivered_on, 'Delivered'); }
+  ['vendor', 'stored_at', 'item_ref'].forEach(function (k) { if (k in body) { f[k] = str(body[k], 200) || null; } });
+  if ('notes' in body) { f.notes = str(body.notes, 2000) || null; }
+  if (f.status === 'delivered' && !('delivered_on' in body)) { f.delivered_on = today(); }
+  return f;
+}
+
+async function listOrders(who) {
+  const orders = await supabase('GET', '?select=*&order=created_at.desc&limit=300', null, null, 'print_orders');
+  const handouts = await supabase('GET', '?select=*&order=handed_out_on.desc,created_at.desc&limit=500', null, null, 'print_handouts');
+  return { orders: orders, handouts: handouts, admin: canManage(who), me: who.user ? who.user.id : null };
+}
+
+async function logHandout(body, who) {
+  const by = who.user ? str(who.user.name, 120) : str(body.requester_name, 120);
+  if (!by) { throw bad('Add your name so we know who handed them out.'); }
+  const qty = count(body.quantity, 'How many', 1);
+  if (!qty) { throw bad('Say how many you handed out.'); }
+  const location = str(body.location, 300);
+  if (!location) { throw bad('Say where you handed them out.'); }
+  let item = str(body.item, 200), orderId = null;
+  if (body.order_id) {
+    if (!UUID.test(String(body.order_id))) { throw bad('Which order?'); }
+    const o = (await supabase('GET', '?id=eq.' + body.order_id + '&select=id,item', null, null, 'print_orders'))[0];
+    if (!o) { throw bad('That order isn\'t here any more.'); }
+    orderId = o.id; item = o.item;
+  }
+  if (!item) { throw bad('Pick what you handed out.'); }
+  const when = day(body.handed_out_on, 'The date') || today();
+  if (when > today()) { throw bad('The date can\'t be in the future.'); }
+  const rows = await supabase('POST', '', {
+    order_id: orderId, item: item, quantity: qty, handed_out_on: when, location: location,
+    audience: str(body.audience, 200) || null, notes: str(body.notes, 1000) || null,
+    created_by: who.user ? who.user.id : null, created_by_name: by }, null, 'print_handouts');
+  return rows[0];
+}
+
+/* a print request that asks for prints starts an order in "Requested" */
+async function orderFromRequest(body, project, who) {
+  const qty = Number(body.quantity);
+  if (!qty || ['business_cards', 'flyer', 'new_flyer'].indexOf(body.kind) < 0) { return; }
+  const item = body.kind === 'business_cards' ? 'Business cards — ' + str(body.card && body.card.name, 80)
+    : body.kind === 'new_flyer' ? 'New flyer — ' + str(body.topic, 160) : str(body.flyer, 160);
+  try {
+    await supabase('POST', '', {
+      item: item.slice(0, 200), kind: body.kind === 'business_cards' ? 'business_cards' : 'flyer',
+      item_ref: body.kind === 'flyer' ? str(body.version, 80) || null : null,
+      quantity: qty, status: 'requested', expected_on: day(body.needed_by, 'Needed-by'),
+      project_id: project.id, requested_by_name: who.user ? who.user.name : str(body.requester_name, 120) || null
+    }, { Prefer: 'return=minimal' }, 'print_orders');
+  } catch (e) { /* tracking tables not created yet — the request is saved either way */ }
+}
+
 module.exports = async function handler(req, res) {
   const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
@@ -161,13 +259,44 @@ module.exports = async function handler(req, res) {
   if (!who) {
     return sendJSON(res, 401, { error: 'password', message: 'Sign in, or enter the team password.' });
   }
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (['GET', 'POST', 'PATCH', 'DELETE'].indexOf(req.method) < 0) {
+    res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
     return sendJSON(res, 405, { error: 'method', message: 'Method not allowed.' });
   }
+  const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
 
   try {
+    /* ── order tracking ── */
+    if (req.method === 'GET') { return sendJSON(res, 200, await listOrders(who)); }
+    if (req.method === 'PATCH') {
+      if (!canManage(who)) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only an admin can update orders.' }); }
+      if (!UUID.test(String(q.order || ''))) { throw bad('Which order?'); }
+      const f = Object.assign(orderFields(await readBody(req), false),
+        { updated_at: new Date().toISOString(), updated_by_name: who.user ? who.user.name : 'Team password' });
+      const rows = await supabase('PATCH', '?id=eq.' + q.order, f, null, 'print_orders');
+      if (!rows.length) { throw bad('That order isn\'t here any more.'); }
+      return sendJSON(res, 200, { ok: true, order: rows[0] });
+    }
+    if (req.method === 'DELETE') {
+      if (!UUID.test(String(q.handout || ''))) { throw bad('Which hand-out?'); }
+      const h = (await supabase('GET', '?id=eq.' + q.handout + '&select=id,created_by', null, null, 'print_handouts'))[0];
+      if (!h) { return sendJSON(res, 200, { ok: true }); }
+      if (!canManage(who) && !(who.user && h.created_by === who.user.id)) {
+        return sendJSON(res, 403, { error: 'forbidden', message: 'Only the person who logged it, or an admin, can remove it.' });
+      }
+      await supabase('DELETE', '?id=eq.' + h.id, null, { Prefer: 'return=minimal' }, 'print_handouts');
+      return sendJSON(res, 200, { ok: true });
+    }
     const body = await readBody(req);
+    if (body.kind === 'handout') { return sendJSON(res, 201, { ok: true, handout: await logHandout(body, who) }); }
+    if (body.kind === 'order') {
+      if (!canManage(who)) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only an admin can add orders.' }); }
+      const f = Object.assign(orderFields(body.order || {}, true),
+        { requested_by_name: who.user ? who.user.name : null, updated_by_name: who.user ? who.user.name : null });
+      return sendJSON(res, 201, { ok: true, order: (await supabase('POST', '', f, null, 'print_orders'))[0] });
+    }
+
+    /* ── a new request ── */
     let deck = null;
     if (body.kind === 'presentation_edit') {
       if (!/^[0-9a-f-]{36}$/i.test(String(body.deck_id || ''))) { throw bad('Which presentation?'); }
@@ -175,6 +304,7 @@ module.exports = async function handler(req, res) {
     }
     const row = toRow(body, who.user || null, deck);
     const rows = await projectWrite('POST', '', Object.assign(row, addedBy(who.user)));
+    await orderFromRequest(body, rows[0], who);
     /* let the admins know on the bell */
     try {
       const ref = 'row:' + rows[0].id;
@@ -184,6 +314,9 @@ module.exports = async function handler(req, res) {
     } catch (e) { /* accounts not set up yet — the task is saved either way */ }
     return sendJSON(res, 201, { ok: true, title: rows[0] && rows[0].title });
   } catch (e) {
+    if (NO_TABLES.test(e.message)) {
+      return sendJSON(res, 503, { error: 'not_set_up', message: 'Order tracking isn\'t set up in Supabase yet — run supabase/print-orders.sql (or ALL.sql).' });
+    }
     if (e.bad || /JSON|body too large/.test(e.message)) {
       return sendJSON(res, 400, { error: 'bad_request', message: e.bad ? e.message : 'Could not read the request.' });
     }
