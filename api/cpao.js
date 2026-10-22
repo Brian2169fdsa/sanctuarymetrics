@@ -198,7 +198,8 @@ function staffView(staff, app, x) {
     sensitive: { date_of_birth: x.date_of_birth || '', home_address: x.home_address || '', ssn_last4: x.ssn ? R.digits(x.ssn).slice(5) : '' },
     conditions_agreed: !!app.conditions_agreed_at, signed: !!(app.user_signature_key || app.wet_signed_upload_key),
     submitted: !!app.submitted_at && !editable(staff),
-    issues: staff.status === 'needs_fix' && ai ? (ai.issues || []) : [],
+    /* the email note is for Brian, not something they must change */
+    issues: staff.status === 'needs_fix' && ai ? (ai.issues || []).filter(function (i) { return !(i.field === 'email' && i.severity === 'warn'); }) : [],
     wet: wetMode(), titles: R.TITLE_OPTIONS, site_admin: R.C.site_admin_name, org: R.C.dba
   };
 }
@@ -264,6 +265,12 @@ async function staffRoute(req, res, action) {
       const errors = R.checkStep(step, answers, sealed);
       if (Object.keys(errors).length) { return sendJSON(res, 400, { error: 'fields', fields: errors, message: 'Fix the highlighted fields.' }); }
       patch.answers = answers;
+      /* fixing a field clears what the last check said about it (the next
+         submit checks everything again) */
+      const ai = app.ai_check_result;
+      if (staff.status === 'needs_fix' && ai && (ai.issues || []).length) {
+        patch.ai_check_result = Object.assign({}, ai, { issues: ai.issues.filter(function (i) { return def.keys.indexOf(i.field) < 0; }) });
+      }
       if (def.keys.some(function (k) { return R.SENSITIVE.indexOf(k) >= 0; })) { patch.sensitive_ciphertext = K.seal(sealed); }
     }
     if (step === 5) {

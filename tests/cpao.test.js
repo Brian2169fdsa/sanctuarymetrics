@@ -76,7 +76,7 @@ test('AI answer parsing falls back to admin_review', function () {
   const pass = R.parseAi('{"status":"pass","issues":[],"admin_notes":"Clean."}');
   assert.deepStrictEqual([pass.status, pass.admin_notes], ['pass', 'Clean.']);
   /* a block forces fix_required; fix_required with only warnings becomes admin_review */
-  assert.strictEqual(R.parseAi('{"status":"pass","issues":[{"field":"zip","message_for_staff":"Check ZIP","severity":"block"}],"admin_notes":""}').status, 'fix_required');
+  assert.strictEqual(R.parseAi('{"status":"pass","issues":[{"field":"last_name","message_for_staff":"Check your last name","severity":"block"}],"admin_notes":""}').status, 'fix_required');
   const w = R.parseAi('{"status":"fix_required","issues":[{"field":"first_name","message_for_staff":"Is Bob your legal name?","severity":"warn"}],"admin_notes":""}');
   assert.strictEqual(w.status, 'admin_review');
   assert.strictEqual(w.issues[0].step, 1);
@@ -144,4 +144,22 @@ test('PII sealing round-trips and spots the old key', function () {
   delete process.env.CPAO_PII_KEY_OLD;
   assert.throws(function () { K.open(sealed); }, /no longer configured/);
   assert.strictEqual(K.hashToken('abc').length, 64);
+});
+
+test('Arizona city and ZIP come from the list, not the AI', function () {
+  const chk = function (city, zip, state) { return R.checkFields(['city', 'zip'], { city: city, zip: zip, state: state || 'AZ' }, {}); };
+  assert.deepStrictEqual(chk('Peoria', '85383'), {});
+  assert.deepStrictEqual(chk('peoria', '85345'), {});
+  assert.deepStrictEqual(chk('Anthem', '85086'), {});           /* not the ZIP's post office, still a real place */
+  assert.deepStrictEqual(chk('San Tan Valley', '85143'), {});
+  assert.deepStrictEqual(chk('Saint Johns', '85936'), {});
+  assert.match(chk('Peroia', '85383').city, /ZIP 85383 is Peoria/);
+  assert.match(chk('Pheonix', '85020').city, /Phoenix/);
+  assert.match(chk('Phoenix', '90210').zip, /Arizona ZIP/);
+  assert.deepStrictEqual(chk('Austin', '78701', 'TX'), {});     /* only Arizona addresses are checked against the list */
+  /* the AI can't block on city/ZIP, and an email note is only ever a warning */
+  const r = R.parseAi('{"status":"fix_required","issues":[{"field":"city","message_for_staff":"City looks misspelled","severity":"block"},' +
+    '{"field":"email","message_for_staff":"Use your work email","severity":"block"}],"admin_notes":""}');
+  assert.strictEqual(r.status, 'admin_review');
+  assert.deepStrictEqual(r.issues.map(function (i) { return i.field + ':' + i.severity; }), ['email:warn']);
 });
