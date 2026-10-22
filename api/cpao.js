@@ -16,7 +16,7 @@
      POST ?action=submit                    Layer A + Claude check → routed
 
    ADMIN (cpao-admin.html; admins only):
-     GET  ?action=roster | detail&id= | audit&id= | file&key=
+     GET  ?action=roster | detail&id= | audit&id= | file&key= | directory
      POST ?action=invite | update | reveal | countersign | send_back | status
                  | settings | batch | mark_sent | rotate | purge
 
@@ -609,6 +609,17 @@ async function adminRoute(req, res, action, me, q) {
       return sendJSON(res, 200, { entries: await db('GET', 'cpao_audit_log', where + 'select=*&order=at.desc&limit=200') });
     }
     if (action === 'file') { return sendJSON(res, 200, await fileLink(req, me, q.key)); }
+    if (action === 'directory') {
+      /* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
+      try {
+        const onRoster = {};
+        (await db('GET', 'cpao_staff', '?status=not.in.(removed,denied)&select=email')).forEach(function (r) { onRoster[r.email.toLowerCase()] = 1; });
+        const users = (await G.directory()).map(function (u) { return Object.assign({ on_roster: !!onRoster[u.email] }, u); });
+        return sendJSON(res, 200, { users: users });
+      } catch (e) {
+        return sendJSON(res, 200, { users: [], error: e.code ? e.message : 'Couldn\'t reach the Microsoft directory right now.' });
+      }
+    }
     if (action === 'app_pdf') {
       const a = await latestApp((await staffById(q.id)).id);
       if (!a || !a.pdf_storage_key) { throw bad('No PDF yet — countersign first.'); }
