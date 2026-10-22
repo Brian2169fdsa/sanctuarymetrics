@@ -32,6 +32,29 @@ This replaces the email-and-paper process for HEAplus access:
    - **draw your signature**
    - check the batch day (Monday by default)
 
+## The 10 stages it tracks
+
+| # | Stage | Who | Usually takes |
+| --- | --- | --- | --- |
+| 1 | Invited | Brian | Same day |
+| 2 | Fills out the CP-101 | Staff member | About 15 minutes; please within 2–3 days |
+| 3 | Brian countersigns | Brian | 1–2 business days |
+| 4 | Add/Remove form (Organization User Application) | Brian | Weekly, on the batch day |
+| 5 | Sent to CPAO: background check | AHCCCS / CPAO | **1 week to 3 months** |
+| 6 | Approved: AZLearns training | Staff member | Usually 1–2 weeks |
+| 7 | Certificates turned in | Staff member → Brian | Same day they finish |
+| 8 | Certificates sent to CPAO for final approval | Brian → CPAO | Brian: 1–2 business days; CPAO's reply varies |
+| 9 | Final approval: Brian creates the HEAplus account | Brian | 1–2 business days |
+| 10 | Active in HEAplus | Staff member | Done |
+
+Overall it takes about 3 weeks at the quickest and up to 3–4 months. Almost all of that is the background check.
+
+The steps and timings live in `cpao/process.js`, and both pages read them from there:
+- **Roster:** each person shows their step and how long they've been on it. The "How it works" section under the roster shows the steps above.
+- **Person page:** shows the date each step happened, and a **✓ next step** button that moves them on and records the date.
+- **Tasks:** "Certificates turned in" and "Final approval" add tasks for you, and moving on closes the previous task.
+- **Follow-ups:** each person has a follow-up log for CPAO questions, corrections, calls and emails. A reminder date adds a task on the Projects page.
+
 ## Staff picker (invite from Microsoft 365)
 
 **+ Invite someone** opens a search box over your Microsoft 365 staff list. It filters as you type.

@@ -75,6 +75,18 @@
 .dir-bar[hidden]{display:none}
 .back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:10px}
 .audit td{font-size:12.5px}
+.fh{display:block;font:400 12px/1.4 Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--muted);margin-top:-1px}
+.ck .fh{margin:2px 0 0}
+.stg{min-width:150px}
+.stg .sm{display:block}
+.mini{display:flex;gap:2px;margin:5px 0 3px;max-width:150px}
+.mini i{flex:1;height:5px;border-radius:2px;background:#dfe7ec}
+.mini i.on{background:#2E8B6F}.mini i.now{background:#2C5468}
+.next-btn{margin:0 0 4px}
+.fu{list-style:none;margin:0 0 10px;padding:0}
+.fu li{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px 10px;margin:0 0 6px;font-size:13.5px}
+.fu .sm{font-size:12px;color:var(--muted)}
+.how{margin-top:26px}
 @media (max-width:760px){ .det{grid-template-columns:1fr} }
 </style>
 </head>
@@ -82,8 +94,10 @@
 <script>var LOGO = 'print/sanctuary-logo.png';  /* this page skips data.js */</script>
 <script src="ui.js"></script>
 <script src="account.js"></script>
+<script src="cpao/process.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/5.0.4/signature_pad.umd.min.js"
   integrity="sha384-sAvQstqOmAfqxD54T2ZBU8/E8IQJJuNT4hEHwUULkoBRze+eTQ7tZNcXEA5yPzhE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>document.head.insertAdjacentHTML('beforeend', '<style>' + CPAO_PROCESS_CSS + '</style>');</script>
 <script>
 /* ── CP-AO portal: the site administrator's side ──────────────────────────
    Admins only (middleware.js + api/cpao.js). Views by hash:
@@ -99,15 +113,42 @@ var LABEL = {
   invited: 'Invited', in_progress: 'Filling it in', needs_fix: 'Needs a fix', ready_for_countersign: 'Ready to countersign',
   countersigned: 'Countersigned', queued_for_batch: 'Queued for batch', sent_to_cpao: 'Sent to CPAO',
   cpao_correction_requested: 'CPAO wants a correction', approved_training_assigned: 'Approved — training assigned',
-  training_complete: 'Training complete', active: 'Active', denied: 'Denied', remove_requested: 'Removal requested', removed: 'Removed'
+  training_complete: 'Certificates turned in', certs_sent_to_cpao: 'Certificates sent to CPAO', final_approved: 'Final approval — create account',
+  active: 'Active', denied: 'Denied', remove_requested: 'Removal requested', removed: 'Removed'
 };
 var NEXT = {
   invited: 'Waiting on them to start', in_progress: 'Waiting on them to finish', needs_fix: 'Waiting on their fix',
   ready_for_countersign: 'You: countersign', countersigned: 'Goes in the next batch', queued_for_batch: 'Goes in the next batch',
-  sent_to_cpao: 'Waiting on CPAO', cpao_correction_requested: 'You: fix and resend', approved_training_assigned: 'They do AZLearns training',
-  training_complete: 'You: create their HEAplus account', active: '—', denied: '—', remove_requested: 'Goes in the next batch (remove)', removed: '—'
+  sent_to_cpao: 'Background check with CPAO', cpao_correction_requested: 'You: fix and resend to CPAO', approved_training_assigned: 'They do the AZLearns courses',
+  training_complete: 'You: send their certificates to CPAO', certs_sent_to_cpao: 'Waiting on CPAO final approval',
+  final_approved: 'You: create their HEAplus account', active: '—', denied: '—', remove_requested: 'Goes in the next batch (remove)', removed: '—'
 };
-var AFTER_CPAO = ['cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'active', 'denied', 'remove_requested', 'removed'];
+/* the statuses Brian sets by hand once the application is with CPAO */
+var AFTER_CPAO = ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
+                  'final_approved', 'active', 'denied', 'remove_requested', 'removed'];
+/* the one-click "next step" for each status */
+var NEXT_STEP = {
+  sent_to_cpao: ['approved_training_assigned', 'CPAO approved — training assigned'],
+  cpao_correction_requested: ['sent_to_cpao', 'Correction re-sent to CPAO'],
+  approved_training_assigned: ['training_complete', 'Certificates received'],
+  training_complete: ['certs_sent_to_cpao', 'Certificates sent to CPAO'],
+  certs_sent_to_cpao: ['final_approved', 'Final approval received'],
+  final_approved: ['active', 'HEAplus account created']
+};
+function stageDate(s, st) {
+  var d = s.stage_dates || {}, best = '';
+  st.statuses.concat(st.key === 'org_form' ? ['org_form'] : []).forEach(function (k) { if (d[k] && d[k] > best) { best = d[k]; } });
+  if (!best && st.key === 'invited') { best = s.created_at; }
+  return best;
+}
+function stageCell(s) {
+  var st = cpaoStageOf(s.status);
+  if (!st) { return pill(s.status); }
+  var since = stageDate(s, st);
+  return '<div class="stg">' + pill(s.status) + '<div class="mini" aria-hidden="true">' + CPAO_STAGES.map(function (x) {
+      return '<i class="' + (x.n < st.n ? 'on' : x.n === st.n ? 'now' : '') + '"></i>'; }).join('') + '</div>' +
+    '<span class="sm">Step ' + st.n + ' of 10' + (since ? ' · since ' + day(since) : '') + '</span></div>';
+}
 var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function $(id) { return document.getElementById(id); }
@@ -152,14 +193,16 @@ function setupWarnings() {
 }
 
 /* ── roster ───────────────────────────────────────────────────────────── */
-var FILTERS = [['open', 'Open'], ['ready_for_countersign', 'To countersign'], ['waiting', 'With staff'], ['queued', 'Queued'],
-               ['cpao', 'With CPAO'], ['active', 'Active'], ['all', 'All']];
+var FILTERS = [['open', 'Open'], ['waiting', 'Filling out'], ['ready_for_countersign', 'To countersign'], ['queued', 'Add/Remove form'],
+               ['cpao', 'Background check'], ['training', 'Training & certificates'], ['account', 'Create account'], ['active', 'Active'], ['all', 'All']];
 function matches(s) {
   switch (FILTER) {
     case 'open': return ['active', 'denied', 'removed'].indexOf(s.status) < 0;
     case 'waiting': return ['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0;
     case 'queued': return ['countersigned', 'queued_for_batch', 'remove_requested'].indexOf(s.status) >= 0;
-    case 'cpao': return ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete'].indexOf(s.status) >= 0;
+    case 'cpao': return ['sent_to_cpao', 'cpao_correction_requested'].indexOf(s.status) >= 0;
+    case 'training': return ['approved_training_assigned', 'training_complete', 'certs_sent_to_cpao'].indexOf(s.status) >= 0;
+    case 'account': return s.status === 'final_approved';
     case 'all': return true;
     default: return s.status === FILTER;
   }
@@ -177,23 +220,27 @@ function rosterView() {
         '<ul class="dir-list" id="d-list" hidden></ul>' +
         '<div class="dir-bar" id="d-bar" hidden><b id="d-n"></b><button type="button" class="btn" id="d-go">Invite selected</button>' +
           '<button type="button" class="btn alt" id="d-clear">Clear</button></div><div id="d-out"></div></div>' +
-      '<label class="fl">First name<input id="i-first" maxlength="40"></label><label class="fl">Last name<input id="i-last" maxlength="40"></label>' +
-      '<label class="fl">Work email<input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label>' +
-      '<label class="fl">Title<select id="i-title"><option value="">—</option>' + DATA.titles.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="fl">Worker type<select id="i-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select></label>' +
-      '<label class="fl">Hire date<input id="i-hire" type="date"></label>' +
-      '<label class="fl wide">Work address<input id="i-addr" maxlength="200" value="' + esc(DATA.constants.default_work_address) + '"></label>' +
-      '<label class="ck"><input type="checkbox" id="i-sa"> Also a Site Administrator (Add-SA)</label>' +
-      '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button></div>' +
+      '<label class="fl">First name<input id="i-first" maxlength="40"><span class="fh">Legal name — they confirm it matches their license.</span></label>' +
+      '<label class="fl">Last name<input id="i-last" maxlength="40"><span class="fh">Legal last name, as on their license.</span></label>' +
+      '<label class="fl">Work email<input id="i-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"><span class="fh">The invite only opens for this Microsoft account.</span></label>' +
+      '<label class="fl">Title<select id="i-title"><option value="">—</option>' + DATA.titles.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select><span class="fh">Their role on the CP-101. They can change it.</span></label>' +
+      '<label class="fl">Worker type<select id="i-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select><span class="fh">Goes on the Add/Remove form.</span></label>' +
+      '<label class="fl">Hire date<input id="i-hire" type="date"><span class="fh">Required on the Add/Remove form.</span></label>' +
+      '<label class="fl wide">Work address<input id="i-addr" maxlength="200" value="' + esc(DATA.constants.default_work_address) + '"><span class="fh">Where they work — goes on the Add/Remove form. Change it for Cave Creek staff.</span></label>' +
+      '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-sa" style="margin-top:3px"><span>Also a Site Administrator (Add-SA)' +
+        '<span class="fh">Only tick this if they will also be a CP-AO Site Administrator like you. Most staff are plain "Add".</span></span></label>' +
+      '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
+        '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
     '</form></div>' +
-    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Status</th><th>Last action</th><th>Next</th><th>Check</th></tr></thead><tbody>' +
+    (list.length ? '<table class="tbl"><thead><tr><th><input type="checkbox" id="selall" aria-label="Select all"></th><th>Name</th><th>Stage</th><th>Last action</th><th>Next</th><th>Check</th></tr></thead><tbody>' +
       list.map(function (s) {
         return '<tr><td><input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '"></td>' +
           '<td><a class="nm" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
             '<div class="sm">' + esc(s.title_position || '') + (s.title_position ? ' · ' : '') + esc(s.email) + '</div></td>' +
-          '<td>' + pill(s.status) + '</td>' +
-          '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) + '</div></td>' +
+          '<td>' + stageCell(s) + '</td>' +
+          '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
+            ((s.followups || []).length ? ' · ' + s.followups.length + ' follow-up' + (s.followups.length === 1 ? '' : 's') : '') + '</div></td>' +
           '<td class="' + (/^You/.test(NEXT[s.status]) ? 'next' : '') + '">' + esc(NEXT[s.status] || '') + '</td>' +
           '<td>' + (s.app && s.app.ai_status ? '<span class="pill ai-' + s.app.ai_status + '">' + esc(s.app.ai_status.replace('_', ' ')) + '</span>' : '') + '</td></tr>';
       }).join('') + '</tbody></table>'
@@ -201,7 +248,10 @@ function rosterView() {
     '<div class="bulk" id="bulk" hidden><b id="bulk-n"></b>' +
       '<button class="btn alt" id="b-sa">Mark Add-SA</button>' +
       '<label class="ck"><input type="checkbox" id="b-conf"> Their HEAplus accounts are already deactivated</label>' +
-      '<button class="btn warm" id="b-rm">Mark for removal</button><span class="note" id="b-note" hidden></span></div>');
+      '<button class="btn warm" id="b-rm">Mark for removal</button><span class="note" id="b-note" hidden></span></div>' +
+    '<div class="how"><h3 style="font-family:Fraunces,serif;font-size:21px;margin:0 0 4px">How it works, start to finish</h3>' +
+      '<p class="sub" style="margin:0 0 14px">Every person moves through these 10 steps. Their stage and the date each step happened show on the roster and on their page.</p>' +
+      cpaoProcessHtml() + '</div>');
   wireRoster();
 }
 function wireRoster() {
@@ -367,6 +417,7 @@ function drawStaff(j) {
         (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0 ? '<button class="btn alt" id="reinv">Re-send invite</button>' : '') +
       '</div></div>' +
     '<div class="note" id="s-note" hidden></div><div id="s-link"></div>' +
+    tracker(s) +
     '<div class="det" style="margin-top:16px">' +
       '<div class="card"><div class="po-sec" style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 10px">Application</div>' +
         (a ? '<dl class="dl">' +
@@ -403,6 +454,13 @@ function drawStaff(j) {
             '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
             '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
         '</div>' +
+        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Follow-ups</div>' +
+          ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
+            return '<li>' + esc(f.text) + '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + (f.due ? ' · reminder ' + day(f.due) : '') + '</div></li>';
+          }).join('') + '</ul>' : '<p class="sub" style="margin:0 0 10px">Nothing yet. Log anything CPAO asks for, calls, emails or what you\'re waiting on.</p>') +
+          '<div class="f2"><label class="fl wide">New follow-up<textarea id="fu-text" rows="2" maxlength="1000" placeholder="e.g. CPAO asked for a clearer copy of page 4 — re-sent 10/24"></textarea></label>' +
+          '<label class="fl">Remind me on<input type="date" id="fu-due"><span class="fh">Optional — adds a task on the Projects page.</span></label></div>' +
+          '<div class="btnrow"><button class="btn alt" id="fu-go">Add follow-up</button></div></div>' +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">For the Org form</div><form id="upd" class="f2">' +
           '<label class="fl">Worker type<select id="u-type">' + ['Employee', 'Contractor', 'Volunteer'].map(function (t) { return '<option' + (s.worker_type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></label>' +
           '<label class="fl">Hire date<input type="date" id="u-hire" value="' + esc(s.hire_date || ans.hire_date || '') + '"></label>' +
@@ -411,16 +469,33 @@ function drawStaff(j) {
           '<label class="ck" style="align-self:end"><input type="checkbox" id="u-sa"' + (s.is_site_admin ? ' checked' : '') + '> Site Administrator (Add-SA)</label>' +
           '<label class="fl wide">Notes (no SSNs or birth dates here)<textarea id="u-notes" rows="2" maxlength="2000">' + esc(s.notes || '') + '</textarea></label>' +
           '<div class="btnrow" style="grid-column:1/-1;margin:0"><button class="btn alt" type="submit">Save</button></div></form></div>' +
-        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">After CPAO replies</div>' +
+        '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Change the stage</div>' +
           '<div class="f2"><label class="fl">Set status<select id="st-to"><option value="">Pick…</option>' +
             AFTER_CPAO.map(function (k) { return '<option value="' + k + '">' + esc(LABEL[k]) + '</option>'; }).join('') + '</select></label></div>' +
           '<label class="ck" id="st-conf-w" hidden style="margin-top:8px"><input type="checkbox" id="st-conf"> Their HEAplus account is already deactivated</label>' +
-          '<p class="sub" style="margin:6px 0 0">Correction requested and Training complete add a task for you on the Projects page. Removed deletes their SSN, birth date, address and signature now.</p>' +
+          '<p class="sub" style="margin:6px 0 0">Use this to go back a step or record a denial. "CPAO wants a correction", "Certificates turned in" and "Final approval" add a task for you on the Projects page. "Removed" deletes their SSN, birth date, address and signature now.</p>' +
           '<div class="btnrow"><button class="btn alt" id="st-go">Update status</button></div></div>' +
       '</div></div>' +
     '<h3 style="font-family:Fraunces,serif;font-size:19px;margin:22px 0 8px">History</h3><div id="s-audit"><p class="sub">Loading…</p></div>');
   wireStaff(s);
   api('GET', 'audit&id=' + s.id).then(function (x) { $('s-audit').innerHTML = auditTable(x.entries); });
+}
+/* where this person is in the 10 steps, with the date of each */
+function tracker(s) {
+  var cur = cpaoStageOf(s.status);
+  var nx = NEXT_STEP[s.status];
+  var extra = s.status === 'cpao_correction_requested' ? '<p class="note err" style="margin:0 0 10px">CPAO asked for a correction — note it under Follow-ups, fix it, then press "Correction re-sent to CPAO".</p>'
+    : s.status === 'denied' ? '<p class="note err" style="margin:0 0 10px">AHCCCS denied this application.</p>'
+    : /remove/.test(s.status) ? '<p class="note err" style="margin:0 0 10px">' + esc(LABEL[s.status]) + '.</p>' : '';
+  return '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">' +
+      '<div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">Where they are' + (cur ? ' — step ' + cur.n + ' of 10' : '') + '</div>' +
+      (nx ? '<button class="btn next-btn" id="nx-go" data-to="' + nx[0] + '">✓ ' + esc(nx[1]) + '</button>' : '') + '</div>' + extra +
+    '<ol class="proc" style="margin-top:12px">' + CPAO_STAGES.map(function (st) {
+      var d = stageDate(s, st), state = cur ? (st.n < cur.n ? 'done' : st.n === cur.n ? 'now' : '') : (d ? 'done' : '');
+      return '<li class="' + state + '"><div class="proc-h"><b>' + st.n + '. ' + esc(st.title) + '</b>' +
+        '<span class="proc-t">' + (d && state ? (state === 'now' ? 'since ' : '') + day(d) : esc(st.time)) + '</span></div>' +
+        (state === 'now' ? '<div class="proc-w">' + esc(st.who) + ' · usually ' + esc(st.time) + '</div><p>' + esc(st.text) + '</p>' : '') + '</li>';
+    }).join('') + '</ol></div>';
 }
 function wireStaff(s) {
   document.querySelectorAll('[data-reveal]').forEach(function (b) {
@@ -468,6 +543,18 @@ function wireStaff(s) {
       .then(function () { note('s-note', 'ok', 'Saved.'); refresh(false); }, function (er) { note('s-note', 'err', er.message); });
   });
   $('st-to').addEventListener('change', function () { $('st-conf-w').hidden = $('st-to').value !== 'remove_requested'; });
+  if ($('nx-go')) {
+    $('nx-go').addEventListener('click', function () {
+      var b = $('nx-go'); b.disabled = true;
+      api('POST', 'status', { id: s.id, status: b.getAttribute('data-to'), heaplus_username: $('u-user').value })
+        .then(function () { refresh(false); staffView(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
+    });
+  }
+  $('fu-go').addEventListener('click', function () {
+    var b = $('fu-go'); b.disabled = true;
+    api('POST', 'followup', { id: s.id, text: $('fu-text').value, due: $('fu-due').value })
+      .then(function () { refresh(false); staffView(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
+  });
   $('st-go').addEventListener('click', function () {
     var to = $('st-to').value;
     if (!to) { return; }

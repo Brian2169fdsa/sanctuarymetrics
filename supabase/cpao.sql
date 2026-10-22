@@ -26,8 +26,8 @@ create table if not exists public.cpao_staff (
   status             text not null default 'invited' check (status in (
                        'invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'countersigned',
                        'queued_for_batch', 'sent_to_cpao', 'cpao_correction_requested',
-                       'approved_training_assigned', 'training_complete', 'active', 'denied',
-                       'remove_requested', 'removed')),
+                       'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
+                       'final_approved', 'active', 'denied', 'remove_requested', 'removed')),
   heaplus_username   text,
   notes              text,
   invite_token_hash  text,                 -- sha256 of the invite link token; cleared once submitted
@@ -42,6 +42,18 @@ create table if not exists public.cpao_staff (
 create index if not exists cpao_staff_status on public.cpao_staff (status);
 create index if not exists cpao_staff_email on public.cpao_staff (lower(email));
 alter table public.cpao_staff add column if not exists invite_failures integer not null default 0;
+
+-- the full process: when each stage happened, and follow-ups (CPAO questions,
+-- corrections, reminders). Also widens the status list for tables made by an
+-- earlier version of this file.
+alter table public.cpao_staff add column if not exists stage_dates jsonb not null default '{}'::jsonb;
+alter table public.cpao_staff add column if not exists followups   jsonb not null default '[]'::jsonb;
+alter table public.cpao_staff drop constraint if exists cpao_staff_status_check;
+alter table public.cpao_staff add constraint cpao_staff_status_check check (status in (
+  'invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'countersigned',
+  'queued_for_batch', 'sent_to_cpao', 'cpao_correction_requested',
+  'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
+  'final_approved', 'active', 'denied', 'remove_requested', 'removed'));
 
 create table if not exists public.cpao_applications (
   id                    uuid primary key default gen_random_uuid(),
