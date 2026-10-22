@@ -32,8 +32,10 @@
 
    ADMIN (cpao-admin.html; HEAplus admins):
      GET  ?action=roster | detail&id= | audit&id= | file&key= | directory
+     GET  ?action=preview_pdf&id=   their CP-101 PDF (made on the fly before countersigning)
      POST ?action=invite | update | reveal | countersign | send_back | status | followup
-                 | settings | batch | mark_sent | rotate | purge
+                 | settings | batch | push {id} (Add/Remove form for one person now)
+                 | mark_sent | rotate | purge
 
    CRON (vercel.json, daily 15:00 UTC = 8:00 Phoenix): GET ?action=cron with
    Authorization: Bearer <CRON_SECRET>. Builds the weekly batch on
@@ -563,9 +565,14 @@ async function saveSettings(req, me, b) {
 }
 
 /* ── the weekly batch ───────────────────────────────────────────────────── */
-async function buildBatch(req, actor) {
-  const adds = await db('GET', 'cpao_staff', '?status=eq.queued_for_batch&select=*&order=last_name.asc');
-  const removes = await db('GET', 'cpao_staff', '?status=eq.remove_requested&select=*&order=last_name.asc');
+/* only: staff ids for "Push through now" — an Add/Remove form for just them,
+   today, without waiting for (or disturbing) the weekly batch */
+async function buildBatch(req, actor, only) {
+  let adds = await db('GET', 'cpao_staff', '?status=eq.queued_for_batch&select=*&order=last_name.asc');
+  let removes = await db('GET', 'cpao_staff', '?status=eq.remove_requested&select=*&order=last_name.asc');
+  const picked = function (x) { return !only || only.indexOf(x.id) >= 0; };
+  adds = adds.filter(picked); removes = removes.filter(picked);
+  if (only && !adds.length && !removes.length) { throw bad('They aren\'t waiting for the Add/Remove form — countersign them first.'); }
   if (!adds.length && !removes.length) {
     await audit(actor, 'batch_empty', null, null, req);
     return { ok: true, empty: true };
@@ -573,8 +580,15 @@ async function buildBatch(req, actor) {
   const st = await settings();
   if (!st.site_admin_signature_key) { throw bad('Draw your signature under Settings first — the Org form needs it.'); }
   const sig = await S.download(BUCKET, st.site_admin_signature_key);
-  /* a re-run replaces any batch that wasn't sent yet */
-  const drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=id,project_id,org_form_storage_key,bundle_storage_key');
+  /* a re-run replaces any batch that wasn't sent yet (a push replaces only
+     a draft that was just for them) */
+  let drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=id,project_id,org_form_storage_key,bundle_storage_key,rows');
+  if (only) {
+    drafts = drafts.filter(function (d) { return (d.rows || []).some(function (r) { return only.indexOf(r.staff_id) >= 0; }); });
+    if (drafts.some(function (d) { return (d.rows || []).some(function (r) { return only.indexOf(r.staff_id) < 0; }); })) {
+      throw bad('They\'re already on an Add/Remove form with other people that hasn\'t been sent — open Weekly batches to download it.');
+    }
+  }
   for (const d of drafts) {
     await closeProject(d.project_id);
     try { await S.remove(BUCKET, [d.org_form_storage_key, d.bundle_storage_key].filter(Boolean)); } catch (e) { /* gone already */ }
@@ -610,7 +624,7 @@ async function buildBatch(req, actor) {
 
   const nAdd = rows.filter(function (r) { return /^Add/.test(r.action); }).length, nRemove = rows.length - nAdd;
   const draft = G.draftOn();
-  const p = await project('Weekly CPAO batch ready: ' + nAdd + ' add, ' + nRemove + ' remove', [
+  const p = await project((only ? 'CPAO Add/Remove form ready: ' + rows.map(function (r) { return r.name; }).join(', ') : 'Weekly CPAO batch ready: ' + nAdd + ' add, ' + nRemove + ' remove'), [
     'Who:'].concat(rows.map(function (r) { return '- ' + r.name + ' — ' + r.action; })).concat([
     '', 'Download the bundle and the Org form: ' + site(req) + '/cpao-admin.html#batch=' + batch.id,
     '', 'Review → send to ' + R.C.cpao_ops_email + ' from your mailbox (only the site admin may email CPAO) → click Mark as Sent.',
@@ -830,7 +844,7 @@ async function selfRoute(req, res, action, me) {
   return sendJSON(res, 200, { self: true, mine: mine, site_admin: R.C.site_admin_name });
 }
 
-const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, mark_sent: 1, rotate: 1, purge: 1 };
+const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, rotate: 1, purge: 1 };
 
 async function adminRoute(req, res, action, me, q) {
   if (req.method === 'GET') {
@@ -852,6 +866,23 @@ async function adminRoute(req, res, action, me, q) {
       } catch (e) {
         return sendJSON(res, 200, { users: [], error: e.code ? e.message : 'Couldn\'t reach the Microsoft directory right now.' });
       }
+    }
+    /* the CP-101 as it stands: the countersigned file once there is one,
+       before that the same PDF made on the fly (no countersignature yet) */
+    if (action === 'preview_pdf') {
+      const s = await staffById(q.id);
+      const a = await latestApp(s.id);
+      if (!a || !(a.submitted_at || a.user_signature_key || a.wet_signed_upload_key)) { throw bad('They haven\'t signed their application yet.'); }
+      if (a.pdf_storage_key) { return sendJSON(res, 200, await fileLink(req, me, a.pdf_storage_key)); }
+      const pdf = a.wet_signed_upload_key ? await S.download(BUCKET, a.wet_signed_upload_key)
+        : await P.cp101({ answers: a.answers, sensitive: a.sensitive_ciphertext ? K.open(a.sensitive_ciphertext) : {},
+          user_signature: a.user_signature_key ? await S.download(BUCKET, a.user_signature_key) : null, user_signed_at: a.user_signed_at,
+          sa_signature: null, sa_signed_at: null });
+      await audit(me.email, 'preview_pdf', s.id, null, req);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="CP-101-preview.pdf"');
+      return res.end(Buffer.from(pdf));
     }
     if (action === 'app_pdf') {
       const a = await latestApp((await staffById(q.id)).id);
@@ -895,6 +926,10 @@ async function adminRoute(req, res, action, me, q) {
     case 'followup': return sendJSON(res, 200, await followup(req, me, b));
     case 'settings': return sendJSON(res, 200, await saveSettings(req, me, b));
     case 'batch': return sendJSON(res, 200, await buildBatch(req, me.email));
+    case 'push': {
+      const s = await staffById(b.id);
+      return sendJSON(res, 200, await buildBatch(req, me.email, [s.id]));
+    }
     case 'mark_sent': return sendJSON(res, 200, await markSent(req, me, b.id));
     case 'rotate': return sendJSON(res, 200, await rotate(req, me));
     case 'purge': { const r = await purge(); await audit(me.email, 'purge_run', null, r, req); return sendJSON(res, 200, Object.assign({ ok: true }, r)); }
@@ -918,7 +953,7 @@ async function cron(req, res) {
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const STAFF_ACTIONS = { apply: 1, save: 1, print: 1, scan: 1, submit: 1 };
-const NEEDS_KEY = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, reveal: 1, countersign: 1, rotate: 1 };
+const NEEDS_KEY = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, reveal: 1, countersign: 1, rotate: 1, preview_pdf: 1 };
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');

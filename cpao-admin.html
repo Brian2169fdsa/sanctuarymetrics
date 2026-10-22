@@ -224,6 +224,16 @@ function when(iso) { return iso ? new Date(iso).toLocaleString('en-US', { month:
 function day(d) { return d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
 function pill(s) { return '<span class="pill p-' + s + '">' + esc(LABEL[s] || s) + '</span>'; }
 function note(id, kind, text) { var n = $(id); if (!n) { return; } n.className = 'note ' + kind; n.hidden = !text; n.textContent = text || ''; }
+/* their CP-101: the signed file once countersigned, before that a preview
+   made on the fly. The tab opens first so the browser doesn't block it. */
+function viewPdf(id) {
+  var w = window.open('', '_blank');
+  fetch('/api/cpao?action=preview_pdf&id=' + encodeURIComponent(id), { credentials: 'same-origin' }).then(function (r) {
+    if (!r.ok) { return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Couldn\'t open the PDF (' + r.status + ').'); }); }
+    if (/json/.test(r.headers.get('content-type') || '')) { return r.json().then(function (j) { if (w) { w.location = j.url; } else { window.open(j.url, '_blank', 'noopener'); } }); }
+    return r.blob().then(function (b) { var u = URL.createObjectURL(b); if (w) { w.location = u; } else { window.open(u, '_blank'); } });
+  }).catch(function (e) { if (w) { w.close(); } note('s-note', 'err', e.message); });
+}
 function openFile(action) {
   return api('GET', action).then(function (j) { window.open(j.url, '_blank', 'noopener'); });
 }
@@ -555,7 +565,8 @@ function drawStaff(j) {
       '<div class="sub" style="margin:4px 0 0">' + pill(s.status) + ' &nbsp;' + esc(NEXT[s.status] || '') + '</div></div>' +
       '<div class="btnrow" style="margin:0">' +
         (canSign ? '<button class="btn" id="sign">Countersign and generate PDF</button>' : '') +
-        (a && a.has_pdf ? '<button class="btn alt" id="pdf">Download CP-101</button>' : '') +
+        (a && (a.submitted_at || a.has_pdf || a.has_signature || a.wet_signed) ? '<button class="btn alt" id="pdf">' + (a.has_pdf ? 'View signed CP-101' : 'View their CP-101') + '</button>' : '') +
+        (SA() && ['queued_for_batch', 'remove_requested'].indexOf(s.status) >= 0 ? '<button class="btn" id="push" title="Build the Add/Remove form and bundle for just them, today">Push through now</button>' : '') +
         (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0 ? '<button class="btn alt" id="reinv">Re-send invite</button>' : '') +
         (s.status === 'denied' ? '<button class="btn" id="reinv">Invite them to reapply</button>' : '') +
       '</div></div>' +
@@ -770,7 +781,20 @@ function wireStaff(s) {
         function (e) { btn.disabled = false; btn.textContent = 'Countersign and generate PDF'; note('s-note', 'err', e.message); });
     });
   }
-  if ($('pdf')) { $('pdf').addEventListener('click', function () { openFile('app_pdf&id=' + s.id).catch(function (e) { note('s-note', 'err', e.message); }); }); }
+  if ($('pdf')) { $('pdf').addEventListener('click', function () { viewPdf(s.id); }); }
+  if ($('push')) {
+    $('push').addEventListener('click', function () {
+      if (!confirm('Build the Add/Remove form for ' + s.first_name + ' ' + s.last_name + ' now, without waiting for the weekly batch?')) { return; }
+      var b = $('push'); b.disabled = true; b.textContent = 'Building…';
+      api('POST', 'push', { id: s.id }).then(function (j) {
+        return refresh(false).then(function () {
+          if (popOpen()) { popOpen().close(); }
+          location.hash = 'batch=' + j.batch_id;
+          setTimeout(function () { note('b-note', 'ok', 'Add/Remove form built for ' + s.first_name + ' ' + s.last_name + '. Download the bundle, send it to CPAO from your mailbox, then press Mark as Sent.'); }, 300);
+        });
+      }, function (e) { b.disabled = false; b.textContent = 'Push through now'; note('s-note', 'err', e.message); });
+    });
+  }
   if ($('reinv')) {
     $('reinv').addEventListener('click', function () {
       api('POST', 'invite', { id: s.id }).then(function (j) {
