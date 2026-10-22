@@ -215,6 +215,8 @@ function $(id) { return document.getElementById(id); }
 function LIM() { return !!(DATA && DATA.limited); }
 /* everyone else: their own progress (and certificates) only */
 function SELF() { return !!(DATA && DATA.self); }
+/* managers (CPAO_MANAGERS): everyone's stage, read-only */
+function MGR() { return !!(DATA && DATA.manager); }
 /* the Site Administrator himself: countersigning, settings and batches use his signature */
 function SA() { return !!(DATA && DATA.sa !== false && !LIM() && !SELF()); }
 var LETTER_KINDS = [['approved', 'Approved — training assigned'], ['denied', 'Denied'], ['correction', 'Correction or more information needed'],
@@ -247,9 +249,11 @@ function shell(inner) {
       (count ? '<small>' + count + '</small>' : '') + '</button>';
   };
   if (LIM()) {
-    $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access', 'Where each person is · CPAO letters', 'cpao') +
-      '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 6px">HEAplus access</h2>' +
-      '<p class="lead" style="margin:0 0 14px">When AHCCCS mails Sanctuary a letter about someone, press <b>View details</b> on their row and upload it in their card. Brian is alerted right away.</p>' +
+    $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access', MGR() ? 'Team progress' : 'Where each person is · CPAO letters', 'cpao') +
+      '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 6px">' + (MGR() ? 'HEAplus access — team progress' : 'HEAplus access') + '</h2>' +
+      '<p class="lead" style="margin:0 0 14px">' + (MGR()
+        ? 'Where each person is in getting HEAplus access, and since when. Press <b>View details</b> on a row to see their 10 steps. Brian handles the forms — questions go to him.'
+        : 'When AHCCCS mails Sanctuary a letter about someone, press <b>View details</b> on their row and upload it in their card. Brian is alerted right away.') + '</p>' +
       inner + '</section>' + pageFooter('CP-AO portal');
     return;
   }
@@ -315,6 +319,8 @@ function rosterView() {
       '<label class="fl wide">Work address<input id="i-addr" maxlength="200" value="' + esc(DATA.constants.default_work_address) + '"><span class="fh">Where they work — goes on the Add/Remove form. Change it for Cave Creek staff.</span></label>' +
       '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-sa" style="margin-top:3px"><span>Also a Site Administrator (Add-SA)' +
         '<span class="fh">Only tick this if they will also be a CP-AO Site Administrator like you. Most staff are plain "Add".</span></span></label>' +
+      '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-existing" style="margin-top:3px"><span>They already have HEAplus access — just add them to the tracker' +
+        '<span class="fh">No invite and no forms: they go straight on the roster as Active. The CP-101 is only for people added from now on. Works for the people you tick above too.</span></span></label>' +
       '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
@@ -354,13 +360,24 @@ function wireRoster() {
   $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
   wireDir();
   $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
+  $('i-existing').addEventListener('change', function () {
+    var ex = $('i-existing').checked;
+    $('i-go').textContent = ex ? 'Add to the tracker' : 'Send invite';
+    $('d-go').textContent = $('d-go').textContent.replace(/^(Invite|Add)/, ex ? 'Add' : 'Invite');
+    $('i-signin').closest('label').hidden = ex;
+  });
   $('inv').addEventListener('submit', function (e) {
     e.preventDefault();
     var btn = $('i-go'); btn.disabled = true;
     api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
       title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value,
-      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked, sign_in: $('i-signin').value }).then(function (j) {
+      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked, sign_in: $('i-signin').value, existing: $('i-existing').checked }).then(function (j) {
       btn.disabled = false;
+      if (j.existing) {
+        note('i-note', 'ok', j.staff.first_name + ' ' + j.staff.last_name + ' is on the tracker as Active — no forms needed.'); $('i-link').innerHTML = '';
+        ['i-first', 'i-last', 'i-email', 'i-hire'].forEach(function (id) { $(id).value = ''; });
+        return refresh(false);
+      }
       note('i-note', 'ok', j.emailed ? 'Invite emailed to ' + j.staff.email + '.' : (j.email_error || 'Email is off — copy this link and send it to them yourself' + (j.code ? ' (text or email)' : ' (Teams or Outlook)') + ':'));
       $('i-link').innerHTML = linkBox(j.link, j.code);
       ['i-first', 'i-last', 'i-email', 'i-hire'].forEach(function (id) { $(id).value = ''; });
@@ -452,7 +469,7 @@ function fillFrom(u) {
 function syncSel() {
   var n = Object.keys(DIR_SEL).filter(function (k) { return DIR_SEL[k]; }).length;
   $('d-bar').hidden = !n; $('d-n').textContent = n + ' selected';
-  $('d-go').textContent = 'Invite ' + (n === 1 ? 'them' : 'all ' + n);
+  $('d-go').textContent = ($('i-existing') && $('i-existing').checked ? 'Add ' : 'Invite ') + (n === 1 ? 'them' : 'all ' + n);
 }
 function wireDir() {
   $('d-q').addEventListener('input', drawDir);
@@ -473,16 +490,17 @@ function wireDir() {
       return p.then(function () {
         btn.textContent = 'Inviting ' + (out.length + 1) + ' of ' + emails.length + '…';
         var u = byEmail(e);
-        return api('POST', 'invite', inviteBody(u)).then(function (j) { out.push({ u: u, j: j }); u.on_roster = true; },
+        return api('POST', 'invite', Object.assign(inviteBody(u), { existing: $('i-existing').checked })).then(function (j) { out.push({ u: u, j: j }); u.on_roster = true; },
           function (err) { out.push({ u: u, err: err.message }); });
       });
     }, Promise.resolve()).then(function () {
       DIR_SEL = {}; btn.disabled = false; syncSel(); drawDir();
       var ok = out.filter(function (o) { return o.j; });
-      $('d-out').innerHTML = '<div class="note ok">' + ok.length + ' invited' + (ok.length && !ok[0].j.emailed ? ' — send each their link (Teams or Outlook):' : ' — emails sent.') + '</div>' +
+      var added = ok.length && ok[0].j.existing;
+      $('d-out').innerHTML = '<div class="note ok">' + ok.length + (added ? ' added to the tracker as Active — no forms needed.' : ' invited' + (ok.length && !ok[0].j.emailed ? ' — send each their link (Teams or Outlook):' : ' — emails sent.')) + '</div>' +
         out.map(function (o) {
           return '<p style="margin:10px 0 0;font-size:13.5px"><b>' + esc(o.u.first_name + ' ' + o.u.last_name) + '</b>' +
-            (o.err ? ' — <span style="color:#a3301a">' + esc(o.err) + '</span>' : '') + '</p>' + (o.j && !o.j.emailed ? linkBox(o.j.link) : '');
+            (o.err ? ' — <span style="color:#a3301a">' + esc(o.err) + '</span>' : '') + '</p>' + (o.j && !o.j.emailed && !o.j.existing ? linkBox(o.j.link) : '');
         }).join('');
       wireCopy();
       refresh(false);
@@ -541,11 +559,11 @@ function drawLimited(j) {
     '<h3 style="font-family:Fraunces,serif;font-size:24px;margin:0">' + esc(s.first_name + ' ' + s.last_name) + '</h3>' +
     '<div class="sub" style="margin:4px 0 0">' + pill(s.status) + '</div>' +
     '<div class="note" id="s-note" hidden></div>' + tracker(s) +
-    '<div class="card" style="margin-top:14px"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Letters from CPAO</div>' +
+    (MGR() ? '' : '<div class="card" style="margin-top:14px"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Letters from CPAO</div>' +
       ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
         return '<li>' + esc(f.text) + ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' +
           '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + '</div></li>'; }).join('') + '</ul>'
-        : '<p class="sub" style="margin:0">None yet.</p>') + '</div>';
+        : '<p class="sub" style="margin:0">None yet.</p>') + '</div>');
   if (inPop) { $('pop-body').innerHTML = html; } else { shell(html); }
   wireLetters(s);
 }
@@ -658,7 +676,7 @@ function tracker(s) {
       return '<li class="' + state + '"><div class="proc-h"><b>' + st.n + '. ' + esc(st.title) + '</b>' +
         '<span class="proc-t">' + (d && state ? (state === 'now' ? 'since ' : '') + day(d) : esc(st.time)) + '</span></div>' +
         (state === 'now' ? '<div class="proc-w">' + esc(st.who) + ' · usually ' + esc(st.time) + '</div><p>' + esc(st.text) + '</p>' : '') + '</li>';
-    }).join('') + '</ol>' + (SELF() ? certForm(s) : denyBranch(s) + (LIM() ? '' : certForm(s)) + letterForm(s)) + '</div>';
+    }).join('') + '</ol>' + (SELF() ? certForm(s) : MGR() ? '' : denyBranch(s) + (LIM() ? '' : certForm(s)) + letterForm(s)) + '</div>';
 }
 /* AZLearns certificates: once CPAO approves them, the person (or a HEAplus
    admin) uploads each course certificate; "that's all of them" moves them on */

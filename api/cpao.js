@@ -25,6 +25,7 @@
                   a batch, rotate the key or purge: those use his signature
                   or speak for him to CPAO (SITE_ADMIN_ONLY)
      cpao_mail    the roster, stages and CPAO letter uploads (mailRoute)
+     cpao_manager the roster and stages only, read-only (mailRoute, manager)
      everyone     their own stage in the process, found by their email
                   (selfRoute) — no application details — and, once CPAO
                   approves them, uploading their AZLearns certificates:
@@ -351,7 +352,18 @@ async function invite(req, me, b) {
     if (!row.first_name || !row.last_name) { throw bad('Add their first and last name.'); }
     if (!EMAIL.test(row.email)) { throw bad(personal ? 'Add their email.' : 'Add their work email.'); }
     const dup = await db('GET', 'cpao_staff', '?email=eq.' + encodeURIComponent(row.email) + '&status=not.in.(removed,denied)&select=id');
-    if (dup.length) { throw bad('They\'re already on the roster — use Re-send invite on their row.'); }
+    if (dup.length) { throw bad('They\'re already on the roster' + (b.existing === true ? '.' : ' — use Re-send invite on their row.')); }
+    /* someone who already has HEAplus access: on the tracker as Active, no
+       invite and no forms (the CP-101 is only for people added from now on) */
+    if (b.existing === true) {
+      const now = nowIso();
+      s = (await db('POST', 'cpao_staff', '', Object.assign(row, { status: 'active', heaplus_username: str(b.heaplus_username, 80) || null,
+        last_action: 'Added — already has HEAplus access', last_action_at: now })))[0];
+      try { s = await setStaff(s.id, {}, null, 'active'); } catch (e) { /* stage_dates not added yet */ }
+      await audit(me.email, 'add_existing', s.id, null, req);
+      delete s.invite_token_hash; delete s.invite_code_hash;
+      return { ok: true, staff: s, existing: true };
+    }
     s = (await db('POST', 'cpao_staff', '', Object.assign(row, fields, { last_action: 'Invited', last_action_at: nowIso() })))[0];
     if (personal) { const c = codeFields(s); code = c.code; s = await setStaff(s.id, c.fields); }
   }
@@ -811,17 +823,20 @@ function limitedStaff(s) {
   o.followups = (s.followups || []).filter(function (f) { return f.kind === 'letter'; });
   return o;
 }
-async function mailRoute(req, res, action, me, q) {
+async function mailRoute(req, res, action, me, q, manager) {
+  /* managers see stages only — not the letters */
+  const view = function (s) { const o = limitedStaff(s); if (manager) { o.followups = []; } return o; };
   if (req.method === 'GET' && action === 'roster') {
     const staff = await db('GET', 'cpao_staff', '?select=*&status=not.in.(removed)&order=updated_at.desc');
-    return sendJSON(res, 200, { limited: true, staff: staff.map(limitedStaff), batches: [], statuses: STATUSES, titles: R.TITLE_OPTIONS, constants: R.C,
+    return sendJSON(res, 200, { limited: true, manager: !!manager, staff: staff.map(view), batches: [], statuses: STATUSES, titles: R.TITLE_OPTIONS, constants: R.C,
       settings: { has_signature: true, site_admin_phone: 'x', batch_weekday: 1 }, setup: {} });
   }
   if (req.method === 'GET' && action === 'detail') {
     const s = await staffById(q.id);
     await audit(me.email, 'view_status', s.id, null, req);
-    return sendJSON(res, 200, { limited: true, staff: limitedStaff(s), app: null, links: {} });
+    return sendJSON(res, 200, { limited: true, manager: !!manager, staff: view(s), app: null, links: {} });
   }
+  if (manager) { return sendJSON(res, 403, { error: 'forbidden', message: 'This is a read-only view.' }); }
   if (req.method === 'GET' && action === 'file') {
     if (!/^mail\//.test(str(q.key, 300))) { throw bad('Only the site administrator can open that file.', 403); }
     return sendJSON(res, 200, await fileLink(req, me, q.key));
@@ -990,6 +1005,7 @@ module.exports = async function handler(req, res) {
       return await adminRoute(req, res, action, me, q);
     }
     if (acc.cpao_mail) { return await mailRoute(req, res, action, me, q); }
+    if (acc.cpao_manager) { return await mailRoute(req, res, action, me, q, true); }
     return await selfRoute(req, res, action, me);
   } catch (e) {
     if (e.bad) { return sendJSON(res, e.status, { error: e.kind || 'bad_request', message: e.message }); }

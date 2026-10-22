@@ -34,6 +34,10 @@ h1{font-family:Fraunces,serif;font-size:32px;font-weight:600;line-height:1.15;ma
 .ms:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .ms svg{width:21px;height:21px;flex:none}
 .ms[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.adm{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;text-align:center;height:42px;line-height:42px;margin-top:12px;border:1px solid #c8d3db;border-radius:8px;color:var(--navy2);font-weight:700;font-size:14px;background:#fff}
+.adm:hover{background:#f3f6f8}
+.adm:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.adm[hidden]{display:none}
 .hint{font-size:13px;color:var(--muted);line-height:1.5;margin:14px 0 0}
 .hint b{color:var(--ink);font-weight:600}
 .alert{border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:0 0 20px}
@@ -81,8 +85,9 @@ input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transp
       <path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>Sign in with Microsoft</a>
     <p class="hint">Only <b>@sanctuaryrecoverycenters.com</b> and <b>@sanctuaryrc.com</b> work accounts. No account yet? Ask an admin to add you.</p>
 
+    <button type="button" class="adm" id="admBtn">Admin login</button>
     <div id="pwArea" hidden>
-      <div class="or">or with a password</div>
+      <div class="or">Admin login — email and password</div>
       <form id="pwForm" novalidate>
         <label>Email<input id="email" type="email" autocomplete="username" required></label>
         <label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
@@ -132,7 +137,7 @@ input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transp
     $('loading').hidden = true;
     /* the password form is only for when Microsoft isn't set up, or an admin's ?password=1 */
     if (!j.microsoft || q.get('password') === '1') {
-      $('pwArea').hidden = false;
+      $('pwArea').hidden = false; $('admBtn').hidden = true;
       if (!j.microsoft) {
         $('msBtn').setAttribute('aria-disabled', 'true');
         if (!code) { show('info', ERRORS.notsetup); }
@@ -140,6 +145,11 @@ input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transp
     }
   }, function () { $('loading').textContent = 'Couldn\'t reach the site. Check your connection and reload.'; });
 
+  /* email + password: the admin's way in for test accounts (a personal
+     email added on the People page) or if Microsoft is down */
+  $('admBtn').addEventListener('click', function () {
+    $('pwArea').hidden = false; $('admBtn').hidden = true; $('email').focus();
+  });
   $('pwForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var btn = $('pwGo');

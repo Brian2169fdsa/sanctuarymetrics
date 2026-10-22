@@ -24,6 +24,8 @@
   font:400 16px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid #b9c7cf;border-radius:10px;padding:12px 13px;width:100%;box-sizing:border-box}
 .fq input:focus,.fq select:focus{outline:3px solid #1C9AD6;outline-offset:1px}
 .fq .hint{font-size:13px;color:#4f5f68}
+.dash{float:right;font-size:13px;font-weight:700;color:#14628a;text-decoration:none;margin-top:2px}
+.dash:hover{text-decoration:underline}
 .linkbtn{all:unset;cursor:pointer;color:#14628a;font-weight:700;text-decoration:underline}
 .fq .err{font-size:13.5px;color:#a3301a;font-weight:600}
 .fq.bad input,.fq.bad select{border-color:#a3301a}
@@ -253,7 +255,7 @@ function render() {
       return '<li class="' + (i.severity === 'warn' ? 'warn' : '') + '">' + esc(i.message_for_staff) +
         (i.step && i.step <= 7 ? '<button type="button" data-go="' + i.step + '">Go to ' + esc(STEPS[i.step - 1]) + ' →</button>' : '') + '</li>';
     }).join('') + '</ul>' : '';
-  shell('<span class="st-lab">Step ' + VIEW + ' of 7</span>' +
+  shell(dashLink() + '<span class="st-lab">Step ' + VIEW + ' of 7</span>' +
     '<ol class="st" aria-hidden="true">' + STEPS.map(function (s, i) { return '<li class="' + (i + 1 < VIEW ? 'done' : i + 1 === VIEW ? 'now' : '') + '"></li>'; }).join('') + '</ol>' +
     '<h2>' + STEPS[VIEW - 1] + '</h2>' + (VIEW === 7 || VIEW === 1 ? issues : '') +
     '<form id="stepform" novalidate>' + body +
@@ -264,13 +266,19 @@ function render() {
   var firstBad = document.querySelector('.fq.bad input, .fq.bad select, .tick.bad input');
   if (firstBad) { firstBad.focus(); }
 }
+/* signed-in staff can check their progress any time on the HEAplus tab */
+function dashLink() {
+  return ME ? '<a class="dash" href="cpao-admin.html">My HEAplus dashboard →</a>' : '';
+}
 function finished() {
   var st = D.staff.status;
   var text = st === 'ready_for_countersign' ? 'Your application is in. ' + esc(D.site_admin) + ' will review and countersign it, then send it to AHCCCS with this week\'s batch.'
     : 'Your application has been sent along. You\'ll get an email from AHCCCS with instructions for the AZLearns training. The AHCCCS background check can take 1 week to 3 months.';
   shell('<div class="done-card"><div class="big" aria-hidden="true">✓</div><h2>Thank you, ' + esc(D.staff.first_name) + '!</h2>' +
     '<p class="lead" style="margin:8px auto 0;max-width:460px">' + text + '</p>' +
-    '<p class="sub" style="margin-top:14px">You can close this page.</p></div>' +
+    (ME ? '<p style="margin-top:16px"><a class="btn" href="cpao-admin.html">Go to my HEAplus dashboard →</a></p>' +
+      '<p class="sub" style="margin-top:8px">Your dashboard shows where you are in the 10 steps, any time — and it\'s where you upload your AZLearns certificates later.</p>'
+      : '<p class="sub" style="margin-top:14px">You can close this page. ' + esc(D.site_admin) + ' will let you know when there\'s something for you to do.</p>') + '</div>' +
     '<h3 style="font-family:Fraunces,serif;font-size:20px;margin:24px 0 4px">What happens next</h3>' +
     '<p class="sub" style="margin:0 0 14px">You\'ve done step 2. Here\'s the whole process and how long each part usually takes.</p>' +
     cpaoProcessHtml({ current: (cpaoStageOf(D.staff.status) || { n: 3 }).n }));
