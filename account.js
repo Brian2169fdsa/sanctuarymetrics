@@ -176,7 +176,10 @@
               if (u.view_as && p.email === u.email) { return; }
               var o = document.createElement('option'); o.value = p.email; o.textContent = p.name + ' — ' + p.sees; sel.appendChild(o);
             });
-          }, function () { filled = false; /* not an admin after all */ });
+          }, function (e) {
+            filled = false;
+            var o = document.createElement('option'); o.disabled = true; o.textContent = 'Couldn\'t load people — ' + (e.message || 'try again'); sel.appendChild(o);
+          });
         };
         fill();
         sel.addEventListener('change', function () { SM.viewAs(sel.value); });

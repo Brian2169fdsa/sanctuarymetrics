@@ -61,19 +61,21 @@ async function account(request) {
   const base = process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_sessions?token_hash=eq.' + (await sha256(token)) +
     '&expires_at=gt.' + encodeURIComponent(new Date().toISOString()) + '&select=user:app_users(';
   const get = (cols) => fetch(base + cols + ')', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
-  let r = await get('disabled,role,access_reports,access_costs');
-  if (r.status === 400) { r = await get('disabled,role'); }
+  let r = await get('disabled,role,email,access_reports,access_costs');
+  if (r.status === 400) { r = await get('disabled,role,email'); }
   if (!r.ok) { return null; }
   const rows = await r.json();
   let u = rows[0] && rows[0].user;
   if (!u || u.disabled) { return null; }
-  /* an admin using "View as" gets that person's pages (lib/auth.js viewAs) */
+  /* the master admin using "View as" gets that person's pages (lib/auth.js viewAs) */
   const as = cookie(request, 'sm_view_as').trim().toLowerCase();
-  if (as && u.role === 'admin' && as.length <= 200) {
+  const master = (process.env.ADMIN_EMAILS || 'breinhart@sanctuaryrecoverycenters.com').split(',').map((x) => x.trim().toLowerCase());
+  if (as && u.role === 'admin' && master.indexOf(String(u.email || '').toLowerCase()) >= 0 && as.length <= 200) {
     const t = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_users?email=eq.' + encodeURIComponent(as) +
       '&select=disabled,role,access_reports,access_costs', { headers: { apikey: key, Authorization: 'Bearer ' + key } })
-      .then((x) => (x.ok ? x.json() : [])).catch(() => []);
-    if (t[0] && !t[0].disabled) { u = t[0]; }
+      .then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    /* no account yet: the pages a standard staff account gets */
+    if (t && t[0] && !t[0].disabled) { u = t[0]; } else if (t && !t[0]) { u = { role: 'member', access_reports: true, access_costs: false }; }
   }
   const admin = u.role === 'admin';
   return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };

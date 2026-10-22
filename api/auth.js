@@ -2,7 +2,7 @@
    /api/auth — sign in, sign out, who am I, change password.
 
      GET                                   → { user } (null when signed out)
-     GET ?viewas=list                      admins: everyone, for the "View as" menu
+     GET ?viewas=list                      the master admin: everyone, for the "View as" menu
      POST {action:'login', email, password}
      POST {action:'logout'}
      POST {action:'setup', email, password, team_password}
@@ -52,13 +52,32 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       if (new URL(req.url, 'http://x').searchParams.get('viewas') === 'list') {
         const real = await A.realUser(req);
-        if (!real || real.role !== 'admin') { return sendJSON(res, 403, { error: 'forbidden', message: 'Only admins can view as someone else.' }); }
-        const all = await supabase('GET', '?disabled=is.false&select=' + (await A.userCols()) + '&order=name.asc', null, null, 'app_users');
-        return sendJSON(res, 200, { people: all.filter(function (u) { return u.email !== real.email; }).map(function (u) {
-          return { email: u.email, name: u.name || u.email, sees: seesLabel(u) }; }) });
+        if (!A.canViewAs(real)) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only the master admin can view as someone else.' }); }
+        /* everyone with an account, plus people who don't have one yet: the
+           HEAplus roster and the HEAplus admin / manager / letter lists */
+        const all = await supabase('GET', '?select=' + (await A.userCols()) + '&order=name.asc', null, null, 'app_users');
+        const seen = {}, people = [];
+        all.forEach(function (u) {
+          seen[String(u.email).toLowerCase()] = 1;
+          if (!u.disabled && u.email !== real.email) { people.push({ email: u.email, name: u.name || u.email, sees: seesLabel(u) }); }
+        });
+        const extra = function (email, name) {
+          email = String(email || '').toLowerCase();
+          if (!email || seen[email] || email === real.email) { return; }
+          seen[email] = 1;
+          const u = { email: email, role: 'member', access_reports: true, access_costs: false };
+          people.push({ email: email, name: name || email, sees: seesLabel(u) + ' · no account yet' });
+        };
+        try {
+          (await supabase('GET', '?status=not.eq.removed&select=email,first_name,last_name&order=last_name.asc', null, null, 'cpao_staff'))
+            .forEach(function (r) { extra(r.email, r.first_name + ' ' + r.last_name); });
+        } catch (e) { /* no HEAplus tables yet */ }
+        A.cpaoAdmins().concat(A.cpaoManagers(), A.cpaoMailUploaders()).forEach(function (e) { extra(e); });
+        people.sort(function (x, y) { return x.name.localeCompare(y.name); });
+        return sendJSON(res, 200, { people: people });
       }
       const u = await A.currentUser(req);
-      return sendJSON(res, 200, { user: pub(u), microsoft: A.microsoftEnabled(), can_view_as: !!(u && (u.view_as || u.role === 'admin')) });
+      return sendJSON(res, 200, { user: pub(u), microsoft: A.microsoftEnabled(), can_view_as: A.canViewAs(await A.realUser(req)) });
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
