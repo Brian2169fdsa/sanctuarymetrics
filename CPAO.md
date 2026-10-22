@@ -115,7 +115,18 @@ To invite someone at a personal email, set **How they open it** to **Personal em
 - **HEAplus admins** see the full admin side: roster, invites, applications, stages, letters, certificates and the audit log. They are the site admins plus the emails in `CPAO_ADMINS`. The default list is joe@, kaycock@ and efischer@sanctuaryrecoverycenters.com.
 - **The Site Administrator only (Brian):** only a site admin can countersign, change Settings (signature and phone), build or mark the weekly batch, rotate the key or purge. Those steps use his signature or speak for him to CPAO. The other HEAplus admins don't see those buttons, don't get the signature pop-up, and the API refuses those steps for them.
 - **Letter uploaders** (`CPAO_MAIL_UPLOADERS`) see the roster, stages and letters.
+- **Managers** (`CPAO_MANAGERS`, default blee@sanctuaryrecoverycenters.com) see a read-only "team progress" view: everyone's stage and the date of each step. They can't see application details or letters, and can't invite anyone or change anything.
 - **Everyone else** sees only their own progress, matched by their sign-in email. If they've been denied, the page says Brian will be in touch rather than showing the denial. Once CPAO approves them (step 6), they upload each AZLearns certificate on the same page. Ticking "That's all of them" moves them to step 7 and gives Brian the "send certificates to CPAO" task. Admins can also upload certificates for someone in that person's card, and download the ones they uploaded.
+
+## People who already have HEAplus access
+
+The CP-101 is only for people added from now on. For someone who already has HEAplus access:
+1. Open **+ Invite someone**.
+2. Tick **They already have HEAplus access — just add them to the tracker**.
+3. Pick them from the Microsoft 365 list, or type their name and email. You can tick several at once.
+4. Press **Add to the tracker**.
+
+They go straight on the roster as **Active** (step 10). No invite, form or email is sent.
 
 ## What the staff member sees
 
