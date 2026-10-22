@@ -110,6 +110,13 @@ To invite someone at a personal email, set **How they open it** to **Personal em
 - **Security:** the server stores only a hash of the code. The roster marks these people "personal email".
 - **Setup:** this needs the `sign_in` and `invite_code_hash` columns from `supabase/cpao.sql`.
 
+## Who sees what on the HEAplus tab
+
+- **HEAplus admins** see the full admin side: roster, invites, applications, stages, letters, certificates and the audit log. They are the site admins plus the emails in `CPAO_ADMINS`. The default list is joe@, kaycock@ and efischer@sanctuaryrecoverycenters.com.
+- **The Site Administrator only (Brian):** only a site admin can countersign, change Settings (signature and phone), build or mark the weekly batch, rotate the key or purge. Those steps use his signature or speak for him to CPAO. The other HEAplus admins don't see those buttons, don't get the signature pop-up, and the API refuses those steps for them.
+- **Letter uploaders** (`CPAO_MAIL_UPLOADERS`) see the roster, stages and letters.
+- **Everyone else** sees only their own progress, matched by their sign-in email. If they've been denied, the page says Brian will be in touch rather than showing the denial. Once CPAO approves them (step 6), they upload each AZLearns certificate on the same page. Ticking "That's all of them" moves them to step 7 and gives Brian the "send certificates to CPAO" task. Admins can also upload certificates for someone in that person's card, and download the ones they uploaded.
+
 ## What the staff member sees
 
 Seven steps, saved as they go, so they can stop and come back with the same link:

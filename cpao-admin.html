@@ -98,6 +98,7 @@ dialog.pop::backdrop{background:rgba(22,38,59,.55)}
 .codebox{display:inline-flex;align-items:center;gap:12px;margin-top:8px;padding:8px 14px;border:1px solid #f1dca6;background:#fff8ec;border-radius:10px}
 .codebox span{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6C7C86}
 .codebox b{font-size:22px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.certs{margin:6px 0 12px;padding:12px 14px;border:1px solid #cfe3d6;border-radius:10px;background:#f3faf6}
 .deny-br{margin:0 0 12px 8px;padding:10px 12px;border:1px dashed #e4a99a;border-radius:10px;background:#fff8f6;font-size:13.5px}
 .deny-br.now{border-style:solid;border-color:#d9826c}
 .deny-br p{margin:3px 0 8px;color:#33434c;line-height:1.45}
@@ -212,6 +213,10 @@ var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 function $(id) { return document.getElementById(id); }
 /* CPAO mail uploaders (not admins) get a limited view: roster, stages, letters */
 function LIM() { return !!(DATA && DATA.limited); }
+/* everyone else: their own progress (and certificates) only */
+function SELF() { return !!(DATA && DATA.self); }
+/* the Site Administrator himself: countersigning, settings and batches use his signature */
+function SA() { return !!(DATA && DATA.sa !== false && !LIM() && !SELF()); }
 var LETTER_KINDS = [['approved', 'Approved — training assigned'], ['denied', 'Denied'], ['correction', 'Correction or more information needed'],
                     ['final', 'Final approval'], ['other', 'Other']];
 function api(method, action, body) { return SM.api(method, '/api/cpao?action=' + action, body); }
@@ -243,14 +248,14 @@ function shell(inner) {
     setupWarnings() +
     '<div class="ca-tabs" role="tablist">' +
       tab('roster', 'Roster', n(function (s) { return s.status === 'ready_for_countersign'; }) ? n(function (s) { return s.status === 'ready_for_countersign'; }) + ' to sign' : '') +
-      tab('batches', 'Weekly batches', '') + tab('settings', 'Settings', '') + tab('audit', 'Audit log', '') +
+      tab('batches', 'Weekly batches', '') + (SA() ? tab('settings', 'Settings', '') : '') + tab('audit', 'Audit log', '') +
     '</div>' + inner + '</section>' + pageFooter('CP-AO portal');
   document.querySelectorAll('[data-tab]').forEach(function (b) {
     b.addEventListener('click', function () { location.hash = b.getAttribute('data-tab'); });
   });
 }
 function setupWarnings() {
-  if (!DATA || LIM()) { return ''; }
+  if (!DATA || !SA()) { return ''; }
   var s = DATA.setup, w = [];
   if (!s.pii_key) { w.push('<b>CPAO_PII_KEY</b> isn\'t set in Vercel. You can invite people now, but they can\'t fill in the form, and you can\'t countersign, until it is (see CPAO.md).'); }
   if (!DATA.settings.has_signature) { w.push('Draw your <b>signature</b> under Settings — countersigning and the Org form need it.'); }
@@ -542,7 +547,7 @@ function drawStaff(j) {
   var secret = function (field, label, present) {
     return present ? '<span id="rv-' + field + '">' + label + '</span><button class="reveal" data-reveal="' + field + '">Show</button>' : '—';
   };
-  var canSign = ['ready_for_countersign', 'cpao_correction_requested'].indexOf(s.status) >= 0 && a && a.submitted_at;
+  var canSign = SA() && ['ready_for_countersign', 'cpao_correction_requested'].indexOf(s.status) >= 0 && a && a.submitted_at;
   var inPop = !!popOpen();
   var html = (inPop ? '' : '<a class="back" href="#roster">← Roster</a>') +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">' +
@@ -627,18 +632,73 @@ function tracker(s) {
   var nx = NEXT_STEP[s.status];
   var extra = s.status === 'cpao_correction_requested' ? '<p class="note err" style="margin:0 0 10px">CPAO asked for a correction — note it under Follow-ups, fix it, then press "Correction re-sent to CPAO".</p>'
     : s.status === 'denied' ? '<p class="note err" style="margin:0 0 10px">AHCCCS denied this application.</p>'
+    : s.status === 'on_hold' ? '<p class="note" style="margin:0 0 10px">' + esc(DATA.site_admin || 'Brian') + ' will be in touch with you about your application.</p>'
+    : SELF() && ['invited', 'in_progress', 'needs_fix'].indexOf(s.status) >= 0 ? '<p class="note" style="margin:0 0 10px">' +
+        (s.status === 'needs_fix' ? 'Your application needs a fix. ' : '') + 'Open the link in your invite email to ' + (s.status === 'invited' ? 'start' : 'continue') +
+        ' your application. Lost it? Ask ' + esc(DATA.site_admin || 'Brian') + ' to re-send it.</p>'
     : denialLetter(s) ? '<p class="note err" style="margin:0 0 10px">A denial letter from CPAO was uploaded ' + day(denialLetter(s).at) + ' — ' +
         (LIM() ? 'Brian has been alerted.' : 'record the denial and the reason below.') + '</p>'
     : /remove/.test(s.status) ? '<p class="note err" style="margin:0 0 10px">' + esc(LABEL[s.status]) + '.</p>' : '';
   return '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">' +
-      '<div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">Where they are' + (cur ? ' — step ' + cur.n + ' of 10' : '') + '</div>' +
-      (nx && !LIM() ? '<button class="btn next-btn" id="nx-go" data-to="' + nx[0] + '">✓ ' + esc(nx[1]) + '</button>' : '') + '</div>' + extra +
+      '<div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">' + (SELF() ? 'Where you are' : 'Where they are') + (cur ? ' — step ' + cur.n + ' of 10' : '') + '</div>' +
+      (nx && !LIM() && !SELF() ? '<button class="btn next-btn" id="nx-go" data-to="' + nx[0] + '">✓ ' + esc(nx[1]) + '</button>' : '') + '</div>' + extra +
     '<ol class="proc" style="margin-top:12px">' + CPAO_STAGES.map(function (st) {
       var d = stageDate(s, st), state = cur ? (st.n < cur.n ? 'done' : st.n === cur.n ? 'now' : '') : (d ? 'done' : '');
       return '<li class="' + state + '"><div class="proc-h"><b>' + st.n + '. ' + esc(st.title) + '</b>' +
         '<span class="proc-t">' + (d && state ? (state === 'now' ? 'since ' : '') + day(d) : esc(st.time)) + '</span></div>' +
         (state === 'now' ? '<div class="proc-w">' + esc(st.who) + ' · usually ' + esc(st.time) + '</div><p>' + esc(st.text) + '</p>' : '') + '</li>';
-    }).join('') + '</ol>' + denyBranch(s) + letterForm(s) + '</div>';
+    }).join('') + '</ol>' + (SELF() ? certForm(s) : denyBranch(s) + (LIM() ? '' : certForm(s)) + letterForm(s)) + '</div>';
+}
+/* AZLearns certificates: once CPAO approves them, the person (or a HEAplus
+   admin) uploads each course certificate; "that's all of them" moves them on */
+var CERT_OK = ['approved_training_assigned', 'training_complete'];
+function certForm(s) {
+  if (CERT_OK.indexOf(s.status) < 0) { return ''; }
+  var mine = SELF(), certs = mine ? (s.certs || []) : (s.followups || []).filter(function (f) { return f.kind === 'cert'; });
+  return '<div class="certs"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600">🎓 AZLearns certificates</div>' +
+    '<p class="sub" style="margin:4px 0 10px">' + (mine ? 'When you finish each AZLearns course, download its completion certificate and upload it here.'
+      : 'Upload certificates they emailed you, or download the ones they uploaded.') + '</p>' +
+    (certs.length ? '<ul class="fu">' + certs.map(function (f) {
+      return '<li>' + esc(f.text) + (!mine && f.file ? ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View</button>' : '') +
+        '<div class="sm">' + when(f.at) + (f.by ? ' · ' + esc(f.by) : '') + '</div></li>'; }).join('') + '</ul>'
+      : '<p class="sub" style="margin:0 0 10px">None uploaded yet.</p>') +
+    '<div class="f2"><label class="fl">Course name (optional)<input id="ct-course" maxlength="120" placeholder="e.g. HEAplus Assistor Training"></label>' +
+    '<label class="fl">Certificate (PDF, JPG or PNG, up to 4 MB)<input type="file" id="ct-file" accept="application/pdf,image/jpeg,image/png"></label></div>' +
+    (s.status === 'approved_training_assigned' ? '<label class="ck" style="margin-top:8px"><input type="checkbox" id="ct-done"> ' +
+      (mine ? 'That\'s all of them — I\'ve finished the training' : 'That\'s all of them — training is finished') + '</label>' : '') +
+    '<div class="btnrow"><button type="button" class="btn" id="ct-go">Upload certificate</button></div>' +
+    '<div class="note" id="ct-msg" hidden></div></div>';
+}
+function wireCerts(s) {
+  if (!$('ct-go')) { return; }
+  $('ct-go').addEventListener('click', function () {
+    var f = $('ct-file').files[0];
+    if (!f) { return note('ct-msg', 'err', 'Choose the certificate file.'); }
+    if (f.size > 4000000) { return note('ct-msg', 'err', 'That file is over 4 MB — save it as a PDF or a smaller photo.'); }
+    var done = $('ct-done') && $('ct-done').checked, b = $('ct-go'); b.disabled = true; b.textContent = 'Uploading…';
+    fetch('/api/cpao?action=cert_upload' + (SELF() ? '' : '&id=' + encodeURIComponent(s.id)) + (done ? '&done=1' : ''), {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/octet-stream', 'X-Course': encodeURIComponent($('ct-course').value.trim()) }, body: f
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); })
+      .then(function (j) {
+        var msg = j.status === 'training_complete' && done ? 'Certificates turned in — Brian will send them to CPAO for final approval.' : 'Certificate uploaded.';
+        (SELF() ? refresh(true) : Promise.resolve(afterChange(s.id))).then(function () { setTimeout(function () { note(SELF() ? 'me-note' : 's-note', 'ok', msg); }, 400); });
+      }, function (e) { b.disabled = false; b.textContent = 'Upload certificate'; note('ct-msg', 'err', e.message); });
+  });
+}
+/* everyone who isn't a HEAplus admin: where they are, and their certificates */
+function selfView() {
+  var s = DATA.mine;
+  $('sheet').innerHTML = pageHeader('HEAplus access', 'AHCCCS HEAplus · CP-AO', 'Your application', 'cpao') +
+    '<section><div class="eyebrow">HEAplus access</div>' +
+    (s ? '<h2 style="font-size:26px;margin:6px 0 6px">Hi ' + esc(s.first_name) + ' — here\'s where you are</h2>' +
+        '<p class="lead" style="margin:0">Getting HEAplus access takes 10 steps. The AHCCCS background check (step 5) is the long one — 1 week to 3 months.</p>' +
+        '<div class="note" id="me-note" hidden></div>' + tracker(s)
+      : '<h2 style="font-size:26px;margin:6px 0 6px">HEAplus access</h2>' +
+        '<p class="lead" style="margin:0 0 16px">You\'re not in the HEAplus (CP-AO) process. If you need HEAplus access to help clients apply for AHCCCS, ask ' +
+          esc(DATA.site_admin || 'Brian') + ' — he\'ll send you an invite. Here\'s how it works:</p>' + cpaoProcessHtml()) +
+    '</section>' + pageFooter('CP-AO portal');
+  if (s) { wireCerts(s); }
 }
 /* the "no" branch of the process: AHCCCS can deny at any point after it's sent */
 function denyBranch(s) {
@@ -748,6 +808,7 @@ function wireStaff(s) {
     });
   }
   wireLetters(s);
+  wireCerts(s);
   if ($('dn-go')) {
     $('dn-go').addEventListener('click', function () {
       if (!$('dn-reason').value.trim()) { note('s-note', 'err', 'Add the reason CPAO gave for the denial.'); return; }
@@ -777,17 +838,19 @@ function batchesView(open) {
   var queued = DATA.staff.filter(function (s) { return s.status === 'queued_for_batch' || s.status === 'remove_requested'; });
   shell('<div class="card"><b>Next batch:</b> every ' + DAYS[DATA.settings.batch_weekday] + ' at 8:00 am. ' +
       (queued.length ? queued.length + ' waiting: ' + queued.map(function (s) { return esc(s.first_name + ' ' + s.last_name) + (s.status === 'remove_requested' ? ' (remove)' : ''); }).join(', ') + '.' : 'Nobody waiting right now.') +
-      '<div class="btnrow"><button class="btn" id="build"' + (queued.length ? '' : ' disabled') + '>Build the batch now</button>' +
-      '<span class="sub" style="margin:0">Re-running replaces a batch you haven\'t marked sent yet.</span></div><div class="note" id="b-note" hidden></div></div>' +
+      (SA() ? '<div class="btnrow"><button class="btn" id="build"' + (queued.length ? '' : ' disabled') + '>Build the batch now</button>' +
+      '<span class="sub" style="margin:0">Re-running replaces a batch you haven\'t marked sent yet.</span></div>'
+        : '<p class="sub" style="margin:8px 0 0">' + esc(DATA.constants.site_admin_name || 'Brian') + ' builds, signs and sends the batch.</p>') +
+      '<div class="note" id="b-note" hidden></div></div>' +
     (b.length ? '<table class="tbl"><thead><tr><th>Week of</th><th>Who</th><th>Status</th><th>Files</th><th></th></tr></thead><tbody>' + b.map(function (x) {
       return '<tr' + (open === x.id ? ' style="background:#fffaf0"' : '') + '><td>' + day(x.week_of) + '</td>' +
         '<td>' + (x.rows || []).map(function (r) { return esc(r.name) + ' <span class="sm">' + esc(r.action) + '</span>'; }).join('<br>') + '</td>' +
         '<td>' + (x.status === 'draft' ? '<span class="pill p-ready_for_countersign">Ready to send</span>' : '<span class="pill p-sent_to_cpao">Sent ' + day(x.sent_at) + '</span>') + '</td>' +
         '<td>' + (x.bundle_storage_key ? '<button class="btn alt" data-file="' + esc(x.bundle_storage_key) + '">Bundle</button> <button class="btn alt" data-file="' + esc(x.org_form_storage_key) + '">Org form</button>' : '<span class="sm">Removed (retention)</span>') + '</td>' +
-        '<td>' + (x.status === 'draft' ? '<button class="btn" data-sent="' + x.id + '">Mark as Sent</button>' : '') + '</td></tr>';
+        '<td>' + (x.status === 'draft' && SA() ? '<button class="btn" data-sent="' + x.id + '">Mark as Sent</button>' : '') + '</td></tr>';
     }).join('') + '</tbody></table>' : '<div class="placeholder">No batches yet.</div>') +
     '<p class="sub" style="margin-top:12px">Send the bundle to <b>' + esc(DATA.constants.cpao_ops_email) + '</b> from your own mailbox — only the site administrator may email CPAO. Then press Mark as Sent.</p>');
-  $('build').addEventListener('click', function () {
+  if ($('build')) $('build').addEventListener('click', function () {
     var btn = $('build'); btn.disabled = true; btn.textContent = 'Building…';
     api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. A task is on your Projects page.'); }); },
       function (e) { btn.disabled = false; btn.textContent = 'Build the batch now'; note('b-note', 'err', e.message); });
@@ -876,7 +939,7 @@ function setupGate(view) {
   if (view !== GATE_VIEW) { GATE_VIEW = view; GATE_LATER = false; }
   var old = $('gate');
   if (old) { old.remove(); }
-  if (!DATA || LIM() || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
+  if (!DATA || !SA() || DATA.settings.has_signature || view === 'settings' || GATE_LATER) { return; }
   document.body.insertAdjacentHTML('beforeend',
     '<dialog class="gate" id="gate" aria-labelledby="gate-h"><div class="gate-in">' +
       '<div class="gate-steps"><span>1. Your signature</span><span class="' + (DATA.settings.site_admin_phone ? 'done' : '') + '">2. Office phone</span></div>' +
@@ -915,11 +978,12 @@ function setupGate(view) {
 }
 function route() {
   var h = location.hash.replace(/^#/, ''), k = h.split('=')[0], v = h.split('=')[1];
+  if (SELF()) { return selfView(); }
   setupGate(k);
   if (k === 'staff' && v) { return staffView(v); }
   if (LIM()) { return rosterView(); }
   if (k === 'batches' || k === 'batch') { return batchesView(v); }
-  if (k === 'settings') { return settingsView(); }
+  if (k === 'settings' && SA()) { return settingsView(); }
   if (k === 'audit') { return auditView(); }
   rosterView();
 }
