@@ -525,7 +525,8 @@ function drawStaff(j) {
         denialCard(s) +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Follow-ups</div>' +
           ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
-            return '<li>' + esc(f.text) + '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + (f.due ? ' · reminder ' + day(f.due) : '') + '</div></li>';
+            return '<li>' + esc(f.text) + (f.file ? ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' : '') +
+              '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + (f.due ? ' · reminder ' + day(f.due) : '') + '</div></li>';
           }).join('') + '</ul>' : '<p class="sub" style="margin:0 0 10px">Nothing yet. Log anything CPAO asks for, calls, emails or what you\'re waiting on.</p>') +
           '<div class="f2"><label class="fl wide">New follow-up<textarea id="fu-text" rows="2" maxlength="1000" placeholder="e.g. CPAO asked for a clearer copy of page 4 — re-sent 10/24"></textarea></label>' +
           '<label class="fl">Remind me on<input type="date" id="fu-due"><span class="fh">Optional — adds a task on the Projects page.</span></label></div>' +
@@ -623,6 +624,9 @@ function wireStaff(s) {
         .then(function () { afterChange(s.id); }, function (e) { b.disabled = false; note('s-note', 'err', e.message); });
     });
   }
+  document.querySelectorAll('[data-letter]').forEach(function (b) {
+    b.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(b.getAttribute('data-letter'))).catch(function (e) { note('s-note', 'err', e.message); }); });
+  });
   if ($('dn-go')) {
     $('dn-go').addEventListener('click', function () {
       if (!$('dn-reason').value.trim()) { note('s-note', 'err', 'Add the reason CPAO gave for the denial.'); return; }

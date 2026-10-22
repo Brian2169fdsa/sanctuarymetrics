@@ -45,6 +45,7 @@ function render(socialNew) {
       can('admin') && socialNew ? socialNew + ' to post' : '') +
     tile('print.html', '🖨️', 'Print shop', 'Business cards, flyers and presentations — order or ask for changes.') +
     tile('website.html', '🌐', 'Website edits', 'Ask for a change on any page of sanctuaryrecoverycenters.com.') +
+    (can('cpao_mail') ? tile('cpao-mail.html', '✉️', 'CPAO mail', 'Upload a letter AHCCCS mailed about someone\'s HEAplus access — Brian is alerted.') : '') +
     tile('projects.html', '📋', can('reports') ? 'Projects' : 'My requests',
       can('reports') ? 'The marketing project list, with messages on every item.' : 'Everything you\'ve asked for, and where it stands.');
   var reports = can('reports') ?
