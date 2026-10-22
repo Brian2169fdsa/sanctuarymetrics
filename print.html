@@ -37,7 +37,7 @@
 .po-foot{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px}
 .po-err{grid-column:1/-1;padding:10px 12px;border-radius:9px;background:#fbeae6;color:#8f2f1b;font-size:13px}
 .po-ok{grid-column:1/-1;padding:12px 14px;border-radius:9px;background:#e9f5ee;color:#1f5a37;font-size:14px}
-.po-err[hidden],.po-ok[hidden]{display:none}
+.po-err[hidden],.po-ok[hidden],.po-f[hidden]{display:none}
 /* ── the shop: one tile per product ── */
 .sh-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
 .sh-cats{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
@@ -83,6 +83,59 @@
   box-shadow:0 10px 22px rgba(28,154,214,.35)}
 .sh-back{display:inline-block;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;margin-bottom:8px}
 .sh-back:hover{text-decoration:underline}
+/* ── order status + hand-out log ── */
+.or-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.or-sum{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 16px}
+.or-sum div{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 14px;min-width:104px}
+.or-sum b{display:block;font-family:Fraunces,serif;font-size:22px;font-weight:600;line-height:1.1}
+.or-sum span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.or-list{display:flex;flex-direction:column;gap:10px}
+.or{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:start;background:#fff;border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px}
+.or.done{opacity:.7}
+.or-th{width:64px;height:82px;border-radius:6px;background:linear-gradient(160deg,#f3f7fa,#e6eef3);display:grid;place-items:center;overflow:hidden}
+.or-th img{width:100%;height:100%;object-fit:cover}
+.or-th i{font-style:normal;font-size:24px;color:#2C5468}
+.or-name{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.or-name b{font-family:Fraunces,serif;font-size:16.5px;font-weight:600}
+.or-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;background:#eef3f6;color:#2C5468;white-space:nowrap}
+.or-pill.s-requested{background:#fff4e5;color:#9a5b00}
+.or-pill.s-ordered{background:#e8f3fb;color:#14628a}
+.or-pill.s-shipped{background:#ece9fb;color:#4a3aa8}
+.or-pill.s-delivered{background:#e6f4ee;color:#1f6b4f}
+.or-pill.s-handed_out{background:#eef3f6;color:var(--muted)}
+.or-pill.s-cancelled{background:#fbeae6;color:#a33a20}
+.or-pill.late{background:#fbeae6;color:#a33a20}
+.or-meta{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.or-steps{display:flex;margin:10px 0 2px;max-width:460px}
+.or-steps span{flex:1;position:relative;font-size:10.5px;font-weight:600;color:#9aa8b0;padding-top:14px;text-align:center}
+.or-steps span::before{content:'';position:absolute;top:3px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#d6e0e6;z-index:1}
+.or-steps span::after{content:'';position:absolute;top:7px;left:-50%;width:100%;height:2px;background:#d6e0e6}
+.or-steps span:first-child::after{display:none}
+.or-steps span.on{color:var(--ink)}
+.or-steps span.on::before{background:#2E8B6F}
+.or-steps span.on::after{background:#2E8B6F}
+.or-steps span.now::before{box-shadow:0 0 0 4px rgba(46,139,111,.2)}
+.or-stock{margin-top:8px;font-size:12.5px;color:var(--ink)}
+.or-bar{height:6px;border-radius:4px;background:#e6eef3;overflow:hidden;margin-top:5px;max-width:460px}
+.or-bar i{display:block;height:100%;background:#EE6A2C}
+.or-act{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.or-act button{font-family:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap;
+  border:1px solid var(--line);background:#fff;color:var(--ink)}
+.or-act button:hover{border-color:#bcd3df}
+.or-act button.go{background:#2C5468;border-color:#2C5468;color:#fff}
+.or-act button.go:hover{background:#16263B}
+.or-edit{grid-column:1/-1;border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+.or-edit[hidden]{display:none}
+.or-tabs{display:flex;gap:8px;margin:0 0 12px}
+.or-empty{padding:16px;border:2px dashed #cbd8df;border-radius:11px;color:var(--muted);font-size:13px;text-align:center}
+.ho-wrap{margin-top:26px}
+.ho-tbl td,.ho-tbl th{font-size:13px}
+.ho-tbl .x{all:unset;cursor:pointer;color:#a33a20;font-size:12px;font-weight:600}
+.ho-tbl .x:hover{text-decoration:underline}
+.ho-places{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
+.ho-places span{font-size:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 10px}
+.ho-places b{font-weight:700}
 @media (max-width:720px){
   .po-cards,.po-form{grid-template-columns:1fr}
   .sh-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
@@ -90,6 +143,13 @@
   .sh-img img.fly{height:162px}
   .sh-body b{font-size:16px}
   .sh-foot{flex-direction:column;align-items:flex-start}
+  .or-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .or-sum div{min-width:0;padding:8px}
+  .or-sum b{font-size:18px}
+  .or-sum span{font-size:9.5px;letter-spacing:.04em}
+  .or{grid-template-columns:48px 1fr}
+  .or-th{width:48px;height:62px}
+  .or-act{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}
 }
 </style>
 </head>
@@ -116,6 +176,9 @@
    full size on flyer.html, where people click any part of it to ask for a
    change and say how many to print. A design that doesn't exist yet is a
    "new flyer" request, at the end of the flyers section.
+
+   Order status (bottom of the shop): every print order and where it is,
+   plus the hand-out log — see "order status + hand-out log" below.
 
    To add a flyer: see the top of flyers.js. */
 var CARD_QTY = [250, 500, 1000];
@@ -283,7 +346,8 @@ function shopSection() {
   return '<section id="shop">' +
     '<div class="eyebrow">Print shop</div>' +
     '<h2 style="font-size:28px;margin:6px 0 0">What do you need printed?</h2>' +
-    '<p class="lead">Pick a product to customize it. Every order goes to marketing as a task, and you\'ll hear back before anything prints.</p>' +
+    '<p class="lead">Pick a product to customize it. Every order goes to marketing as a task, and you\'ll hear back before anything prints. ' +
+      '<a href="#orders">See where orders are at ↓</a></p>' +
     '<div class="sh-cats" role="group" aria-label="Show">' + CATS.map(function (c) {
       return '<button type="button" class="sh-cat" data-cat="' + c[0] + '" aria-pressed="' + (CAT === c[0]) + '">' +
         esc(c[1]) + '<small>' + count(c[0]) + '</small></button>';
@@ -316,7 +380,7 @@ function newFlyerSection() {
 function render() {
   var view = location.hash.slice(1);
   if (view === 'flyers') { CAT = 'flyers'; }
-  var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : shopSection();
+  var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : shopSection() + ordersSection();
   document.getElementById('sheet').innerHTML =
     pageHeader('Print Orders', 'Cards, flyers &amp; presentations &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
     (passwordCard() ? '<section style="padding-bottom:0">' + passwordCard() + '</section>' : '') +
@@ -324,7 +388,12 @@ function render() {
     pageFooter('print requests');
   if (view === 'cards') { refreshCard(); }
   wire();
-  window.scrollTo(0, 0);
+  if (document.getElementById('orders')) {
+    wireOrders();
+    if (ORD || ORD_ERR) { drawOrders(); } else { loadOrders(); }
+  }
+  var target = (view === 'orders' || view === 'handouts') && document.getElementById(view);
+  if (target) { target.scrollIntoView(); } else { window.scrollTo(0, 0); }
 }
 window.addEventListener('hashchange', function () { SM.ready.then(render); });
 /* presentations come from the server (signed-in only); the shop shows them once they arrive */
@@ -334,6 +403,287 @@ function loadDecks() {
     DECKS = j.decks || []; DECK_ADMIN = !!j.admin;
     if (document.getElementById('shop')) { render(); }
   }, function () { /* not set up yet — the shop still shows the Presentations tile */ });
+}
+
+/* ── order status + hand-out log (bottom of the shop) ─────────────────────
+   Orders live in Supabase (supabase/print-orders.sql) and come from
+   /api/requests (GET). Admins move an order along (Requested → Ordered →
+   Shipped → Delivered); anyone can log where materials were handed out,
+   and each delivered order shows how many are left. */
+var STEPS = [['requested', 'Requested'], ['ordered', 'Ordered'], ['shipped', 'Shipped'], ['delivered', 'Delivered']];
+var STATUS_LABEL = { requested: 'Requested', ordered: 'Ordered', shipped: 'Shipped', delivered: 'Delivered — in stock',
+                     handed_out: 'All handed out', cancelled: 'Cancelled' };
+var ORD = null, ORD_ERR = '', ORD_FILTER = 'open', ORD_EDIT = null;
+
+function call(method, url, body) {
+  var h = { 'Content-Type': 'application/json' };
+  if (lsGet(PW_KEY) !== null) { h['X-Projects-Password'] = lsGet(PW_KEY); }
+  return fetch(url, { method: method, credentials: 'same-origin', headers: h, body: body ? JSON.stringify(body) : undefined })
+    .then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.code = j.error; throw e; }
+        return j;
+      });
+    });
+}
+function loadOrders() {
+  return call('GET', API).then(function (j) { ORD = j; ORD_ERR = ''; }, function (e) { ORD_ERR = e.message; })
+    .then(drawOrders);
+}
+
+function todayStr() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }); }
+function dayLabel(d) {
+  if (!d) { return ''; }
+  var t = new Date(d + 'T12:00:00');
+  return t.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function daysFrom(d) { return Math.round((new Date(d + 'T12:00:00') - new Date(todayStr() + 'T12:00:00')) / 864e5); }
+function versionById(id) {
+  var hit = null;
+  FLYER_CATALOG.forEach(function (f) { f.versions.forEach(function (v) { if (v.id === id) { hit = v; } }); });
+  return hit;
+}
+function handedOut(order) {
+  return (ORD.handouts || []).filter(function (h) { return h.order_id === order.id; })
+    .reduce(function (n, h) { return n + h.quantity; }, 0);
+}
+function isOpen(o) { return o.status !== 'handed_out' && o.status !== 'cancelled'; }
+
+function orderCard(o) {
+  var v = o.item_ref && versionById(o.item_ref);
+  var thumb = v ? '<img src="' + esc(flyerThumb(v)) + '" alt="" loading="lazy">'
+                : '<i aria-hidden="true">' + (o.kind === 'business_cards' ? '▭' : o.kind === 'presentation' ? '▶' : '▤') + '</i>';
+  var meta = [];
+  meta.push(o.quantity !== null && o.quantity !== undefined ? fmt(o.quantity) + ' printed' : 'Quantity not set yet');
+  if (o.vendor) { meta.push('from ' + esc(o.vendor)); }
+  var late = false;
+  if (o.status === 'delivered' || o.status === 'handed_out') {
+    if (o.delivered_on) { meta.push('delivered ' + dayLabel(o.delivered_on)); }
+  } else if (o.expected_on && o.status !== 'cancelled') {
+    var n = daysFrom(o.expected_on);
+    late = n < 0;
+    meta.push('<b>' + (n === 0 ? 'arriving today' : n === 1 ? 'arriving tomorrow' : n < 0 ? 'was due ' : 'arriving ') +
+      (n === 0 || n === 1 ? ' · ' : '') + dayLabel(o.expected_on) + '</b>');
+  }
+  if (o.stored_at) { meta.push('kept at ' + esc(o.stored_at)); }
+  if (o.requested_by_name) { meta.push('asked for by ' + esc(o.requested_by_name)); }
+
+  var at = STEPS.map(function (s) { return s[0]; }).indexOf(o.status);
+  if (o.status === 'handed_out') { at = STEPS.length; }
+  var steps = o.status === 'cancelled' ? '' : '<div class="or-steps" aria-label="Progress">' + STEPS.map(function (s, i) {
+    return '<span class="' + (i <= at ? 'on' : '') + (i === at ? ' now' : '') + '">' + s[1] + '</span>';
+  }).join('') + '</div>';
+
+  var stock = '';
+  var out = handedOut(o);
+  if (o.status === 'delivered' || o.status === 'handed_out' || out) {
+    if (o.quantity) {
+      var left = Math.max(0, o.quantity - out);
+      stock = '<div class="or-stock"><b>' + fmt(left) + ' left</b> of ' + fmt(o.quantity) + ' · ' + fmt(out) + ' handed out' +
+        '<div class="or-bar"><i style="width:' + Math.min(100, Math.round(out / o.quantity * 100)) + '%"></i></div></div>';
+    } else if (out) {
+      stock = '<div class="or-stock">' + fmt(out) + ' handed out so far</div>';
+    }
+  }
+
+  var acts = [];
+  if (o.status === 'delivered') {
+    acts.push('<button type="button" data-ho="' + o.id + '" class="go">Log hand-out</button>');
+  }
+  if (ORD.admin) {
+    if (o.status === 'requested') { acts.push('<button type="button" class="go" data-to="ordered" data-id="' + o.id + '">Mark ordered</button>'); }
+    if (o.status === 'ordered' || o.status === 'shipped') { acts.push('<button type="button" class="go" data-to="delivered" data-id="' + o.id + '">Mark delivered</button>'); }
+    acts.push('<button type="button" data-edit="' + o.id + '">Edit</button>');
+  }
+  return '<div class="or' + (isOpen(o) ? '' : ' done') + '" id="or-' + o.id + '">' +
+    '<div class="or-th">' + thumb + '</div>' +
+    '<div><div class="or-name"><b>' + esc(o.item) + '</b><span class="or-pill s-' + o.status + (late ? ' late' : '') + '">' +
+      (late ? 'Late' : STATUS_LABEL[o.status]) + '</span></div>' +
+      '<div class="or-meta">' + meta.join(' · ') + '</div>' + steps + stock +
+      (o.notes ? '<div class="or-meta">' + esc(o.notes) + '</div>' : '') + '</div>' +
+    '<div class="or-act">' + acts.join('') + '</div>' +
+    (ORD.admin ? '<div class="or-edit"' + (ORD_EDIT === o.id ? '' : ' hidden') + '>' + editForm(o) + '</div>' : '') +
+  '</div>';
+}
+function editForm(o) {
+  var p = 'oe-' + o.id;
+  return '<form class="po-form" data-form="' + o.id + '" novalidate>' +
+    '<label class="po-f po-wide">What<input name="item" maxlength="200" value="' + esc(o.item) + '"></label>' +
+    '<label class="po-f">Where it is<select name="status">' + Object.keys(STATUS_LABEL).map(function (k) {
+      return '<option value="' + k + '"' + (o.status === k ? ' selected' : '') + '>' + STATUS_LABEL[k] + '</option>'; }).join('') + '</select></label>' +
+    '<label class="po-f">How many printed<input name="quantity" type="number" min="0" max="100000" value="' + (o.quantity === null || o.quantity === undefined ? '' : o.quantity) + '"></label>' +
+    '<label class="po-f">Printer / vendor<input name="vendor" maxlength="200" value="' + esc(o.vendor || '') + '"></label>' +
+    '<label class="po-f">Expected<input name="expected_on" type="date" value="' + esc(o.expected_on || '') + '"></label>' +
+    '<label class="po-f">Delivered on<input name="delivered_on" type="date" value="' + esc(o.delivered_on || '') + '"></label>' +
+    '<label class="po-f">Kept at<input name="stored_at" maxlength="200" placeholder="e.g. Thunderbird office supply closet" value="' + esc(o.stored_at || '') + '"></label>' +
+    '<label class="po-f po-wide">Notes<textarea name="notes" rows="2" maxlength="2000">' + esc(o.notes || '') + '</textarea></label>' +
+    '<div class="po-err" id="' + p + '-err" role="alert" hidden></div>' +
+    '<div class="po-foot"><button type="submit" class="btn">Save</button>' +
+    '<button type="button" class="btn ghost" data-close="1">Close</button></div></form>';
+}
+function addOrderForm() {
+  return '<div class="or-edit" id="or-add" style="border:0;padding:0" hidden><div class="card"><form class="po-form" data-form="new" novalidate>' +
+    '<div class="po-sec" style="margin-top:0">Add an order</div>' +
+    '<label class="po-f po-wide">What was ordered<input name="item" maxlength="200" placeholder="e.g. Women\'s Program flyer, or Business cards — Jane Doe"></label>' +
+    '<label class="po-f">Type<select name="kind"><option value="flyer">Flyer</option><option value="business_cards">Business cards</option>' +
+      '<option value="presentation">Presentation</option><option value="other">Other</option></select></label>' +
+    '<label class="po-f">Flyer design<select name="item_ref"><option value="">—</option>' + FLYER_CATALOG.map(function (f) {
+      return f.versions.map(function (v) { return '<option value="' + esc(v.id) + '">' + esc(f.title + (f.versions.length > 1 ? ' — ' + v.label : '')) + '</option>'; }).join('');
+    }).join('') + '</select></label>' +
+    '<label class="po-f">Where it is<select name="status">' + Object.keys(STATUS_LABEL).map(function (k) {
+      return '<option value="' + k + '"' + (k === 'ordered' ? ' selected' : '') + '>' + STATUS_LABEL[k] + '</option>'; }).join('') + '</select></label>' +
+    '<label class="po-f">How many<input name="quantity" type="number" min="0" max="100000"></label>' +
+    '<label class="po-f">Printer / vendor<input name="vendor" maxlength="200"></label>' +
+    '<label class="po-f">Expected<input name="expected_on" type="date"></label>' +
+    '<label class="po-f po-wide">Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>' +
+    '<div class="po-err" id="oe-new-err" role="alert" hidden></div>' +
+    '<div class="po-foot"><button type="submit" class="btn">Add order</button><button type="button" class="btn ghost" data-close="1">Cancel</button></div>' +
+  '</form></div></div>';
+}
+
+function handoutForm() {
+  var opts = (ORD.orders || []).filter(function (o) { return o.status !== 'cancelled' && o.status !== 'requested'; });
+  return '<div class="card" id="ho-card"><form class="po-form" id="ho-form" novalidate>' +
+    '<div class="po-sec" style="margin-top:0">Log a hand-out</div>' +
+    '<label class="po-f po-wide">What you handed out<select id="ho-order"><option value="">Pick one…</option>' +
+      opts.map(function (o) { return '<option value="' + o.id + '">' + esc(o.item) + '</option>'; }).join('') +
+      '<option value="other">Something else…</option></select></label>' +
+    '<label class="po-f po-wide" id="ho-item-wrap" hidden>What was it<input id="ho-item" maxlength="200" placeholder="e.g. Business cards, brochures"></label>' +
+    '<label class="po-f">How many<input id="ho-qty" type="number" min="1" max="100000" placeholder="e.g. 25"></label>' +
+    '<label class="po-f">When<input id="ho-date" type="date" max="' + todayStr() + '" value="' + todayStr() + '"></label>' +
+    '<label class="po-f po-wide">Where / which event<input id="ho-loc" maxlength="300" placeholder="e.g. Banner Thunderbird ER, Phoenix recovery walk, Desert Vista High School"></label>' +
+    '<label class="po-f">Who got them<input id="ho-aud" maxlength="200" placeholder="Optional — e.g. case managers, parents"></label>' +
+    '<label class="po-f">Notes<input id="ho-notes" maxlength="1000" placeholder="Optional — follow-ups, who to call"></label>' +
+    (SM.me ? '' : '<label class="po-f">Your name<input id="ho-by" maxlength="120" value="' + esc(me().name || '') + '"></label>') +
+    formFoot('ho', 'Log it') +
+  '</form></div>';
+}
+function handoutList() {
+  var list = ORD.handouts || [];
+  if (!list.length) { return '<div class="or-empty">Nothing logged yet. When you drop flyers somewhere, log it above.</div>'; }
+  var places = {};
+  list.forEach(function (h) { var k = h.location.trim(); places[k] = (places[k] || 0) + h.quantity; });
+  var top = Object.keys(places).sort(function (a, b) { return places[b] - places[a]; }).slice(0, 8);
+  var total = list.reduce(function (n, h) { return n + h.quantity; }, 0);
+  return '<p class="sub" style="margin:0 0 6px"><b>' + fmt(total) + '</b> handed out at <b>' + Object.keys(places).length + '</b> place' +
+      (Object.keys(places).length === 1 ? '' : 's') + '. Most so far:</p>' +
+    '<div class="ho-places">' + top.map(function (k) { return '<span>' + esc(k) + ' · <b>' + fmt(places[k]) + '</b></span>'; }).join('') + '</div>' +
+    '<table class="ho-tbl"><thead><tr><th>When</th><th>What</th><th>How many</th><th>Where</th><th>Who got them</th><th>Logged by</th><th></th></tr></thead><tbody>' +
+    list.map(function (h) {
+      var mine = ORD.admin || (ORD.me && h.created_by === ORD.me);
+      return '<tr><td data-label="When">' + dayLabel(h.handed_out_on) + '</td><td data-label="What">' + esc(h.item) + '</td>' +
+        '<td data-label="How many">' + fmt(h.quantity) + '</td><td data-label="Where">' + esc(h.location) +
+        (h.notes ? '<div class="or-meta">' + esc(h.notes) + '</div>' : '') + '</td>' +
+        '<td data-label="Who got them">' + esc(h.audience || '—') + '</td><td data-label="Logged by">' + esc(h.created_by_name || '—') + '</td>' +
+        '<td>' + (mine ? '<button type="button" class="x" data-del="' + h.id + '">Remove</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function ordersSection() {
+  return '<section id="orders">' +
+    '<div class="or-top"><div><div class="eyebrow">Order status</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Where things are at</h2></div>' +
+    '<div id="or-addbtn"></div></div>' +
+    '<p class="lead">Every print order and where it is. When you hand materials out, log it at the bottom so we know where they went.</p>' +
+    '<div id="orders-body"><p class="sub">Loading orders…</p></div></section>';
+}
+function drawOrders() {
+  var el = document.getElementById('orders-body');
+  if (!el) { return; }
+  if (ORD_ERR || !ORD) { el.innerHTML = '<div class="po-err">' + esc(ORD_ERR || 'Could not load orders.') + '</div>'; return; }
+  var orders = ORD.orders || [];
+  var c = function (st) { return orders.filter(function (o) { return o.status === st; }).length; };
+  var open = orders.filter(isOpen);
+  var shown = ORD_FILTER === 'open' ? open : orders;
+  var stock = orders.filter(function (o) { return o.status === 'delivered' && o.quantity; })
+    .reduce(function (n, o) { return n + Math.max(0, o.quantity - handedOut(o)); }, 0);
+  document.getElementById('or-addbtn').innerHTML = ORD.admin ? '<button type="button" class="btn" data-add="1">+ Add an order</button>' : '';
+  el.innerHTML = (ORD.admin ? addOrderForm() : '') +
+    '<div class="or-sum">' +
+      '<div><b>' + c('requested') + '</b><span>Requested</span></div>' +
+      '<div><b>' + (c('ordered') + c('shipped')) + '</b><span>On the way</span></div>' +
+      '<div><b>' + c('delivered') + '</b><span>In stock</span></div>' +
+      '<div><b>' + fmt(stock) + '</b><span>Pieces left</span></div>' +
+    '</div>' +
+    '<div class="or-tabs" role="group" aria-label="Show">' +
+      '<button type="button" class="sh-cat" data-of="open" aria-pressed="' + (ORD_FILTER === 'open') + '">Open<small>' + open.length + '</small></button>' +
+      '<button type="button" class="sh-cat" data-of="all" aria-pressed="' + (ORD_FILTER === 'all') + '">All<small>' + orders.length + '</small></button>' +
+    '</div>' +
+    '<div class="or-list">' + (shown.length ? shown.map(orderCard).join('')
+      : '<div class="or-empty">' + (orders.length ? 'Nothing open — everything has been handed out.' : 'No orders yet.') + '</div>') + '</div>' +
+    '<div class="ho-wrap" id="handouts"><div class="eyebrow">Hand-out log</div>' +
+    '<h3 style="font-family:Fraunces,serif;font-size:21px;margin:6px 0 10px">Where materials were handed out</h3>' +
+    handoutForm() + handoutList() + '</div>';
+}
+
+/* one listener for the whole section; it survives redraws of #orders-body */
+function wireOrders() {
+  var sec = document.getElementById('orders');
+  if (!sec) { return; }
+  sec.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) { return; }
+    if (b.hasAttribute('data-of')) { ORD_FILTER = b.getAttribute('data-of'); drawOrders(); return; }
+    if (b.hasAttribute('data-add')) { var a = document.getElementById('or-add'); a.hidden = !a.hidden; if (!a.hidden) { a.querySelector('input').focus(); } return; }
+    if (b.hasAttribute('data-close')) { ORD_EDIT = null; drawOrders(); return; }
+    if (b.hasAttribute('data-edit')) {
+      ORD_EDIT = ORD_EDIT === b.getAttribute('data-edit') ? null : b.getAttribute('data-edit'); drawOrders(); return;
+    }
+    if (b.hasAttribute('data-to')) {
+      b.disabled = true;
+      call('PATCH', API + '?order=' + b.getAttribute('data-id'), { status: b.getAttribute('data-to') })
+        .then(loadOrders, function (err) { b.disabled = false; alert(err.message); });
+      return;
+    }
+    if (b.hasAttribute('data-ho')) {
+      document.getElementById('ho-order').value = b.getAttribute('data-ho');
+      document.getElementById('ho-item-wrap').hidden = true;
+      document.getElementById('ho-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('ho-qty').focus({ preventScroll: true });
+      return;
+    }
+    if (b.hasAttribute('data-del')) {
+      if (!confirm('Remove this hand-out from the log?')) { return; }
+      call('DELETE', API + '?handout=' + b.getAttribute('data-del')).then(loadOrders, function (err) { alert(err.message); });
+    }
+  });
+  sec.addEventListener('change', function (e) {
+    if (e.target.id === 'ho-order') { document.getElementById('ho-item-wrap').hidden = e.target.value !== 'other'; }
+  });
+  sec.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target;
+    if (f.id === 'ho-form') { submitHandout(); return; }
+    var id = f.getAttribute('data-form');
+    if (!id) { return; }
+    var body = {};
+    Array.prototype.forEach.call(f.elements, function (x) { if (x.name) { body[x.name] = x.value.trim(); } });
+    var err = document.getElementById('oe-' + id + '-err');
+    var btn = f.querySelector('button[type=submit]');
+    btn.disabled = true;
+    (id === 'new' ? call('POST', API, { kind: 'order', order: body }) : call('PATCH', API + '?order=' + id, body))
+      .then(function () { ORD_EDIT = null; return loadOrders(); },
+            function (x) { btn.disabled = false; err.hidden = false; err.textContent = x.message; });
+  });
+}
+function submitHandout() {
+  var v = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  var order = v('ho-order');
+  if (!order) { msg('ho', 'err', 'Pick what you handed out.'); return; }
+  if (order === 'other' && !v('ho-item')) { msg('ho', 'err', 'Say what you handed out.'); return; }
+  if (!(+v('ho-qty') >= 1)) { msg('ho', 'err', 'Say how many you handed out.'); return; }
+  if (!v('ho-loc')) { msg('ho', 'err', 'Say where you handed them out.'); return; }
+  var btn = document.getElementById('ho-go');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  call('POST', API, {
+    kind: 'handout', order_id: order === 'other' ? null : order, item: order === 'other' ? v('ho-item') : '',
+    quantity: +v('ho-qty'), handed_out_on: v('ho-date'), location: v('ho-loc'), audience: v('ho-aud'),
+    notes: v('ho-notes'), requester_name: v('ho-by')
+  }).then(function (j) {
+    return loadOrders().then(function () {
+      msg('ho', 'ok', 'Logged — ' + fmt(j.handout.quantity) + ' at ' + j.handout.location + '. Thank you!');
+    });
+  }, function (e) { btn.disabled = false; btn.textContent = 'Log it'; msg('ho', 'err', e.message); });
 }
 
 /* ── submitting ───────────────────────────────────────────────────────── */
