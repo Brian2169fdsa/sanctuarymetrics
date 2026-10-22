@@ -139,8 +139,10 @@ Seven steps, saved as they go, so they can stop and come back with the same link
 ## Countersigning
 
 1. Open the person from the roster. The SSN, date of birth and address stay hidden until you press **Show**, and every Show is logged.
-2. Press **Countersign and generate PDF**. This stamps your signature and today's date, fills the CP-101, stores the PDF privately, closes the task, and queues them for the next batch.
-3. If something's wrong, use **Send back to them with a note** instead. They get a fresh link.
+2. Press **View their CP-101** to see the filled PDF exactly as CPAO will get it, without your countersignature yet. It opens in a new tab, and every view is logged. After you countersign, the button becomes **View signed CP-101**.
+3. Press **Countersign and generate PDF**. This stamps your signature and today's date, fills the CP-101, stores the PDF privately, closes the task, and queues them for the next batch.
+4. If something's wrong, use **Send back to them with a note** instead. They get a fresh link.
+5. **Don't want to wait for batch day?** Press **Push through now** on their card. It builds the Add/Remove form and bundle for just that person today, the same as a batch. Then download the files on Weekly batches, email them to CPAO, and press **Mark as Sent**. Other people stay queued for the weekly batch. Only the site admin can push, because it uses your signature.
 
 ## How the weekly batch works
 
