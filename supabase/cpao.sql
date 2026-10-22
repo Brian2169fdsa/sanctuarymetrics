@@ -48,6 +48,12 @@ alter table public.cpao_staff add column if not exists invite_failures integer n
 -- earlier version of this file.
 alter table public.cpao_staff add column if not exists stage_dates jsonb not null default '{}'::jsonb;
 alter table public.cpao_staff add column if not exists followups   jsonb not null default '[]'::jsonb;
+-- personal-email invites (no Sanctuary Microsoft account): they open the link
+-- with a 6-digit access code Brian gives them; only its hash is stored
+alter table public.cpao_staff add column if not exists sign_in text not null default 'microsoft';
+alter table public.cpao_staff add column if not exists invite_code_hash text;
+alter table public.cpao_staff drop constraint if exists cpao_staff_sign_in_check;
+alter table public.cpao_staff add constraint cpao_staff_sign_in_check check (sign_in in ('microsoft', 'code'));
 alter table public.cpao_staff drop constraint if exists cpao_staff_status_check;
 alter table public.cpao_staff add constraint cpao_staff_status_check check (status in (
   'invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'countersigned',

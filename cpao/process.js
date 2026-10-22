@@ -12,7 +12,7 @@ var CPAO_STAGES = [
   { n: 2, key: 'apply', title: 'Fills out the CP-101', who: 'Staff member',
     statuses: ['in_progress', 'needs_fix'],
     time: 'About 15 minutes — please within 2–3 days',
-    text: 'They sign in with their work account and complete the Individual User Application on their phone or computer. An automatic check sends anything missing back to them.' },
+    text: 'They sign in with their work account (or, if invited at a personal email, open the link with the access code Brian gives them) and complete the Individual User Application on their phone or computer. An automatic check sends anything missing back to them.' },
   { n: 3, key: 'countersign', title: 'Brian countersigns', who: 'Brian',
     statuses: ['ready_for_countersign'],
     time: '1–2 business days',
