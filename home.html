@@ -44,13 +44,13 @@ function render(socialNew) {
                    : 'Send photos and a few words from an event — marketing turns them into a post.',
       can('admin') && socialNew ? socialNew + ' to post' : '') +
     tile('print.html', '🖨️', 'Print shop', 'Business cards, flyers and presentations — order or ask for changes.') +
-    tile('website.html', '🌐', 'Website edits', 'Ask for a change on any page of sanctuaryrecoverycenters.com.') +
+    (can('limited_nav') ? '' : tile('website.html', '🌐', 'Website edits', 'Ask for a change on any page of sanctuaryrecoverycenters.com.')) +
     (can('admin') ? '' : can('cpao_admin') ? tile('cpao-admin.html', '🪪', 'HEAplus (CP-AO)', 'Invite staff, track every step, upload CPAO letters and certificates.')
       : can('cpao_mail') ? tile('cpao-admin.html', '🪪', 'HEAplus (CP-AO)', 'See where each person is, and upload letters AHCCCS mails to Sanctuary — Brian is alerted.')
       : can('cpao_manager') ? tile('cpao-admin.html', '🪪', 'HEAplus — team progress', 'Where each person is in getting HEAplus access, and since when.')
       : tile('cpao-admin.html', '🪪', 'My HEAplus access', 'Where your HEAplus application is, and upload your AZLearns certificates.')) +
-    tile('projects.html', '📋', can('reports') ? 'Projects' : 'My requests',
-      can('reports') ? 'The marketing project list, with messages on every item.' : 'Everything you\'ve asked for, and where it stands.');
+    (can('limited_nav') ? '' : tile('projects.html', '📋', can('reports') ? 'Projects' : 'My requests',
+      can('reports') ? 'The marketing project list, with messages on every item.' : 'Everything you\'ve asked for, and where it stands.'));
   var reports = can('reports') ?
     '<p class="hm-h">Reports</p><div class="hm-grid">' +
       tile('index.html', '📈', 'Performance report', 'Marketing results across every channel.') +

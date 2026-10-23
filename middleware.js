@@ -30,6 +30,11 @@ const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 const ADMIN_PAGES = new Set([]);
 /* the HEAplus tab (cpao-admin.html) is open to all staff: api/cpao.js decides
    who sees the admin side and who sees only their own progress */
+/* managers (CPAO_MANAGERS, not HEAplus admins) see only these */
+const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', '/social.html']);
+function emailList(name, dflt) {
+  return (process.env[name] || dflt).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+}
 const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/pal-email.html', '/pal-email']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
@@ -72,13 +77,16 @@ async function account(request) {
   const master = (process.env.ADMIN_EMAILS || 'breinhart@sanctuaryrecoverycenters.com').split(',').map((x) => x.trim().toLowerCase());
   if (as && u.role === 'admin' && master.indexOf(String(u.email || '').toLowerCase()) >= 0 && as.length <= 200) {
     const t = await fetch(process.env.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/app_users?email=eq.' + encodeURIComponent(as) +
-      '&select=disabled,role,access_reports,access_costs', { headers: { apikey: key, Authorization: 'Bearer ' + key } })
+      '&select=disabled,role,email,access_reports,access_costs', { headers: { apikey: key, Authorization: 'Bearer ' + key } })
       .then((x) => (x.ok ? x.json() : null)).catch(() => null);
     /* no account yet: the pages a standard staff account gets */
-    if (t && t[0] && !t[0].disabled) { u = t[0]; } else if (t && !t[0]) { u = { role: 'member', access_reports: true, access_costs: false }; }
+    if (t && t[0] && !t[0].disabled) { u = t[0]; } else if (t && !t[0]) { u = { role: 'member', email: as, access_reports: true, access_costs: false }; }
   }
   const admin = u.role === 'admin';
-  return { admin: admin, reports: admin || u.access_reports !== false, costs: admin || u.access_costs === true };
+  const email = String(u.email || '').toLowerCase();
+  const limited = !admin && emailList('CPAO_MANAGERS', 'blee@sanctuaryrecoverycenters.com').indexOf(email) >= 0 &&
+    emailList('CPAO_ADMINS', 'joe@sanctuaryrecoverycenters.com,kaycock@sanctuaryrecoverycenters.com,efischer@sanctuaryrecoverycenters.com').indexOf(email) < 0;
+  return { admin: admin, limited: limited, reports: !limited && (admin || u.access_reports !== false), costs: !limited && (admin || u.access_costs === true) };
 }
 
 export default async function middleware(request) {
@@ -93,7 +101,8 @@ export default async function middleware(request) {
     /* Supabase didn't answer — fall through to the sign-in page, which says so */
   }
   if (who) {
-    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin)) {
+    if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin) ||
+        (who.limited && !MANAGER_PAGES.has(path))) {
       const home = new URL('/home.html', request.url);
       if (path !== '/') { home.searchParams.set('denied', path.replace(/^\/+/, '')); }
       return new Response(null, { status: 302, headers: { Location: home.toString(), 'Cache-Control': 'no-store' } });
