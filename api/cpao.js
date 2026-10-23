@@ -25,7 +25,8 @@
                   a batch, rotate the key or purge: those use his signature
                   or speak for him to CPAO (SITE_ADMIN_ONLY)
      cpao_mail    the roster, stages and CPAO letter uploads (mailRoute)
-     cpao_manager the roster and stages only, read-only (mailRoute, manager)
+     cpao_manager the roster and stages, plus inviting people to the CP-101
+                  (mailRoute, manager); nothing else
      everyone     their own stage in the process, found by their email
                   (selfRoute) — no application details — and, once CPAO
                   approves them, uploading their AZLearns certificates:
@@ -862,7 +863,14 @@ async function mailRoute(req, res, action, me, q, manager) {
     await audit(me.email, 'view_status', s.id, null, req);
     return sendJSON(res, 200, { limited: true, manager: !!manager, staff: view(s), app: null, links: {} });
   }
-  if (manager) { return sendJSON(res, 403, { error: 'forbidden', message: 'This is a read-only view.' }); }
+  /* managers can also invite people to fill out the CP-101 (and re-send an
+     invite) — but not add people as already having access, or as Site Admins */
+  if (manager && req.method === 'GET' && action === 'directory') { return sendJSON(res, 200, await directoryList()); }
+  if (manager && req.method === 'POST' && action === 'invite') {
+    const b = await body(req);
+    return sendJSON(res, 200, await invite(req, me, Object.assign(b, { existing: false, is_site_admin: false })));
+  }
+  if (manager) { return sendJSON(res, 403, { error: 'forbidden', message: 'This is a read-only view — managers can invite people, and see where everyone is.' }); }
   if (req.method === 'GET' && action === 'file') {
     if (!/^mail\//.test(str(q.key, 300))) { throw bad('Only the site administrator can open that file.', 403); }
     return sendJSON(res, 200, await fileLink(req, me, q.key));
@@ -887,6 +895,17 @@ async function selfRoute(req, res, action, me) {
 
 const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1 };
 
+/* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
+async function directoryList() {
+  try {
+    const onRoster = {};
+    (await db('GET', 'cpao_staff', '?status=not.in.(removed,denied)&select=email')).forEach(function (r) { onRoster[r.email.toLowerCase()] = 1; });
+    return { users: (await G.directory()).map(function (u) { return Object.assign({ on_roster: !!onRoster[u.email] }, u); }) };
+  } catch (e) {
+    return { users: [], error: e.code ? e.message : 'Couldn\'t reach the Microsoft directory right now.' };
+  }
+}
+
 async function adminRoute(req, res, action, me, q) {
   if (req.method === 'GET') {
     if (action === 'roster') { return sendJSON(res, 200, Object.assign(await roster(me), { sa: access(me).admin })); }
@@ -897,17 +916,7 @@ async function adminRoute(req, res, action, me, q) {
     }
     if (action === 'file') { return sendJSON(res, 200, await fileLink(req, me, q.key)); }
     if (action === 'mail_people') { return sendJSON(res, 200, await mailPeople()); }
-    if (action === 'directory') {
-      /* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
-      try {
-        const onRoster = {};
-        (await db('GET', 'cpao_staff', '?status=not.in.(removed,denied)&select=email')).forEach(function (r) { onRoster[r.email.toLowerCase()] = 1; });
-        const users = (await G.directory()).map(function (u) { return Object.assign({ on_roster: !!onRoster[u.email] }, u); });
-        return sendJSON(res, 200, { users: users });
-      } catch (e) {
-        return sendJSON(res, 200, { users: [], error: e.code ? e.message : 'Couldn\'t reach the Microsoft directory right now.' });
-      }
-    }
+    if (action === 'directory') { return sendJSON(res, 200, await directoryList()); }
     /* the CP-101 as it stands: the countersigned file once there is one,
        before that the same PDF made on the fly (no countersignature yet) */
     if (action === 'preview_pdf') {
