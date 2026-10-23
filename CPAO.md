@@ -155,6 +155,21 @@ Seven steps, saved as they go, so they can stop and come back with the same link
 4. If something's wrong, use **Send back to them with a note** instead. They get a fresh link.
 5. **Don't want to wait for batch day?** Press **Push through now** on their card. It builds the Add/Remove form and bundle for just that person today, the same as a batch. Then download the files on Weekly batches, email them to CPAO, and press **Mark as Sent**. Other people stay queued for the weekly batch. Only the site admin can push, because it uses your signature.
 
+## Sending the Add/Remove form (Weekly batches)
+
+1. **Adding:** everyone you've countersigned is listed under **Adding**. Use **View CP-101** to check each one.
+2. **Removing:** press **+ Add someone to remove**.
+   - Pick them from the roster, or type their name and email if they had HEAplus before the portal.
+   - Tick the confirmation and press **Add to the Remove list**. Use **Undo** to take someone off the list.
+3. **Build the form:** press **⤓ Pull in everyone ready and build the form**. It makes the signed Add/Remove form and the bundle, which has every add's CP-101 attached. Download the **Bundle** to check it.
+4. **Send it:** press **✉ Send to CPAO**.
+   - It emails the Add/Remove form and each CP-101 from breinhart@sanctuaryrecoverycenters.com to CP-AOOperationsTeam@azahcccs.gov. The email is saved in your Sent Items.
+   - Adds move to Sent to CPAO, and removals move to Removed.
+   - It only ever sends when you press it.
+5. **If you send it yourself instead:** press **I sent it myself — mark as sent**.
+
+Send to CPAO needs the Microsoft sign-in app to have the **Mail.Send** application permission (admin-consented in Entra ID). Without it, or if the files are over about 3 MB, the page says so and nothing is sent.
+
 ## How the weekly batch works
 
 **Every batch day at 8:00 am Phoenix time:**

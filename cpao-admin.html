@@ -99,6 +99,13 @@ dialog.pop::backdrop{background:rgba(22,38,59,.55)}
 .codebox span{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6C7C86}
 .codebox b{font-size:22px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
 .certs{margin:6px 0 12px;padding:12px 14px;border:1px solid #cfe3d6;border-radius:10px;background:#f3faf6}
+.bx-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.bx-cols{grid-template-columns:1fr}}
+.bx-h{font-weight:700;font-size:14.5px;margin:0 0 6px}
+.bx{list-style:none;margin:0;padding:0}
+.bx li{padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin:0 0 6px;font-size:13.5px;background:#fff}
+.rm-add{margin-top:8px;padding:10px 12px;border:1px dashed #e4a99a;border-radius:10px;background:#fff8f6}
+.rm-add summary{cursor:pointer;font-weight:700;font-size:13.5px;color:#a3301a}
 .deny-br{margin:0 0 12px 8px;padding:10px 12px;border:1px dashed #e4a99a;border-radius:10px;background:#fff8f6;font-size:13.5px}
 .deny-br.now{border-style:solid;border-color:#d9826c}
 .deny-br p{margin:3px 0 8px;color:#33434c;line-height:1.45}
@@ -875,30 +882,94 @@ function wireStaff(s) {
 }
 
 /* ── batches ──────────────────────────────────────────────────────────── */
+/* who can be put on the Remove list: anyone with (or about to get) access */
+var CAN_REMOVE = ['active', 'final_approved', 'certs_sent_to_cpao', 'training_complete', 'approved_training_assigned', 'sent_to_cpao'];
 function batchesView(open) {
-  var b = DATA.batches;
-  var queued = DATA.staff.filter(function (s) { return s.status === 'queued_for_batch' || s.status === 'remove_requested'; });
-  shell('<div class="card"><b>Next batch:</b> every ' + DAYS[DATA.settings.batch_weekday] + ' at 8:00 am. ' +
-      (queued.length ? queued.length + ' waiting: ' + queued.map(function (s) { return esc(s.first_name + ' ' + s.last_name) + (s.status === 'remove_requested' ? ' (remove)' : ''); }).join(', ') + '.' : 'Nobody waiting right now.') +
-      (SA() ? '<div class="btnrow"><button class="btn" id="build"' + (queued.length ? '' : ' disabled') + '>Build the batch now</button>' +
-      '<span class="sub" style="margin:0">Re-running replaces a batch you haven\'t marked sent yet.</span></div>'
-        : '<p class="sub" style="margin:8px 0 0">' + esc(DATA.constants.site_admin_name || 'Brian') + ' builds, signs and sends the batch.</p>') +
+  var b = DATA.batches, sa = SA();
+  var adds = DATA.staff.filter(function (s) { return s.status === 'queued_for_batch'; });
+  var removes = DATA.staff.filter(function (s) { return s.status === 'remove_requested'; });
+  var removable = DATA.staff.filter(function (s) { return CAN_REMOVE.indexOf(s.status) >= 0; })
+    .sort(function (x, y) { return (x.last_name + x.first_name).localeCompare(y.last_name + y.first_name); });
+  var who = function (s, extra) {
+    return '<li><b>' + esc(s.first_name + ' ' + s.last_name) + '</b>' + (s.is_site_admin ? ' <span class="sm">(SA)</span>' : '') +
+      ' <span class="sm">' + esc(s.email || '') + '</span>' + (extra || '') + '</li>';
+  };
+  shell('<div class="card"><div style="font-family:Fraunces,serif;font-size:19px;font-weight:600">Next Add/Remove form</div>' +
+      '<p class="sub" style="margin:4px 0 12px">Builds by itself every ' + DAYS[DATA.settings.batch_weekday] + ' at 8:00 am, or press the button below any time. ' +
+        'The bundle is the signed Add/Remove form with every add\'s CP-101 attached.</p>' +
+      '<div class="bx-cols"><div><div class="bx-h">➕ Adding (' + adds.length + ')</div>' +
+        (adds.length ? '<ul class="bx">' + adds.map(function (s) {
+          return who(s, ' <button type="button" class="reveal" data-cp="' + s.id + '">View CP-101</button>'); }).join('') + '</ul>'
+          : '<p class="sub" style="margin:4px 0">Nobody yet — people land here once you countersign them.</p>') + '</div>' +
+      '<div><div class="bx-h">➖ Removing (' + removes.length + ')</div>' +
+        (removes.length ? '<ul class="bx">' + removes.map(function (s) {
+          return who(s, sa ? ' <button type="button" class="reveal" data-unremove="' + s.id + '">Undo</button>' : ''); }).join('') + '</ul>'
+          : '<p class="sub" style="margin:4px 0">Nobody.</p>') +
+        (sa ? '<details class="rm-add"' + (removes.length ? '' : ' open') + '><summary>+ Add someone to remove</summary>' +
+          '<div class="f2" style="margin-top:8px"><label class="fl wide">From the roster<select id="rm-who"><option value="">Pick a person…</option>' +
+            removable.map(function (s) { return '<option value="' + s.id + '">' + esc(s.last_name + ', ' + s.first_name) + ' — ' + esc(LABEL[s.status] || s.status) + '</option>'; }).join('') +
+          '</select></label></div>' +
+          '<p class="sub" style="margin:8px 0 4px">Not on the roster (had HEAplus access before the portal)? Type them instead:</p>' +
+          '<div class="f2"><label class="fl">First name<input id="rm-first" maxlength="40"></label><label class="fl">Last name<input id="rm-last" maxlength="40"></label>' +
+          '<label class="fl wide">Email<input id="rm-email" type="email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></label></div>' +
+          '<label class="ck" style="margin-top:8px"><input type="checkbox" id="rm-conf"> Their HEAplus access should end (they left, or changed roles)</label>' +
+          '<div class="btnrow"><button type="button" class="btn alt" id="rm-go">Add to the Remove list</button></div></details>' : '') + '</div></div>' +
+      (sa ? '<div class="btnrow" style="margin-top:14px"><button class="btn" id="build"' + (adds.length || removes.length ? '' : ' disabled') + '>' +
+          '⤓ Pull in everyone ready and build the form</button>' +
+        '<span class="sub" style="margin:0">Re-running replaces a form you haven\'t sent yet.</span></div>'
+        : '<p class="sub" style="margin:12px 0 0">' + esc(DATA.constants.site_admin_name || 'Brian') + ' builds, signs and sends the form.</p>') +
       '<div class="note" id="b-note" hidden></div></div>' +
     (b.length ? '<table class="tbl"><thead><tr><th>Week of</th><th>Who</th><th>Status</th><th>Files</th><th></th></tr></thead><tbody>' + b.map(function (x) {
+      var nAdd = (x.rows || []).filter(function (r) { return /^Add/.test(r.action); }).length;
       return '<tr' + (open === x.id ? ' style="background:#fffaf0"' : '') + '><td>' + day(x.week_of) + '</td>' +
         '<td>' + (x.rows || []).map(function (r) { return esc(r.name) + ' <span class="sm">' + esc(r.action) + '</span>'; }).join('<br>') + '</td>' +
         '<td>' + (x.status === 'draft' ? '<span class="pill p-ready_for_countersign">Ready to send</span>' : '<span class="pill p-sent_to_cpao">Sent ' + day(x.sent_at) + '</span>') + '</td>' +
-        '<td>' + (x.bundle_storage_key ? '<button class="btn alt" data-file="' + esc(x.bundle_storage_key) + '">Bundle</button> <button class="btn alt" data-file="' + esc(x.org_form_storage_key) + '">Org form</button>' : '<span class="sm">Removed (retention)</span>') + '</td>' +
-        '<td>' + (x.status === 'draft' && SA() ? '<button class="btn" data-sent="' + x.id + '">Mark as Sent</button>' : '') + '</td></tr>';
-    }).join('') + '</tbody></table>' : '<div class="placeholder">No batches yet.</div>') +
-    '<p class="sub" style="margin-top:12px">Send the bundle to <b>' + esc(DATA.constants.cpao_ops_email) + '</b> from your own mailbox — only the site administrator may email CPAO. Then press Mark as Sent.</p>');
-  if ($('build')) $('build').addEventListener('click', function () {
-    var btn = $('build'); btn.disabled = true; btn.textContent = 'Building…';
-    api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. A task is on your Projects page.'); }); },
-      function (e) { btn.disabled = false; btn.textContent = 'Build the batch now'; note('b-note', 'err', e.message); });
-  });
+        '<td>' + (x.bundle_storage_key ? '<button class="btn alt" data-file="' + esc(x.bundle_storage_key) + '">Bundle</button> <button class="btn alt" data-file="' + esc(x.org_form_storage_key) + '">Org form</button>' +
+            '<div class="sm" style="margin-top:4px">Add/Remove form' + (nAdd ? ' + ' + nAdd + ' CP-101' + (nAdd === 1 ? '' : 's') : '') + '</div>' : '<span class="sm">Removed (retention)</span>') + '</td>' +
+        '<td>' + (x.status === 'draft' && sa ? '<button class="btn" data-send="' + x.id + '" data-n="' + (1 + nAdd) + '">✉ Send to CPAO</button>' +
+            '<div style="margin-top:6px"><button class="reveal" data-sent="' + x.id + '">I sent it myself — mark as sent</button></div>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>' : '<div class="placeholder">No Add/Remove forms yet.</div>') +
+    '<p class="sub" style="margin-top:12px"><b>Send to CPAO</b> emails the Add/Remove form and every CP-101 from <b>' + esc(DATA.constants.site_admin_email) + '</b> to <b>' +
+      esc(DATA.constants.cpao_ops_email) + '</b> (it\'s saved in your Sent Items) and marks everyone on it as Sent to CPAO. Only the site administrator may email CPAO.</p>');
+  if ($('build')) {
+    $('build').addEventListener('click', function () {
+      var btn = $('build'); btn.disabled = true; btn.textContent = 'Building…';
+      api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. Check the bundle, then press Send to CPAO.'); }); },
+        function (e) { btn.disabled = false; btn.textContent = '⤓ Pull in everyone ready and build the form'; note('b-note', 'err', e.message); });
+    });
+  }
+  document.querySelectorAll('[data-cp]').forEach(function (x) { x.addEventListener('click', function () { viewPdf(x.getAttribute('data-cp')); }); });
   document.querySelectorAll('[data-file]').forEach(function (x) {
     x.addEventListener('click', function () { openFile('file&key=' + encodeURIComponent(x.getAttribute('data-file'))).catch(function (e) { note('b-note', 'err', e.message); }); });
+  });
+  document.querySelectorAll('[data-unremove]').forEach(function (x) {
+    x.addEventListener('click', function () {
+      api('POST', 'status', { id: x.getAttribute('data-unremove'), status: 'active' }).then(function () { return refresh(false).then(function () { batchesView(); }); },
+        function (e) { note('b-note', 'err', e.message); });
+    });
+  });
+  if ($('rm-go')) {
+    $('rm-go').addEventListener('click', function () {
+      var id = $('rm-who').value, first = $('rm-first').value.trim(), last = $('rm-last').value.trim(), email = $('rm-email').value.trim();
+      if (!id && !(first && last && email)) { return note('b-note', 'err', 'Pick someone from the roster, or type their first name, last name and email.'); }
+      if (!$('rm-conf').checked) { return note('b-note', 'err', 'Tick the box to confirm their HEAplus access should end.'); }
+      var btn = $('rm-go'); btn.disabled = true;
+      /* someone not on the roster goes on it first (as having access), then onto the list */
+      (id ? Promise.resolve(id) : api('POST', 'invite', { first_name: first, last_name: last, email: email, existing: true }).then(function (j) { return j.staff.id; }))
+        .then(function (sid) { return api('POST', 'status', { id: sid, status: 'remove_requested', confirm_deactivated: true }); })
+        .then(function () { return refresh(false).then(function () { batchesView(); note('b-note', 'ok', 'Added to the Remove list. It goes on the next Add/Remove form.'); }); },
+          function (e) { btn.disabled = false; note('b-note', 'err', e.message); });
+    });
+  }
+  document.querySelectorAll('[data-send]').forEach(function (x) {
+    x.addEventListener('click', function () {
+      if (!confirm('Email the Add/Remove form and ' + (Number(x.getAttribute('data-n')) - 1) + ' CP-101(s) to ' + DATA.constants.cpao_ops_email +
+        ' from ' + DATA.constants.site_admin_email + ' now?\n\nEveryone on it will be marked Sent to CPAO.')) { return; }
+      x.disabled = true; x.textContent = 'Sending…';
+      api('POST', 'send_batch', { id: x.getAttribute('data-send') }).then(function (j) {
+        return refresh(false).then(function () { batchesView(); note('b-note', 'ok', 'Sent to ' + j.to + ' from ' + j.from + ' with ' + j.files + ' file' + (j.files === 1 ? '' : 's') + '. It\'s in your Sent Items, and everyone on it is now Sent to CPAO.'); });
+      }, function (e) { x.disabled = false; x.textContent = '✉ Send to CPAO'; note('b-note', 'err', e.message); });
+    });
   });
   document.querySelectorAll('[data-sent]').forEach(function (x) {
     x.addEventListener('click', function () {
