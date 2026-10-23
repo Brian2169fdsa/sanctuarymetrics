@@ -52,6 +52,8 @@
     root.toggle('sm-no-costs', !acc.costs);
     root.toggle('sm-no-admin', !acc.admin);
     root.toggle('sm-no-cpao-mail', !acc.cpao_mail);
+    /* managers: only Home, HEAplus, Print orders and Social media */
+    root.toggle('sm-limited', !!acc.limited_nav);
   }
   SM.can = function (what) { return !!(SM.me && SM.me.access && SM.me.access[what]); };
   function setUser(u) {
@@ -89,6 +91,7 @@
   css.textContent =
     '.sm-no-reports [data-need="reports"],.sm-no-costs [data-need="costs"],.sm-no-admin [data-need="admin"],.sm-no-cpao-mail [data-need="cpao-mail"],' +
       'html:not(.sm-no-reports) [data-need="staff-only"]{display:none!important}' +
+    '.sm-limited .topnav a:not([href="home.html"]):not([href="cpao-admin.html"]):not([href="print.html"]):not([href="social.html"]){display:none!important}' +
     '#smbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:8px 20px;font:500 13px Inter,sans-serif;' +
       'background:#16263B;color:#dfe8ee;position:relative;z-index:50;flex-wrap:wrap}' +
     '#smbar a,#smbar button.l{all:unset;cursor:pointer;color:#dfe8ee;padding:4px 9px;border-radius:7px}' +
