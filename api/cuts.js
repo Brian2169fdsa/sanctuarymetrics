@@ -14,11 +14,12 @@
    Google cutover (google.html), all behind a signed-in account:
      GET    ?scope=google              every Google account with its usage and
                                        the team's keep / cut choice
-     PATCH  ?scope=google {accounts:[…], decision:'keep'|null}
-                                       mark accounts Keep, or clear the choice
+     PATCH  ?scope=google {accounts:[…], decision:'keep'|'cut'|null}
+                                       save the team's Keep / Cut choice (Cut
+                                       here is "marked", not sent yet), or clear it
      POST   ?scope=google {accounts:[…], note?}
-                                       send the ticked accounts for approval as
-                                       one cut (seat price × count, before tax)
+                                       send the accounts marked Cut for approval
+                                       as one cut (seat price × count, before tax)
    Accounts marked must_keep (Ulonda) can never be sent for cutting.
 
    Approving needs a signed-in account (the approval is recorded by name).
@@ -69,11 +70,16 @@ async function google(req, res, me) {
   const now = new Date().toISOString();
 
   if (req.method === 'PATCH') {
-    const decision = b.decision === 'keep' ? 'keep' : null;
+    const decision = b.decision === 'keep' || b.decision === 'cut' ? b.decision : null;
     /* an account already sent for cutting comes back only by declining that cut */
     const sent = rows.filter(function (r) { return r.decision === 'cut' && r.cut_rec_id; });
-    if (sent.length && decision !== 'keep') {
-      return sendJSON(res, 409, { error: 'sent', message: sent.map(function (r) { return r.account; }).join(', ') + ' already sent for approval.' });
+    if (sent.length) {
+      return sendJSON(res, 409, { error: 'sent', message: sent.map(function (r) { return r.account; }).join(', ') +
+        ' already sent for approval — decline that cut on the Cost cutting page to change it.' });
+    }
+    const locked = rows.filter(function (r) { return r.must_keep; });
+    if (decision === 'cut' && locked.length) {
+      return sendJSON(res, 400, { error: 'must_keep', message: locked.map(function (r) { return r.account + ' (' + (r.must_keep_reason || 'must keep') + ')'; }).join(', ') + ' can\'t be cut.' });
     }
     await supabase('PATCH', '?' + inList(accts), { decision: decision, decided_by_name: decision ? me.name : null,
       decided_at: decision ? now : null, cut_rec_id: null, updated_at: now }, { Prefer: 'return=minimal' }, GTABLE);
