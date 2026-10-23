@@ -20,7 +20,7 @@
      POST   ?scope=google {accounts:[…], note?}
                                        send the accounts marked Cut for approval
                                        as one cut (seat price × count, before tax)
-   Accounts marked must_keep (Ulonda) can never be sent for cutting.
+   Accounts marked must_keep (Ulonda's Sober Living account) can never be sent for cutting.
 
    Approving needs a signed-in account (the approval is recorded by name).
    Tables: supabase/cost-cutting.sql. Tasks go to CUTS_OWNER, defaulting to

@@ -26,8 +26,9 @@ that loads them.
   covering every ticked account; approving it puts a task on Brian's project
   list.
 - **Mark as Keep** records a keep decision.
-- **Must-keep accounts can't be cut.** Ulonda is one. Their checkbox is
-  disabled, and the server refuses to cut them.
+- **Must-keep accounts can't be cut.** Ulonda's Sober Living account is one
+  (her Sanctuary RC account is not). They have no Keep / Cut buttons, and the
+  server refuses to cut them.
 - Declining a cut on the Cost cutting page frees its accounts so they can be
   picked again.
 
