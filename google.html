@@ -67,6 +67,19 @@
 .ms #acct input[disabled]{cursor:not-allowed}
 .ms #acct tr.sel td{background:#f0faf5}
 .ms #acct tr.lock td{background:#fdf6f1}
+.ms #acct tr.kept td{background:#f5f8fb}
+.ms .kc{display:flex;gap:6px;align-items:center}
+.ms .kc button{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 14px;border-radius:8px;font-weight:700;font-size:13px;border:1.5px solid #cdd7de;background:#fff;color:#33434c}
+.ms .kc button:focus-visible{outline:2px solid #1C9AD6;outline-offset:2px}
+.ms .kc .kc-keep[aria-pressed="true"]{background:#2563eb;border-color:#2563eb;color:#fff}
+.ms .kc .kc-cut[aria-pressed="true"]{background:#b23a1b;border-color:#b23a1b;color:#fff}
+.ms .kc .kc-clear{padding:6px 9px;color:#6C7C86}
+.ms .kc button:disabled{opacity:.5;cursor:wait}
+.ms .gbanner{border:1px solid #f1dca6;background:#fff8ec;border-radius:12px;padding:12px 16px;margin:0 0 14px;font-size:14.5px;line-height:1.5}
+.ms .doms{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ms .dom{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:12px;background:#fff;border:1px solid #e3d2a6}
+.ms .dom.s{background:#0f9d8a;border-color:#0f9d8a;color:#fff}
+.ms #acct .who .gtag{display:block;margin-top:3px;font-size:11px;font-weight:700;letter-spacing:.03em;color:#0b7a6b}
 .ms #acct .who b{display:block;color:var(--ms-ink)}
 .ms #acct .who span{font-size:12px;color:var(--ms-mute)}
 .ms #acct .lockb{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:700;color:#b45309;letter-spacing:.02em}
@@ -92,7 +105,7 @@
 
 <section id="choose">
 <h2>Choose what to cut</h2>
-<p class="lead-note">Tick the Google accounts to cut, then send them for approval. Approving puts the task on Brian's project list.
+<p class="lead-note">Press <b>Keep</b> or <b>Cut</b> on each Google account — each choice saves straight away. Then <b>Send … marked Cut for approval</b>; approving puts the task on Brian's project list.
 Every usage figure from both admin consoles is in the table (scroll sideways). <b>Ulonda is locked as must-keep.</b></p>
 <div id="pickArea"></div>
 </section>
@@ -146,7 +159,7 @@ mailbox usage report; it doesn't update on its own.</footer>
 <script>
 var G = GOOGLE_COSTS, U = typeof GOOGLE_USERS !== 'undefined' ? GOOGLE_USERS : null;
 var V = costGoogle(), SEAT = G.plans[0] ? G.plans[0].price : 16.80, TAX = G.taxRate || 0;
-var ACCTS = [], RECS = {}, SEL = {}, FILTER = 'All', BUSY = false, MSG = null, MAILBOXES = [], FOLDERS = [], ALLFOLDERS = false;
+var ACCTS = [], RECS = {}, FILTER = 'All', BUSY = false, MSG = null, MAILBOXES = [], FOLDERS = [], ALLFOLDERS = false;
 function $(id) { return document.getElementById(id); }
 function need(what) { return '<span class="need">' + cEsc(what) + ' needed</span>'; }
 function empty(title, body) { return '<div class="g-empty"><b>' + cEsc(title) + '</b>' + body + '</div>'; }
@@ -178,19 +191,32 @@ function drawKpis() {
 }
 
 /* ── choose what to cut (signed in) ── */
+/* the team's choice per account: Keep / Cut buttons save to Supabase at once;
+   "Send for approval" then files one cut for everything marked Cut */
 function state(a) {
   var r = a.cut_rec_id ? RECS[a.cut_rec_id] : null;
-  if (a.must_keep) { return { key: 'locked', html: '<span class="pill p-bad">Must keep</span>' }; }
+  if (a.must_keep) { return { key: 'locked', html: '<span class="pill p-bad">🔒 Must keep</span>' }; }
   if (a.decision === 'cut' && r && r.status === 'approved') {
     return { key: 'approved', html: '<span class="pill p-ok">Cut approved</span>' +
       (r.project_id ? '<div class="fine" style="margin:4px 0 0"><a href="projects.html#open=' + encodeURIComponent('row:' + r.project_id) + '">Open task</a></div>' : '') };
   }
-  if (a.decision === 'cut') { return { key: 'sent', html: '<span class="pill p-warn">Sent for approval</span><div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name || '') + '</div>' }; }
-  if (a.decision === 'keep') { return { key: 'keep', html: '<span class="pill p-mute">Keep</span><div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name || '') + '</div>' }; }
-  return { key: 'open', html: '<span class="fine" style="margin:0">Not decided</span>' };
+  if (a.decision === 'cut' && a.cut_rec_id) { return { key: 'sent', html: '<span class="pill p-warn">Sent for approval</span><div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name || '') + '</div>' }; }
+  if (a.decision === 'cut') { return { key: 'cut' }; }
+  if (a.decision === 'keep') { return { key: 'keep' }; }
+  return { key: 'open' };
 }
-function selectable(a) { var k = state(a).key; return k === 'open' || k === 'keep'; }
-function selected() { return ACCTS.filter(function (a) { return SEL[a.account]; }); }
+function domainOf(a) { return String(a.account || '').split('@')[1] || ''; }
+var SANCTUARY = /^(sanctuaryrecoverycenters\.com|sanctuaryrc\.com)$/i;
+function choiceCell(a) {
+  var st = state(a);
+  if (st.html) { return st.html; }
+  var who = a.decided_by_name ? '<div class="fine" style="margin:4px 0 0">' + cEsc(a.decided_by_name) + '</div>' : '';
+  return '<div class="kc" role="group" aria-label="Keep or cut ' + cEsc(a.account) + '">' +
+    '<button type="button" data-kc="keep" data-acc="' + cEsc(a.account) + '" aria-pressed="' + (st.key === 'keep') + '" class="kc-keep">Keep</button>' +
+    '<button type="button" data-kc="cut" data-acc="' + cEsc(a.account) + '" aria-pressed="' + (st.key === 'cut') + '" class="kc-cut">Cut</button>' +
+    (st.key === 'open' ? '' : '<button type="button" data-kc="clear" data-acc="' + cEsc(a.account) + '" class="kc-clear" title="Clear the choice">↺</button>') +
+    '</div>' + (st.key === 'open' ? '<div class="fine" style="margin:4px 0 0">Not decided</div>' : who);
+}
 
 function drawPick() {
   if (!SM.me) {
@@ -202,10 +228,15 @@ function drawPick() {
     $('pickArea').innerHTML = empty('No Google accounts loaded yet', 'Run the Google cutover insert in Supabase → SQL Editor (Brian has it), then reload.');
     return;
   }
-  var sel = selected(), n = sel.length, mo = n * SEAT;
-  /* seats still billed once this selection, and anything already sent or approved, is gone */
-  var gone = ACCTS.filter(function (a) { var k = state(a).key; return k === 'approved' || k === 'sent'; }).length;
-  var left = ACCTS.length - gone - n;
+  var by = { open: 0, keep: 0, cut: 0, sent: 0, approved: 0, locked: 0 };
+  ACCTS.forEach(function (a) { by[state(a).key]++; });
+  var toSend = ACCTS.filter(function (a) { return state(a).key === 'cut'; });
+  var mo = toSend.length * SEAT;
+  var left = ACCTS.length - by.sent - by.approved - toSend.length;
+  /* which email domains these Google accounts use */
+  var doms = {};
+  ACCTS.forEach(function (a) { var d = domainOf(a).toLowerCase(); doms[d] = (doms[d] || 0) + 1; });
+  var nSanct = ACCTS.filter(function (a) { return SANCTUARY.test(domainOf(a)); }).length;
   var counts = { all: ACCTS.length };
   ['Ready to cut', 'Verify', 'Keep'].forEach(function (v) { counts[v] = ACCTS.filter(function (a) { return a.verdict === v; }).length; });
   var rows = ACCTS.filter(function (a) { return FILTER === 'All' || a.verdict === FILTER; })
@@ -214,40 +245,38 @@ function drawPick() {
       return (b.must_keep ? 1 : 0) - (a.must_keep ? 1 : 0) || o[a.verdict] - o[b.verdict] || b.google_total_mb - a.google_total_mb;
     });
   $('pickArea').innerHTML =
+    '<div class="gbanner"><b>Every account below is a Google Workspace account — a paid Google seat (' + cMoney(SEAT, true) + '/month each).</b> ' +
+      'That includes the <b>@sanctuaryrecoverycenters.com</b> and <b>@sanctuaryrc.com</b> addresses' + (nSanct ? ' (' + nSanct + ' of the ' + ACCTS.length + ')' : '') +
+      ': they are in Google too, even though the same people also have Microsoft 365. Cutting an account deletes it from Google only — their Microsoft 365 mailbox is not touched.' +
+      '<div class="doms">' + Object.keys(doms).sort(function (x, y) { return doms[y] - doms[x]; }).map(function (d) {
+        return '<span class="dom' + (SANCTUARY.test(d) ? ' s' : '') + '">@' + cEsc(d) + ' · ' + doms[d] + '</span>'; }).join('') + '</div></div>' +
     '<div class="pick">' +
-      '<div class="presets" role="group" aria-label="Quick select">' +
-        '<button type="button" data-pre="ready">Ready to cut</button>' +
-        '<button type="button" data-pre="ready+verify">Ready + verify</button>' +
-        '<button type="button" data-pre="all">Everything except must-keep</button>' +
-        '<button type="button" data-pre="none">Clear</button></div>' +
-      '<div class="acts"><button class="btn lt" id="mkKeep"' + (n ? '' : ' disabled') + '>Mark ' + n + ' as Keep</button>' +
-        '<button class="btn go" id="send"' + (n && !BUSY ? '' : ' disabled') + '>Send ' + n + ' for approval</button></div>' +
-      '<div class="tally" aria-live="polite"><span><b class="n">' + n + '</b> selected</span>' +
-        '<span><b>' + cMoney(mo, true) + '</b> a month</span><span><b>' + cMoney(mo * 12) + '</b> a year</span>' +
-        '<span>' + cMoney(mo * 12 * (1 + TAX)) + ' a year with tax</span>' +
-        '<span>Leaves ' + left + ' seat' + (left === 1 ? '' : 's') + ' (' + cMoney(left * SEAT, true) + '/mo)' +
-          (gone ? ' after the ' + gone + ' already sent or approved' : '') + '</span></div>' +
+      '<div class="tally" aria-live="polite">' +
+        '<span><b class="n">' + by.cut + '</b> marked Cut</span><span><b>' + by.keep + '</b> Keep</span><span><b>' + by.open + '</b> not decided</span>' +
+        (by.sent + by.approved ? '<span>' + (by.sent + by.approved) + ' already sent</span>' : '') +
+        '<span>Marked Cut saves <b>' + cMoney(mo, true) + '</b>/mo · <b>' + cMoney(mo * 12 * (1 + TAX)) + '</b>/yr with tax</span>' +
+        '<span>Leaves ' + left + ' seat' + (left === 1 ? '' : 's') + '</span></div>' +
+      '<div class="acts"><button type="button" class="btn lt" id="cutReady">Mark every "Ready to cut" as Cut</button>' +
+        '<button class="btn go" id="send"' + (toSend.length && !BUSY ? '' : ' disabled') + '>Send ' + toSend.length + ' marked Cut for approval</button></div>' +
       (MSG ? '<div class="msg ' + MSG.kind + '" role="status">' + MSG.html + '</div>' : '') +
     '</div>' +
     '<div class="filt" role="group" aria-label="Filter by review">' + ['All', 'Ready to cut', 'Verify', 'Keep'].map(function (f) {
       return '<button type="button" data-f="' + f + '" aria-pressed="' + (FILTER === f) + '">' + f + ' (' + (f === 'All' ? counts.all : counts[f]) + ')</button>';
     }).join('') + '</div>' +
     '<div class="card scroll" style="padding:6px 10px"><table id="acct"><thead><tr>' +
-      '<th class="c"><input type="checkbox" id="selAll" aria-label="Tick every account shown that can be cut"></th>' +
-      '<th>Google account</th><th>Review says</th><th>Team choice</th><th>Mail in 365?</th><th>Drive moved?</th><th>Google status</th><th>Last sign-in</th>' +
+      '<th>Google account</th><th>Keep or cut?</th><th>Review says</th><th>Mail in 365?</th><th>Drive moved?</th><th>Google status</th><th>Last sign-in</th>' +
       '<th class="n">Gmail</th><th class="n">Drive</th><th class="n">Photos</th><th class="n">Google total</th><th>Google vs 365</th>' +
       '<th class="n">Emails in, 30d</th><th>Gmail last used</th><th>365 mailbox</th><th>365 type</th><th class="n">365 items</th>' +
       '<th class="n">365 size</th><th>365 last activity</th><th class="n">Gmail items imported</th><th class="n">Imported Gmail</th>' +
       '<th>365 history from</th><th class="n">OneDrive</th><th>Why</th></tr></thead><tbody>' +
     rows.map(function (a) {
-      var st = state(a), can = selectable(a), on = !!SEL[a.account];
+      var k = state(a).key;
       var maxMb = Math.max(Number(a.google_total_mb) || 0, Number(a.m365_mb) || 0, 1);
-      return '<tr class="' + (a.must_keep ? 'lock' : on ? 'sel' : '') + '">' +
-        '<td class="c"><input type="checkbox" data-a="' + cEsc(a.account) + '"' + (on ? ' checked' : '') + (can ? '' : ' disabled') +
-          ' aria-label="' + (a.must_keep ? cEsc(a.account) + ' is locked as must-keep' : 'Cut ' + cEsc(a.account)) + '"></td>' +
+      return '<tr class="' + (a.must_keep ? 'lock' : k === 'cut' ? 'sel' : k === 'keep' ? 'kept' : '') + '">' +
         '<td class="who"><b>' + cEsc(a.account) + '</b><span>' + cEsc(a.name || '') + '</span>' +
+          '<span class="gtag">In Google' + (SANCTUARY.test(domainOf(a)) ? ' · Sanctuary address' : '') + '</span>' +
           (a.must_keep ? '<div class="lockb">🔒 ' + cEsc(a.must_keep_reason || 'Must keep') + '</div>' : '') + '</td>' +
-        '<td>' + verdictPill(a.verdict) + '</td><td>' + st.html + '</td>' +
+        '<td>' + choiceCell(a) + '</td><td>' + verdictPill(a.verdict) + '</td>' +
         '<td>' + movedPill(a.mail_migrated) + '</td><td>' + movedPill(a.drive_migrated) + '</td>' +
         '<td>' + cEsc(a.google_status || '—') + '</td><td>' + cEsc(a.last_sign_in || '—') + '</td>' +
         '<td class="n">' + gb(a.gmail_mb) + '</td><td class="n">' + gb(a.drive_mb) + '</td><td class="n">' + num(a.photos_mb) + ' MB</td>' +
@@ -262,59 +291,50 @@ function drawPick() {
         '<td>' + cEsc(a.m365_history_starts || '—') + '</td><td class="n">' + gb(a.onedrive_mb) + '</td>' +
         '<td class="why">' + cEsc(a.note || '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' +
-    '<p class="fine">Green bar: everything in Google (mail + Drive + Photos). Blue bar: the matching Microsoft 365 mailbox. ' +
-    'Ticks are only saved when you press a button. "Send for approval" files one cut covering every ticked account.</p>';
+    '<p class="fine">Each Keep / Cut click is saved straight away (to Supabase), with your name. Nothing is deleted from Google until a cut is sent, approved, and done by Brian in Google Admin. ' +
+    'Green bar: everything in Google (mail + Drive + Photos). Blue bar: the matching Microsoft 365 mailbox.</p>';
   wirePick();
 }
+/* save one or more Keep / Cut / clear choices, then reload from Supabase */
+function choose(list, decision) {
+  MSG = null;
+  return SM.api('PATCH', '/api/cuts?scope=google', { accounts: list, decision: decision === 'clear' ? null : decision }).then(function () {
+    MSG = { kind: 'ok', html: (list.length === 1 ? cEsc(list[0]) : list.length + ' accounts') + ' saved as ' +
+      (decision === 'clear' ? 'not decided' : decision === 'cut' ? '<b>Cut</b> (not sent yet)' : '<b>Keep</b>') + '.' };
+    return load();
+  }, function (e) { MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
+}
 function wirePick() {
-  document.querySelectorAll('#acct [data-a]').forEach(function (c) {
-    c.addEventListener('change', function () { SEL[c.getAttribute('data-a')] = c.checked; MSG = null; drawPick(); });
-  });
-  var all = $('selAll');
-  if (all) {
-    all.addEventListener('change', function () {
-      ACCTS.filter(function (a) { return (FILTER === 'All' || a.verdict === FILTER) && selectable(a); })
-        .forEach(function (a) { SEL[a.account] = all.checked; });
-      MSG = null; drawPick();
-    });
-  }
-  document.querySelectorAll('[data-pre]').forEach(function (b) {
+  document.querySelectorAll('[data-kc]').forEach(function (b) {
     b.addEventListener('click', function () {
-      var p = b.getAttribute('data-pre');
-      SEL = {};
-      ACCTS.forEach(function (a) {
-        if (!selectable(a)) { return; }
-        if (p === 'ready' && a.verdict === 'Ready to cut') { SEL[a.account] = true; }
-        if (p === 'ready+verify' && (a.verdict === 'Ready to cut' || a.verdict === 'Verify')) { SEL[a.account] = true; }
-        if (p === 'all') { SEL[a.account] = true; }
-      });
-      MSG = null; drawPick();
+      document.querySelectorAll('[data-kc]').forEach(function (x) { x.disabled = true; });
+      choose([b.getAttribute('data-acc')], b.getAttribute('data-kc'));
     });
   });
   document.querySelectorAll('[data-f]').forEach(function (b) {
     b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); drawPick(); });
   });
+  var ready = $('cutReady');
+  if (ready) {
+    ready.addEventListener('click', function () {
+      var list = ACCTS.filter(function (a) { return a.verdict === 'Ready to cut' && state(a).key === 'open'; }).map(function (a) { return a.account; });
+      if (!list.length) { MSG = { kind: 'ok', html: 'Every "Ready to cut" account already has a choice.' }; return drawPick(); }
+      if (!confirm('Mark these ' + list.length + ' undecided "Ready to cut" accounts as Cut?\n\n' + list.join('\n'))) { return; }
+      choose(list, 'cut');
+    });
+  }
   var send = $('send');
   if (send) {
     send.addEventListener('click', function () {
-      var list = selected().map(function (a) { return a.account; });
-      if (!confirm('Send ' + list.length + ' Google account' + (list.length === 1 ? '' : 's') + ' for approval?\n\n' + list.join('\n'))) { return; }
+      var list = ACCTS.filter(function (a) { return state(a).key === 'cut'; }).map(function (a) { return a.account; });
+      if (!confirm('Send these ' + list.length + ' Google account' + (list.length === 1 ? '' : 's') + ' for approval?\n\n' + list.join('\n'))) { return; }
       BUSY = true; drawPick();
       SM.api('POST', '/api/cuts?scope=google', { accounts: list }).then(function (j) {
-        BUSY = false; SEL = {};
+        BUSY = false;
         MSG = { kind: 'ok', html: 'Sent for approval: ' + cEsc(j.cut.title) + ' (' + cMoney(+j.cut.monthly_saving, true) +
           '/mo). <a href="costs.html">Approve it on the Cost cutting page →</a>' };
         load();
       }, function (e) { BUSY = false; MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
-    });
-  }
-  var keep = $('mkKeep');
-  if (keep) {
-    keep.addEventListener('click', function () {
-      var list = selected().map(function (a) { return a.account; });
-      SM.api('PATCH', '/api/cuts?scope=google', { accounts: list, decision: 'keep' }).then(function () {
-        SEL = {}; MSG = { kind: 'ok', html: list.length + ' marked Keep.' }; load();
-      }, function (e) { MSG = { kind: 'err', html: cEsc(e.message) }; drawPick(); });
     });
   }
 }
@@ -434,14 +454,10 @@ function drawStatic() {
 
 function load() {
   if (!SM.me) { drawPick(); drawM365(); return; }
-  SM.api('GET', '/api/cuts?scope=google').then(function (j) {
+  return SM.api('GET', '/api/cuts?scope=google').then(function (j) {
     ACCTS = j.accounts || []; RECS = {}; MAILBOXES = j.mailboxes || []; FOLDERS = j.folders || [];
     (j.recs || []).forEach(function (r) { RECS[r.id] = r; });
     if (j.seatPrice) { SEAT = +j.seatPrice; }
-    Object.keys(SEL).forEach(function (k) {
-      var a = ACCTS.filter(function (x) { return x.account === k; })[0];
-      if (!a || !selectable(a)) { delete SEL[k]; }
-    });
     if (MSG && MSG.loadErr) { MSG = null; }
     drawPick(); drawM365();
   }, function (e) { MSG = { loadErr: e.message }; drawPick(); });
