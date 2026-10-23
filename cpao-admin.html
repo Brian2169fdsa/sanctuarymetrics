@@ -259,7 +259,7 @@ function shell(inner) {
     $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access', MGR() ? 'Team progress' : 'Where each person is · CPAO letters', 'cpao') +
       '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 6px">' + (MGR() ? 'HEAplus access — team progress' : 'HEAplus access') + '</h2>' +
       '<p class="lead" style="margin:0 0 14px">' + (MGR()
-        ? 'Where each person is in getting HEAplus access, and since when. Press <b>View details</b> on a row to see their 10 steps. Brian handles the forms — questions go to him.'
+        ? 'Where each person is in getting HEAplus access, and since when. Press <b>+ Invite someone</b> to send a person the application (CP-101), or <b>View details</b> on a row to see their 10 steps. Brian countersigns and sends everything to AHCCCS.'
         : 'When AHCCCS mails Sanctuary a letter about someone, press <b>View details</b> on their row and upload it in their card. Brian is alerted right away.') + '</p>' +
       inner + '</section>' + pageFooter('CP-AO portal');
     return;
@@ -307,8 +307,8 @@ function rosterView() {
   shell('<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
       '<div class="filters" role="group" aria-label="Show">' + FILTERS.map(function (f) {
         return '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>' +
-      (LIM() ? '' : '<button class="btn" id="inv-open">+ Invite someone</button>') + '</div>' +
-    (LIM() ? '' : '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
+      (LIM() && !MGR() ? '' : '<button class="btn" id="inv-open">+ Invite someone</button>') + '</div>' +
+    (LIM() && !MGR() ? '' : '<div class="card" id="inv-card" hidden><form id="inv" class="f2" novalidate>' +
       '<div class="dir"><label class="fl" for="d-q">Pick from Microsoft 365</label>' +
         '<input type="search" id="d-q" placeholder="Loading the staff list…" autocomplete="off" aria-describedby="d-note">' +
         '<p class="sub" id="d-note" style="margin:6px 0 0">Click a name to fill the form, or tick several and invite them together.</p>' +
@@ -324,10 +324,10 @@ function rosterView() {
       '<label class="fl">Worker type<select id="i-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select><span class="fh">Goes on the Add/Remove form.</span></label>' +
       '<label class="fl">Hire date<input id="i-hire" type="date"><span class="fh">Required on the Add/Remove form.</span></label>' +
       '<label class="fl wide">Work address<input id="i-addr" maxlength="200" value="' + esc(DATA.constants.default_work_address) + '"><span class="fh">Where they work — goes on the Add/Remove form. Change it for Cave Creek staff.</span></label>' +
-      '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-sa" style="margin-top:3px"><span>Also a Site Administrator (Add-SA)' +
+      (MGR() ? '' : '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-sa" style="margin-top:3px"><span>Also a Site Administrator (Add-SA)' +
         '<span class="fh">Only tick this if they will also be a CP-AO Site Administrator like you. Most staff are plain "Add".</span></span></label>' +
       '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-existing" style="margin-top:3px"><span>They already have HEAplus access — just add them to the tracker' +
-        '<span class="fh">No invite and no forms: they go straight on the roster as Active. The CP-101 is only for people added from now on. Works for the people you tick above too.</span></span></label>' +
+        '<span class="fh">No invite and no forms: they go straight on the roster as Active. The CP-101 is only for people added from now on. Works for the people you tick above too.</span></span></label>') +
       '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
@@ -363,11 +363,11 @@ function wireRoster() {
     });
   });
   document.querySelectorAll('[data-f]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-f'); rosterView(); }); });
-  if (LIM()) { return; }
+  if (LIM() && !MGR()) { return; }
   $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
   wireDir();
   $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
-  $('i-existing').addEventListener('change', function () {
+  if ($('i-existing')) $('i-existing').addEventListener('change', function () {
     var ex = $('i-existing').checked;
     $('i-go').textContent = ex ? 'Add to the tracker' : 'Send invite';
     $('d-go').textContent = $('d-go').textContent.replace(/^(Invite|Add)/, ex ? 'Add' : 'Invite');
@@ -378,7 +378,7 @@ function wireRoster() {
     var btn = $('i-go'); btn.disabled = true;
     api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
       title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value,
-      work_address: $('i-addr').value, is_site_admin: $('i-sa').checked, sign_in: $('i-signin').value, existing: $('i-existing').checked }).then(function (j) {
+      work_address: $('i-addr').value, is_site_admin: !!($('i-sa') && $('i-sa').checked), sign_in: $('i-signin').value, existing: !!($('i-existing') && $('i-existing').checked) }).then(function (j) {
       btn.disabled = false;
       if (j.existing) {
         note('i-note', 'ok', j.staff.first_name + ' ' + j.staff.last_name + ' is on the tracker as Active — no forms needed.'); $('i-link').innerHTML = '';
@@ -405,6 +405,8 @@ function wireRoster() {
     var e = $('i-email').value.trim().toLowerCase();
     if (/@/.test(e) && !/@sanctuary(recoverycenters|rc)\.com$/.test(e) && $('i-signin').value !== 'code') { $('i-signin').value = 'code'; signin(); }
   });
+  /* managers stop here: no bulk actions */
+  if (LIM()) { return; }
   var sync = function () {
     var ids = Object.keys(SEL).filter(function (k) { return SEL[k]; });
     $('bulk').hidden = !ids.length; $('bulk-n').textContent = ids.length + ' selected';
@@ -497,7 +499,7 @@ function wireDir() {
       return p.then(function () {
         btn.textContent = 'Inviting ' + (out.length + 1) + ' of ' + emails.length + '…';
         var u = byEmail(e);
-        return api('POST', 'invite', Object.assign(inviteBody(u), { existing: $('i-existing').checked })).then(function (j) { out.push({ u: u, j: j }); u.on_roster = true; },
+        return api('POST', 'invite', Object.assign(inviteBody(u), { existing: !!($('i-existing') && $('i-existing').checked) })).then(function (j) { out.push({ u: u, j: j }); u.on_roster = true; },
           function (err) { out.push({ u: u, err: err.message }); });
       });
     }, Promise.resolve()).then(function () {
