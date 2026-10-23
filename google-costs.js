@@ -84,7 +84,7 @@ var GOOGLE_COSTS = {
       detail: 'Done: 13 × Business Standard, Flexible, $16.80/seat; Jul–Sep invoices below.',
       status: 'done' },
     { step: 'Agree the cut list',
-      detail: 'Tick accounts on this page and send them for approval. Ulonda is locked as must-keep.',
+      detail: 'Tick accounts on this page and send them for approval. Ulonda\'s Sober Living account is locked as must-keep.',
       status: 'doing' },
     { step: 'Confirm the Gmail history is in 365',
       detail: 'Done Oct 21: Exchange shows imported [Gmail] folders in 7 mailboxes (Nov 2023 – Feb 2024). Still to export: the 2 accounts with no 365 mailbox.',
