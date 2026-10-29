@@ -217,6 +217,7 @@ function render(id) {
       'Report date: ' + esc(snap.reportDate) + ' &nbsp;·&nbsp; Internal / Confidential',
       'Source windows: ' + esc(snap.dataLine), 'report') +
     periodBar(id) +
+    (snap.sample ? sampleBanner() : '') +
     renderSummary(snap) +
     renderWebsite(ch.website) +
     renderFacebook(ch.facebook) +

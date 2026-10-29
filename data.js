@@ -3317,7 +3317,7 @@ function contextFor(channel) {
       source: 'source: Meta Business Suite', window: WINDOWS.metaOct15,
       head: ['Metric', 'Sanctuary', 'Typical', 'Standing'],
       rows: SNAP_OCT15.channels.facebook.peers.rows,
-      note: 'Latest peer benchmark (Oct 15 export). Interactions read "higher" at Aug 6 and Sep 3 and "similar" since Sep 17.'
+      note: 'SAMPLE DATA: this Oct 15 benchmark is mock and will be replaced. Latest peer benchmark (Oct 15 export). Interactions read "higher" at Aug 6 and Sep 3 and "similar" since Sep 17.'
     };
   }
   if (channel === 'website') {
@@ -3362,3 +3362,25 @@ SNAP_OCT1.l10 = L10_OCT1;
 SNAP_OCT15.biziq = BIZIQ_OCT15;
 SNAP_OCT15.l10 = L10;
 SNAP_OCT15.channels.linkedin.competitors = COMPETITORS;
+
+/* ── SAMPLE DATA: Oct 1 and Oct 15 ────────────────────────────────────────
+   These two snapshots were filled with mock numbers, not verified exports.
+   They stay visible so the layout can be reviewed, but every page that shows
+   them says so (SAMPLE_IDS / `sample: true`), the Compare series labels carry
+   "(sample)", and the chat is told not to quote them as real.
+   To replace one: overwrite its SNAP_*, TWOWEEK_SETS and SERIES entries with
+   the real pull for the same windows (the Make pipeline, pipeline/README.md,
+   or verified exports), then remove its id from SAMPLE_IDS.               */
+var SAMPLE_IDS = ['2026-10-01', '2026-10-15'];
+var SAMPLE_LABELS = ['Oct 1 snapshot', 'Oct 15 snapshot', 'Oct 1 report', 'Oct 15 report'];
+SAMPLE_IDS.forEach(function (id) {
+  if (REPORTS[id]) { REPORTS[id].sample = true; }
+  if (TWOWEEK_SETS[id]) { TWOWEEK_SETS[id].sample = true; }
+});
+Object.keys(SERIES).forEach(function (ch) {
+  Object.keys(SERIES[ch]).forEach(function (m) {
+    SERIES[ch][m].forEach(function (p) {
+      if (SAMPLE_LABELS.indexOf(p.label) !== -1) { p.label += ' (sample)'; p.sample = true; }
+    });
+  });
+});

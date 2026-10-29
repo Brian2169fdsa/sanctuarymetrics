@@ -78,6 +78,7 @@ How to answer:
 - Be direct and brief. Lead with the answer, then the supporting figure and its window. Short paragraphs or tight bullets; no preamble.
 - Where a number has a caveat recorded in the data (idle-session artifacts on two website pages, benchmark shifts, single-post inflation), carry the caveat with the number.
 - If a question is ambiguous about which period or channel, say which one you used.
+- Any report, two-week set or series point marked "sample": true (the Oct 1 and Oct 15 periods) holds mock data, not real figures. Never quote those numbers as Sanctuary's performance; say the period is sample data awaiting the real pull, and answer from the verified periods instead.
 - You are read-only. You cannot change the site, run a data pull, or take any action.`;
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
