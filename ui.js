@@ -223,6 +223,12 @@ function pageFooter(dataLine) {
     '</footer>';
 }
 
+/* Banner for periods whose numbers are mock data, not verified exports. */
+function sampleBanner() {
+  return '<div class="warn" role="note"><b>Sample data — not real figures.</b> This period was filled with mock ' +
+    'numbers and will be replaced with the real pull for the same windows. Don\'t quote or share it.</div>';
+}
+
 /* ── mobile stacked-table labels (re-run after every render) ──────────── */
 function applyDataLabels(root) {
   (root || document).querySelectorAll('table').forEach(function (t) {

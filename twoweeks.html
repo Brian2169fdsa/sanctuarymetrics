@@ -91,6 +91,7 @@ function render(id) {
       'Last 2 weeks vs. prior 2 weeks &nbsp;·&nbsp; Internal / Confidential',
       esc(set.last) + ' compared against ' + esc(set.prior), 'twoweeks') +
     fortnightBar(id) +
+    (set.sample ? sampleBanner() : '') +
     '<section>' +
       '<div class="eyebrow">Fortnightly view</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">Last two weeks vs. the two before</h2>' +

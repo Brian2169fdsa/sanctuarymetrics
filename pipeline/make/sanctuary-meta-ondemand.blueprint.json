@@ -1,0 +1,338 @@
+{
+ "name": "Sanctuary FB + IG metrics (on demand)",
+ "flow": [
+  {
+   "id": 1,
+   "module": "util:SetVariable2",
+   "version": 1,
+   "parameters": {},
+   "mapper": {
+    "name": "window_end",
+    "scope": "roundtrip",
+    "value": "{{if(var.input.window_end; var.input.window_end; formatDate(addDays(now; -1); \"YYYY-MM-DD\"; \"America/Phoenix\"))}}"
+   },
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Window end (input, default yesterday)"
+    }
+   }
+  },
+  {
+   "id": 2,
+   "module": "util:SetVariables",
+   "version": 1,
+   "parameters": {},
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "graph_version",
+      "value": "v25.0"
+     },
+     {
+      "name": "fb_page_id",
+      "value": "100063738294812"
+     },
+     {
+      "name": "window_end",
+      "value": "{{1.window_end}}"
+     },
+     {
+      "name": "window_start",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); -27); \"YYYY-MM-DD\"; \"America/Los_Angeles\")}}"
+     },
+     {
+      "name": "fb_since",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); -30); \"YYYY-MM-DD\"; \"America/Los_Angeles\")}}"
+     },
+     {
+      "name": "fb_until",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); 2); \"YYYY-MM-DD\"; \"America/Los_Angeles\")}}"
+     },
+     {
+      "name": "ig_since",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); -27); \"X\")}}"
+     },
+     {
+      "name": "ig_until",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); 1); \"X\")}}"
+     },
+     {
+      "name": "ig_prior_since",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); -55); \"X\")}}"
+     },
+     {
+      "name": "ig_prior_until",
+      "value": "{{formatDate(addDays(parseDate(1.window_end; \"YYYY-MM-DD\"; \"America/Los_Angeles\"); -27); \"X\")}}"
+     }
+    ]
+   },
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Config + 28-day windows"
+    }
+   }
+  },
+  {
+   "id": 3,
+   "module": "http:MakeRequest",
+   "version": 4,
+   "parameters": {
+    "authenticationType": "apiKeyConnection"
+   },
+   "mapper": {
+    "url": "https://graph.facebook.com/{{2.graph_version}}/{{2.fb_page_id}}",
+    "method": "get",
+    "queryParameters": [
+     {
+      "name": "fields",
+      "value": "id,name,followers_count,fan_count,instagram_business_account{id,username,followers_count,media_count}"
+     }
+    ],
+    "parseResponse": true,
+    "stopOnHttpError": true,
+    "allowRedirects": true,
+    "shareCookies": false,
+    "requestCompressedContent": true
+   },
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "FB Page identity (scope guard)"
+    }
+   }
+  },
+  {
+   "id": 4,
+   "module": "http:MakeRequest",
+   "version": 4,
+   "parameters": {
+    "authenticationType": "apiKeyConnection"
+   },
+   "mapper": {
+    "url": "https://graph.facebook.com/{{2.graph_version}}/{{2.fb_page_id}}/insights",
+    "method": "get",
+    "queryParameters": [
+     {
+      "name": "metric",
+      "value": "page_media_view,page_total_media_view_unique,page_post_engagements,page_daily_follows_unique,page_daily_unfollows_unique,page_total_actions,page_views_total"
+     },
+     {
+      "name": "period",
+      "value": "days_28"
+     },
+     {
+      "name": "since",
+      "value": "{{2.fb_since}}"
+     },
+     {
+      "name": "until",
+      "value": "{{2.fb_until}}"
+     }
+    ],
+    "parseResponse": true,
+    "stopOnHttpError": true,
+    "allowRedirects": true,
+    "shareCookies": false,
+    "requestCompressedContent": true
+   },
+   "metadata": {
+    "designer": {
+     "x": 900,
+     "y": 0,
+     "name": "FB Page insights (28d, current + prior)"
+    }
+   },
+   "filter": {
+    "name": "Sanctuary Page only",
+    "conditions": [
+     [
+      {
+       "a": "{{3.data.id}}",
+       "o": "text:equal",
+       "b": "{{2.fb_page_id}}"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": 5,
+   "module": "http:MakeRequest",
+   "version": 4,
+   "parameters": {
+    "authenticationType": "apiKeyConnection"
+   },
+   "mapper": {
+    "url": "https://graph.facebook.com/{{2.graph_version}}/{{3.data.instagram_business_account.id}}/insights",
+    "method": "get",
+    "queryParameters": [
+     {
+      "name": "metric",
+      "value": "views,reach,accounts_engaged,total_interactions,profile_links_taps"
+     },
+     {
+      "name": "metric_type",
+      "value": "total_value"
+     },
+     {
+      "name": "period",
+      "value": "day"
+     },
+     {
+      "name": "since",
+      "value": "{{2.ig_since}}"
+     },
+     {
+      "name": "until",
+      "value": "{{2.ig_until}}"
+     }
+    ],
+    "parseResponse": true,
+    "stopOnHttpError": true,
+    "allowRedirects": true,
+    "shareCookies": false,
+    "requestCompressedContent": true
+   },
+   "metadata": {
+    "designer": {
+     "x": 1200,
+     "y": 0,
+     "name": "IG insights (28d)"
+    }
+   }
+  },
+  {
+   "id": 6,
+   "module": "http:MakeRequest",
+   "version": 4,
+   "parameters": {
+    "authenticationType": "apiKeyConnection"
+   },
+   "mapper": {
+    "url": "https://graph.facebook.com/{{2.graph_version}}/{{3.data.instagram_business_account.id}}/insights",
+    "method": "get",
+    "queryParameters": [
+     {
+      "name": "metric",
+      "value": "views,reach,accounts_engaged,total_interactions,profile_links_taps"
+     },
+     {
+      "name": "metric_type",
+      "value": "total_value"
+     },
+     {
+      "name": "period",
+      "value": "day"
+     },
+     {
+      "name": "since",
+      "value": "{{2.ig_prior_since}}"
+     },
+     {
+      "name": "until",
+      "value": "{{2.ig_prior_until}}"
+     }
+    ],
+    "parseResponse": true,
+    "stopOnHttpError": true,
+    "allowRedirects": true,
+    "shareCookies": false,
+    "requestCompressedContent": true
+   },
+   "metadata": {
+    "designer": {
+     "x": 1500,
+     "y": 0,
+     "name": "IG insights (prior 28d)"
+    }
+   }
+  },
+  {
+   "id": 7,
+   "module": "http:MakeRequest",
+   "version": 4,
+   "parameters": {
+    "authenticationType": "apiKeyConnection"
+   },
+   "mapper": {
+    "url": "https://graph.facebook.com/{{2.graph_version}}/{{3.data.instagram_business_account.id}}/media",
+    "method": "get",
+    "queryParameters": [
+     {
+      "name": "fields",
+      "value": "id,timestamp,media_type,media_product_type,permalink"
+     },
+     {
+      "name": "since",
+      "value": "{{2.ig_since}}"
+     },
+     {
+      "name": "until",
+      "value": "{{2.ig_until}}"
+     },
+     {
+      "name": "limit",
+      "value": "100"
+     }
+    ],
+    "parseResponse": true,
+    "stopOnHttpError": true,
+    "allowRedirects": true,
+    "shareCookies": false,
+    "requestCompressedContent": true
+   },
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "IG posts in window"
+    }
+   }
+  },
+  {
+   "id": 8,
+   "module": "scenario-service:ReturnData",
+   "version": 2,
+   "parameters": {},
+   "mapper": {
+    "window_start": "{{2.window_start}}",
+    "window_end": "{{2.window_end}}",
+    "fb_page": "{{3.data}}",
+    "fb_insights": "{{4.data.data}}",
+    "ig_insights": "{{5.data.data}}",
+    "ig_insights_prior": "{{6.data.data}}",
+    "ig_media": "{{7.data.data}}"
+   },
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Return raw results"
+    }
+   }
+  }
+ ],
+ "metadata": {
+  "version": 1,
+  "scenario": {
+   "roundtrips": 1,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "autoCommitTriggerLast": true,
+   "sequential": true,
+   "confidential": true,
+   "dataloss": false,
+   "dlq": false,
+   "freshVariables": false
+  },
+  "designer": {
+   "orphans": []
+  }
+ }
+}
