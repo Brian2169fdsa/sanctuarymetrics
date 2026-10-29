@@ -83,21 +83,21 @@ live in Make's keychain or a gitignored `.env`.
 | G2 | Lead key events not configured | Click-to-call and Form cards stay pending | Same day; counts start from setup | `GA4_SETUP.md` §1 |
 | P1 | Free plan allows 2 active scenarios | If both existing scenarios get switched on, this one can't run | | Upgrade to Core, or keep one off |
 
-## Sample data to replace
+## Sample data: replaced Oct 29
 
-The **Oct 1** and **Oct 15** snapshots in `data.js` hold mock numbers, not
-verified exports. Every page flags them (`SAMPLE_IDS` at the end of
-`data.js`). Replace each with the real pull for its own windows:
+The Oct 1 and Oct 15 snapshots in `data.js` held mock numbers. Both were
+replaced on Oct 29 with verified pulls (`pipeline/pulls/`, one file per
+platform per snapshot), and the Oct 29 snapshot was added from the same pull.
+Each was made with the prompts in `CHROME_PROMPTS.md`.
 
-| Snapshot | Meta (FB + IG) 28d | Website 30d | LinkedIn |
-|---|---|---|---|
-| Oct 1 | Sep 3 – Sep 30 | Sep 1 – Sep 30 | Aug 31 – Sep 29 |
-| Oct 15 | Sep 17 – Oct 14 | Sep 15 – Oct 14 | Sep 14 – Oct 13 |
+`SAMPLE_IDS` is gone from `data.js`. The pages still honour `sample: true` on
+a report, two-week set or series point, so any future placeholder period can
+be flagged the same way.
 
-Meta's insights API can return past 28-day windows, so the Make scenario can
-backfill both once the token works. GA4 only has data from its install date,
-so the website figures likely come from Duda's export. LinkedIn comes from
-the Page analytics export. Then drop the id from `SAMPLE_IDS`.
+Not re-verified, because no pull covered them: the BizIQ Oct 1 report, the
+L10 Oct 1 / Oct 15 meeting columns, and the Oct 15 LinkedIn competitor table.
+They arrived in the same commit as the mock snapshots. The competitor table is
+no longer shown on any snapshot.
 
 ## Gap list: stays manual or pending until cleared
 
