@@ -55,7 +55,7 @@
 
 <section>
 <h2>Monthly snapshot</h2>
-<p class="sub">One row a month: licenses vs. actual usage, so cost creep shows up early. Add next month's row in <code>microsoft-costs.js</code>.</p>
+<p class="sub">One row a month: licenses vs. actual usage, so cost creep shows up early. Filled in by the daily Microsoft sync; invoices are entered in <code>microsoft-costs.js</code>.</p>
 <div class="card scroll"><table id="tSnap"></table></div>
 </section>
 
@@ -63,8 +63,8 @@
 Projected figures are computed from the approved cut and are labeled; they never replace an invoiced number.</footer>
 </div>
 <script>
-(function () {
-  var d = MS_COSTS, c = d.approvedCut;
+function render(over) {
+  var d = Object.assign({}, MS_COSTS, over || {}), c = d.approvedCut;
   var $ = function (id) { return document.getElementById(id); };
   var css = getComputedStyle(document.documentElement);
   var S1 = css.getPropertyValue('--ms-s1').trim(), S2 = css.getPropertyValue('--ms-s2').trim(), S3 = css.getPropertyValue('--ms-s3').trim();
@@ -201,8 +201,36 @@ Projected figures are computed from the approved cut and are labeled; they never
     '<th class="n">License cost / mo (pre-tax)</th><th class="n">Invoiced / mo (incl. tax)</th><th>Source</th></tr></thead><tbody>' +
     d.snapshots.map(function (s) {
       return '<tr><td>' + msMonth(s.month) + '</td><td class="n">' + s.seatsBought + '</td><td class="n">' + s.seatsAssigned + '</td><td class="n">' + s.enabledLicensed +
-        '</td><td class="n">' + s.active30 + '</td><td class="n">' + money(s.licenseMonthly) + '</td><td class="n">' + money(s.invoicedMonthly) + '</td><td>' + msEsc(s.source) + '</td></tr>';
+        '</td><td class="n">' + s.active30 + '</td><td class="n">' + money(s.licenseMonthly) + '</td><td class="n">' + (s.invoicedMonthly == null ? '—' : money(s.invoicedMonthly)) + '</td><td>' + msEsc(s.source) + '</td></tr>';
     }).join('') + '</tbody>';
-})();
+}
+
+/* licenses and the monthly snapshot from the daily Microsoft sync (api/m365.js);
+   microsoft-costs.js alone until it has run. Invoices always come from there. */
+function short(n) { return n.replace('Microsoft 365 Business ', 'Business ').replace('Exchange Online (Plan 2)', 'Exchange Online P2').replace('Microsoft 365 ', '').replace('Microsoft ', ''); }
+function liveOver(rv, hist) {
+  var inv = {};
+  MS.invoices.forEach(function (r) { inv[r.month] = r.total; });
+  var byMonth = {};
+  hist.forEach(function (h) { if (h.summary) { byMonth[h.taken_on.slice(0, 7)] = h; } });
+  var months = Object.keys(byMonth).sort();
+  var live = months.map(function (m) {
+    var h = byMonth[m], s = h.summary;
+    return { month: m, source: 'Microsoft daily sync (' + h.taken_on + ')', seatsBought: s.seatsBought, seatsAssigned: s.seatsAssigned,
+      licensedUsers: s.licensedUsers, enabledLicensed: s.enabledLicensed, active30: s.active30, licenseMonthly: s.licenseMonthly,
+      invoicedMonthly: inv[m] === undefined ? null : inv[m] };
+  });
+  var older = MS_COSTS.snapshots.filter(function (s) { return !months.length || s.month < months[0]; });
+  return {
+    snapshots: older.concat(live),
+    sku: rv.sku.filter(function (k) { return k.price > 0; }).map(function (k) {
+      return { name: short(k.name), bought: k.total, assigned: k.assigned, active30: k.active30, price: k.price };
+    })
+  };
+}
+Promise.all([
+  fetch('/api/m365', { cache: 'no-store' }).then(function (r) { if (!r.ok) { throw r; } return r.json(); }),
+  fetch('/api/m365?part=history', { cache: 'no-store' }).then(function (r) { if (!r.ok) { throw r; } return r.json(); })
+]).then(function (x) { render(liveOver(x[0].review, x[1].history || [])); }, function () { render(null); });
 </script>
 </body></html>

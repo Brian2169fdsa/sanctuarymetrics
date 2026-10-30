@@ -135,7 +135,9 @@ module.exports = async function handler(req, res) {
     if (new URL(req.url, 'http://x').searchParams.get('scope') === 'google') { return google(req, res, me); }
 
     if (req.method === 'GET') {
-      const rows = await supabase('GET', '?select=*&order=created_at.desc&limit=200', null, null, TABLE);
+      /* AI proposals withdrawn because they no longer apply aren't shown */
+      const rows = (await supabase('GET', '?select=*&order=created_at.desc&limit=200', null, null, TABLE))
+        .filter(function (r) { return r.status !== 'withdrawn'; });
       return sendJSON(res, 200, { cuts: rows, owner: owner() });
     }
 

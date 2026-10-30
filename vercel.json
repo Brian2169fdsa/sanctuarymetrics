@@ -6,12 +6,23 @@
     "api/cpao.js": {
       "maxDuration": 60,
       "includeFiles": "cpao/assets/**"
+    },
+    "api/m365.js": {
+      "maxDuration": 300
     }
   },
   "crons": [
     {
       "path": "/api/cpao",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/m365?action=sync",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/m365?action=ai",
+      "schedule": "35 11 * * *"
     }
   ],
   "rewrites": [

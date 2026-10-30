@@ -1,7 +1,7 @@
 /* usage.js — shared plumbing for the Teams, Email and Groups tabs.
    ─────────────────────────────────────────────────────────────────────────
-   All three read the same file the SharePoint tab does, sharepoint-usage.json,
-   and all three read the RAW report rows inside it: scan.py now returns the
+   All three read the same payload the SharePoint tab does — the daily
+   Microsoft sync (/api/m365?part=usage), else sharepoint-usage.json — and all three read the RAW report rows inside it: scan.py now returns the
    Groups and Teams reports whole rather than picking a few fields, so the
    column names here are Microsoft's, spelled exactly as the CSV spells them.
    tools/report-columns.py prints the real ones for a tenant — when a column
@@ -23,6 +23,7 @@ var AREA = {
   groups:     '#3E9B6B'
 };
 
+var USAGE_API = '/api/m365?part=usage';
 var USAGE_URL = 'sharepoint-usage.json';
 
 /* ── reading report cells ────────────────────────────────────────────────
@@ -60,17 +61,23 @@ function humanBytes(b) {
    before scan.py started returning the group and team reports simply has no
    such key — that is an awaiting-data state, not an error. */
 function loadUsage(cb) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', USAGE_URL + '?v=' + Date.now(), true);
-  xhr.onload = function () {
-    if (xhr.status < 200 || xhr.status >= 300) { cb(null, 'no-file'); return; }
-    var raw;
-    try { raw = JSON.parse(xhr.responseText); }
-    catch (e) { cb(null, 'unparseable'); return; }
+  fetchUsage().then(function (raw) {
+    if (!raw) { cb(null, 'no-file'); return; }
     cb(normalizeUsage(raw), null);
-  };
-  xhr.onerror = function () { cb(null, 'no-file'); };
-  xhr.send();
+  }, function () { cb(null, 'unparseable'); });
+}
+/* the daily Microsoft sync (api/m365.js) first; the committed file until it
+   has run. Resolves to the raw payload, or null when there is neither. */
+function fetchUsage() {
+  return fetch(USAGE_API, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
+    .then(function (j) {
+      if (j && j.usage) { return j.usage; }
+      return fetch(USAGE_URL + '?v=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) { return null; }
+        return r.json();
+      });
+    });
 }
 
 function normalizeUsage(raw) {

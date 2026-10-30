@@ -2,9 +2,11 @@
    Microsoft cost system: the numbers behind "Cost cut so far" and "Analytics"
    --------------------------------------------------------------------------
    One file, edited by hand. To keep it current:
-     * each month, add a row to `snapshots` (licenses vs. actual usage)
      * each new Microsoft invoice, append its month and totals to `invoices`
      * when an invoice shows a cut landing, add it to `realized`
+   Licenses, usage and the monthly snapshot now come from the daily Microsoft
+   sync (api/m365.js, M365_SYNC.md); `snapshots` and `sku` below are only the
+   pre-sync history and the fallback until the first sync has run.
    Nothing is estimated: a month with no invoice yet simply has no row.
    ========================================================================== */
 var MS_COSTS = {
