@@ -421,7 +421,7 @@ if (STATE.demo) {
   STATE.loaded = true;
   render();
 } else {
-  /* the daily Microsoft sync first (api/m365.js); the committed file until it has run */
+  /* the daily Microsoft sync first (/api/m365, lib/m365-api.js); the committed file until it has run */
   fetch(LIVE_URL, { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
     .then(function (j) {

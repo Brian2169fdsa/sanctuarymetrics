@@ -5,7 +5,7 @@
      * each new Microsoft invoice, append its month and totals to `invoices`
      * when an invoice shows a cut landing, add it to `realized`
    Licenses, usage and the monthly snapshot now come from the daily Microsoft
-   sync (api/m365.js, M365_SYNC.md); `snapshots` and `sku` below are only the
+   sync (lib/m365-api.js, M365_SYNC.md); `snapshots` and `sku` below are only the
    pre-sync history and the fallback until the first sync has run.
    Nothing is estimated: a month with no invoice yet simply has no row.
    ========================================================================== */

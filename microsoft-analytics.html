@@ -205,7 +205,7 @@ function render(over) {
     }).join('') + '</tbody>';
 }
 
-/* licenses and the monthly snapshot from the daily Microsoft sync (api/m365.js);
+/* licenses and the monthly snapshot from the daily Microsoft sync (/api/m365, lib/m365-api.js);
    microsoft-costs.js alone until it has run. Invoices always come from there. */
 function short(n) { return n.replace('Microsoft 365 Business ', 'Business ').replace('Exchange Online (Plan 2)', 'Exchange Online P2').replace('Microsoft 365 ', '').replace('Microsoft ', ''); }
 function liveOver(rv, hist) {

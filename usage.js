@@ -66,7 +66,7 @@ function loadUsage(cb) {
     cb(normalizeUsage(raw), null);
   }, function () { cb(null, 'unparseable'); });
 }
-/* the daily Microsoft sync (api/m365.js) first; the committed file until it
+/* the daily Microsoft sync (/api/m365, lib/m365-api.js) first; the committed file until it
    has run. Resolves to the raw payload, or null when there is neither. */
 function fetchUsage() {
   return fetch(USAGE_API, { cache: 'no-store' })

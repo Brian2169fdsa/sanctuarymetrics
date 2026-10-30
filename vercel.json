@@ -7,7 +7,7 @@
       "maxDuration": 60,
       "includeFiles": "cpao/assets/**"
     },
-    "api/m365.js": {
+    "api/cuts.js": {
       "maxDuration": 60
     }
   },
@@ -31,12 +31,16 @@
       "destination": "/pal-email.html"
     },
     {
+      "source": "/api/m365",
+      "destination": "/api/cuts?scope=m365"
+    },
+    {
       "source": "/api/m365-sync",
-      "destination": "/api/m365?action=sync"
+      "destination": "/api/cuts?scope=m365&action=sync"
     },
     {
       "source": "/api/m365-ai",
-      "destination": "/api/m365?action=ai"
+      "destination": "/api/cuts?scope=m365&action=ai"
     }
   ]
 }

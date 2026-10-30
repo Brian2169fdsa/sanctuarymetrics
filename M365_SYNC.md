@@ -130,7 +130,7 @@ old `sharepoint-usage.json`, it isn't a public static file.
 
 | File | |
 |---|---|
-| `api/m365.js` | the endpoint the scheduled jobs and the pages call |
+| `lib/m365-api.js` | the `/api/m365` endpoint the scheduled jobs and the pages call (served by `api/cuts.js` through a rewrite: the Vercel plan allows 12 functions and `api/` has 12) |
 | `lib/m365.js` | the Microsoft Graph pull, and turning it into page data |
 | `lib/m365-findings.js` | the cost rules and the deduplicated savings |
 | `lib/m365-ai.js` | Claude's review, its guard rails, and the approval queue |
