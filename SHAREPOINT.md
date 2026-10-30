@@ -1,5 +1,9 @@
 # SharePoint / Teams usage — how to connect it
 
+> **Now automatic.** The daily Microsoft sync (`M365_SYNC.md`) pulls all of this
+> every morning and the tabs read it from there. The manual `scan.py` steps below
+> are only a fallback.
+
 The **SharePoint** tab is live and waiting for data. It reads one static file,
 `sharepoint-usage.json`, from the site root. If that file is absent the page
 shows the awaiting-data state. Nothing is ever estimated.

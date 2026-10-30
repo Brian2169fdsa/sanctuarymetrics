@@ -22,6 +22,9 @@
                                        as one cut (seat price × count, before tax)
    Accounts marked must_keep (Ulonda's Sober Living account) can never be sent for cutting.
 
+   /api/m365 (lib/m365-api.js) is served from here too: vercel.json rewrites it
+   to ?scope=m365, because the plan's function limit is reached.
+
    Approving needs a signed-in account (the approval is recorded by name).
    Tables: supabase/cost-cutting.sql. Tasks go to CUTS_OWNER, defaulting to
    PRINT_OWNER, then "Brian Reinhart".
@@ -29,6 +32,7 @@
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const A = require('../lib/auth');
+const M365 = require('../lib/m365-api');
 
 const VENDORS = ['Microsoft', 'Google', 'Other'];
 const TABLE = 'cost_recommendations';
@@ -118,6 +122,8 @@ async function google(req, res, me) {
 }
 
 module.exports = async function handler(req, res) {
+  /* the Microsoft 365 sync and its data (/api/m365, rewritten here) */
+  if (new URL(req.url, 'http://x').searchParams.get('scope') === 'm365') { return M365(req, res); }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return sendJSON(res, 503, { error: 'not_configured', message: 'Cost cutting is not set up yet.' });
   }
@@ -135,7 +141,9 @@ module.exports = async function handler(req, res) {
     if (new URL(req.url, 'http://x').searchParams.get('scope') === 'google') { return google(req, res, me); }
 
     if (req.method === 'GET') {
-      const rows = await supabase('GET', '?select=*&order=created_at.desc&limit=200', null, null, TABLE);
+      /* AI proposals withdrawn because they no longer apply aren't shown */
+      const rows = (await supabase('GET', '?select=*&order=created_at.desc&limit=200', null, null, TABLE))
+        .filter(function (r) { return r.status !== 'withdrawn'; });
       return sendJSON(res, 200, { cuts: rows, owner: owner() });
     }
 

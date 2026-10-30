@@ -12,7 +12,7 @@
     "pdf-lib": "^1.17.1"
   },
   "scripts": {
-    "test": "node --test tests/cpao.test.js",
+    "test": "node --test tests/cpao.test.js tests/m365.test.js",
     "cpao:golden": "node tools/cpao-golden.js"
   }
 }

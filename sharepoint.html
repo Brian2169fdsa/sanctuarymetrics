@@ -14,9 +14,10 @@
 /* ═════════════════════════════════════════════════════════════════════════
    SharePoint / Teams usage review
 
-   Reads ONE static file — sharepoint-usage.json — served from the site root.
-   That file is the output of scan.py (see SHAREPOINT.md). Until it exists the
-   page renders the awaiting-data state; it never invents or estimates a
+   Reads the daily Microsoft sync (/api/m365?part=usage, see M365_SYNC.md),
+   falling back to the committed sharepoint-usage.json (scan.py, SHAREPOINT.md)
+   until the sync has run. With neither, the page renders the awaiting-data
+   state; it never invents or estimates a
    figure, same rule as every other channel on this site.
 
    Usage metrics only. The payload carries counts, dates and sizes. It never
@@ -24,6 +25,13 @@
    permission behind it (Reports.Read.All) cannot read any of those.
    ═════════════════════════════════════════════════════════════════════════ */
 
+/* the page's labels used to live in data.js; they were removed with the
+   Microsoft cost system (b7846f3), which left this tab erroring on load */
+var SHAREPOINT = window.SHAREPOINT || {
+  source: 'source: Microsoft Graph reports API · SharePoint site usage + M365 Groups + Teams activity, pulled daily',
+  note: 'The daily Microsoft sync (M365_SYNC.md) hasn\'t produced data yet.'
+};
+var LIVE_URL = '/api/m365?part=usage';
 var DATA_URL = 'sharepoint-usage.json';
 
 var STATE = {
@@ -271,8 +279,8 @@ function sitesSection(rows) {
         (STATE.payload
           ? 'No sites match the current filters.'
           : '<b style="color:var(--teal)">Nothing to show until the first Microsoft pull.</b><br>' +
-            'Run <code>scan.py</code>, build <code>sharepoint-usage.json</code> and commit it — this table fills itself in. ' +
-            'Steps are in SHAREPOINT.md.<br><br>' +
+            'The daily Microsoft sync (M365_SYNC.md) fills this table in on its first run. ' +
+            'Setup is in M365_SYNC.md.<br><br>' +
             '<a href="?demo=1" style="color:var(--blue);font-weight:700">See it with sample data →</a>') +
         '</div>') +
   '</section>';
@@ -413,11 +421,16 @@ if (STATE.demo) {
   STATE.loaded = true;
   render();
 } else {
-  fetch(DATA_URL, { cache: 'no-store' })
-    .then(function (r) {
-      if (r.status === 404) { return null; }
-      if (!r.ok) { throw new Error('HTTP ' + r.status); }
-      return r.json();
+  /* the daily Microsoft sync first (/api/m365, lib/m365-api.js); the committed file until it has run */
+  fetch(LIVE_URL, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
+    .then(function (j) {
+      if (j && j.usage) { return j.usage; }
+      return fetch(DATA_URL, { cache: 'no-store' }).then(function (r) {
+        if (r.status === 404) { return null; }
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      });
     })
     .then(function (json) { STATE.payload = normalize(json); })
     .catch(function (e) { STATE.error = String(e && e.message ? e.message : e); })
