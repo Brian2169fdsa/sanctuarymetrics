@@ -8,7 +8,7 @@
       "includeFiles": "cpao/assets/**"
     },
     "api/m365.js": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -17,11 +17,11 @@
       "schedule": "0 15 * * *"
     },
     {
-      "path": "/api/m365?action=sync",
+      "path": "/api/m365-sync",
       "schedule": "5 11 * * *"
     },
     {
-      "path": "/api/m365?action=ai",
+      "path": "/api/m365-ai",
       "schedule": "35 11 * * *"
     }
   ],
@@ -29,6 +29,14 @@
     {
       "source": "/pal-email",
       "destination": "/pal-email.html"
+    },
+    {
+      "source": "/api/m365-sync",
+      "destination": "/api/m365?action=sync"
+    },
+    {
+      "source": "/api/m365-ai",
+      "destination": "/api/m365?action=ai"
     }
   ]
 }

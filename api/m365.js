@@ -9,9 +9,12 @@
 
    Run (Vercel cron with Authorization: Bearer <CRON_SECRET>, or an admin):
      GET|POST ?action=sync  pull Microsoft Graph, save today's snapshot
+                            (cron: /api/m365-sync, rewritten here in vercel.json)
      GET|POST ?action=ai    Claude reviews today's snapshot; cuts it
                             recommends go to the Cost cutting approval queue
-     POST     ?action=all   both, for the admin "Refresh now" button
+                            (cron: /api/m365-ai)
+     POST     ?action=all   both in one call (may not fit the 60s limit;
+                            the page's "Refresh now" calls them one by one)
 
    Snapshots keep their full detail for 14 days; older rows keep only the
    headline numbers. Tables: supabase/m365.sql. Setup: M365_SYNC.md.

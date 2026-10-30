@@ -5,11 +5,12 @@ straight from Microsoft, and Claude reviews it for ways to cut cost. No
 downloads, no ZIP files, no scripts to run by hand.
 
 ```
-11:05 UTC (4:05 am Phoenix)  /api/m365?action=sync   Microsoft Graph → today's snapshot in Supabase
-11:35 UTC (4:35 am Phoenix)  /api/m365?action=ai     Claude reviews it → cuts to approve on Cost cutting
+11:05 UTC (4:05 am Phoenix)  /api/m365-sync   Microsoft Graph → today's snapshot in Supabase
+11:35 UTC (4:35 am Phoenix)  /api/m365-ai     Claude reviews it → cuts to approve on Cost cutting
 ```
 
-Both run as Vercel scheduled jobs (`vercel.json`). An admin can also press
+Both run as Vercel scheduled jobs (`vercel.json`; each path is rewritten to
+`/api/m365?action=…`), each within the 60-second function limit. An admin can also press
 **Refresh now** at the top of the Microsoft usage review.
 
 ## What's automatic now, and what isn't

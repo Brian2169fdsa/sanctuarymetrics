@@ -223,7 +223,8 @@ function status(j,err){const el=$live();
     ' <button id="refresh" style="margin-left:8px;font:inherit;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);cursor:pointer">Refresh now</button>'+
     ((j.warnings||[]).length?'<ul style="margin:8px 0 0;padding-left:18px;color:var(--warn)">'+j.warnings.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>':'');
   document.getElementById('refresh').onclick=function(){this.disabled=true;this.textContent='Refreshing… (up to a few minutes)';
-    fetch('/api/m365?action=all',{method:'POST'}).then(r=>r.json().then(x=>{if(!r.ok)throw x;location.reload();})).catch(e=>{alert(e.message||'Refresh failed.');this.disabled=false;this.textContent='Refresh now';});};
+    const post=a=>fetch('/api/m365?action='+a,{method:'POST'}).then(r=>r.json().then(x=>{if(!r.ok)throw x;return x;}));
+    post('sync').then(()=>{this.textContent='Pulled — AI reviewing…';return post('ai').catch(()=>null);}).then(()=>location.reload()).catch(e=>{alert(e.message||'Refresh failed.');this.disabled=false;this.textContent='Refresh now';});};
   document.getElementById('win').textContent='180-day window ending '+(j.report_date||j.taken_on)+' · refreshed daily';
   document.getElementById('snapNote').innerHTML='Live snapshot from Microsoft, '+esc(j.report_date||j.taken_on)+'. Cuts people have approved are on <a href="microsoft-savings.html" style="color:var(--ink2);font-weight:600">Cost cut so far</a> and <a href="costs.html" style="color:var(--ink2);font-weight:600">Cost cutting</a>.';
   document.getElementById('foot').textContent='Sanctuary Recovery Centers · Confidential — contains staff names. Live from Microsoft Graph, data as of '+(j.report_date||j.taken_on)+'.';
