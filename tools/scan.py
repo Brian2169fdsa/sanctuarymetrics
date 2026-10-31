@@ -243,7 +243,7 @@ def scan_tenant(tenant, enrich=False, dormant_only=False, max_lookups=2000,
     if people_detail:
         for label, func in (("mailboxes", "getMailboxUsageDetail"),
                             ("email_activity", "getEmailActivityUserDetail"),
-                            ("teams_users", "getTeamsUserActivityDetail")):
+                            ("teams_users", "getTeamsUserActivityUserDetail")):
             print(f"[{name}] pulling {label.replace('_', ' ')}…", file=sys.stderr)
             try:
                 people[label] = get_report_csv(token, func)

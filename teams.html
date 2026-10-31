@@ -72,7 +72,7 @@ function summary(rows) {
     ]) +
     grid2(
       card('Conversation, not broadcast',
-        meters([
+        gauges([
           { label: 'Replies as a share of all channel messages', value: replies, total: msgs,
             note: 'A team where almost every message is a post and almost none is a reply is a ' +
                   'noticeboard, not a conversation.' },
@@ -109,7 +109,8 @@ function controls() {
 /* ── detail ──────────────────────────────────────────────────────────── */
 function detail(rows) {
   var head = ['Team', 'Type', 'Last activity', 'Active users', 'Channels',
-              'Messages', 'Posts', 'Replies', 'Meetings', 'Mentions', 'Guests'];
+              'Messages', 'Posts', 'Replies', 'Reactions', 'Urgent', 'Meetings',
+              'Mentions', 'Guests'];
   var body = rows.slice(0, 200).map(function (r) {
     var name = esc(str(r, 'Team Name') || '—');
     if (numOr0(r, 'Active External Users') > 0) {
@@ -121,7 +122,8 @@ function detail(rows) {
     return [name, esc(str(r, 'Team Type') || '—'), esc(str(r, 'Last Activity Date') || 'none in window'),
             dash(num(r, 'Active Users')), dash(num(r, 'Active Channels')),
             dash(num(r, 'Channel Messages')), dash(num(r, 'Post Messages')),
-            dash(num(r, 'Reply Messages')), dash(num(r, 'Meetings Organized')),
+            dash(num(r, 'Reply Messages')), dash(num(r, 'Reactions')),
+            dash(num(r, 'Urgent Messages')), dash(num(r, 'Meetings Organized')),
             dash(num(r, 'Mentions')), dash(num(r, 'Guests'))];
   });
   return '<section>' +
@@ -131,7 +133,11 @@ function detail(rows) {
       ' team' + (rows.length === 1 ? '' : 's') + '. A figure Microsoft did not return reads —.</p>' +
     controls() +
     (rows.length
-      ? table(head, body, { numeric: function (i) { return i >= 3; } })
+      ? table(head, body, { numeric: function (i) { return i >= 3; },
+          /* Phone keeps team, activity, messages and active users. Channels,
+             posts/replies, reactions, urgent, meetings, mentions and guests are
+             the detail you open a laptop for. */
+          secondary: function (i) { return [1, 4, 6, 7, 8, 9, 10, 11, 12].indexOf(i) !== -1; } })
       : '<div class="placeholder" style="padding:30px">No teams match that search.</div>') +
   '</section>';
 }
