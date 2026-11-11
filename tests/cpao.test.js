@@ -163,3 +163,18 @@ test('Arizona city and ZIP come from the list, not the AI', function () {
   assert.strictEqual(r.status, 'admin_review');
   assert.deepStrictEqual(r.issues.map(function (i) { return i.field + ':' + i.severity; }), ['email:warn']);
 });
+
+test('manual stage changes follow the process', () => {
+  const P = R.statusChangeProblem;
+  assert.equal(P('sent_to_cpao', 'approved_training_assigned'), '');
+  assert.equal(P('active', 'remove_requested'), '');
+  assert.equal(P('remove_requested', 'active'), '');
+  assert.equal(P('queued_for_batch', 'sent_to_cpao'), '');
+  assert.equal(P('sent_to_cpao', 'denied'), '');
+  assert.equal(P('in_progress', 'removed'), '');
+  assert.ok(P('in_progress', 'remove_requested'), 'never had access');
+  assert.ok(P('invited', 'active'), 'not with CPAO yet');
+  assert.ok(P('ready_for_countersign', 'denied'), 'deny only after it is sent');
+  assert.ok(P('sent_to_cpao', 'queued_for_batch'), 'set by the process');
+  assert.ok(P('removed', 'active'), 'removed starts over');
+});

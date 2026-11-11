@@ -425,6 +425,9 @@ function wireRoster() {
   $('b-sa').addEventListener('click', function () { bulk(function (id) { return api('POST', 'update', { id: id, is_site_admin: true }); }); });
   $('b-rm').addEventListener('click', function () {
     if (!$('b-conf').checked) { note('b-note', 'err', 'Tick the box to confirm their HEAplus accounts are already deactivated.'); return; }
+    var byId = {}; DATA.staff.forEach(function (x) { byId[x.id] = x; });
+    var bad = Object.keys(SEL).filter(function (k) { return SEL[k] && byId[k] && CAN_REMOVE.indexOf(byId[k].status) < 0; });
+    if (bad.length) { note('b-note', 'err', 'Only people who have (or are getting) HEAplus access can be removed. Untick: ' + bad.map(function (k) { return byId[k].first_name + ' ' + byId[k].last_name; }).join(', ') + '.'); return; }
     bulk(function (id) { return api('POST', 'status', { id: id, status: 'remove_requested', confirm_deactivated: true }); });
   });
   sync();
@@ -630,7 +633,8 @@ function drawStaff(j) {
             '<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600;font-size:13.5px">Send back to them with a note</summary>' +
             '<div class="f2" style="margin-top:10px"><label class="fl">About<select id="sb-field"><option value="">General</option>' +
               [['first_name', 'First name'], ['last_name', 'Last name'], ['middle_initial', 'Middle initial'], ['date_of_birth', 'Date of birth'], ['ssn', 'SSN'],
-               ['home_address', 'Home address'], ['zip', 'ZIP'], ['email', 'Email'], ['title_position', 'Title'], ['hire_date', 'Hire date'], ['user_signature', 'Signature']]
+               ['home_address', 'Home address'], ['city', 'City'], ['zip', 'ZIP'], ['phone', 'Phone'], ['email', 'Email'], ['title_position', 'Title'],
+               ['pay_status', 'Paid or volunteer'], ['hire_date', 'Hire date'], ['user_signature', 'Signature']]
               .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select></label>' +
             '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
             '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
@@ -786,7 +790,7 @@ function wireLetters(s) {
       .then(function () {
         afterChange(s.id);
         setTimeout(function () { note('s-note', 'ok', 'Letter uploaded' + (LIM() ? ' — Brian has been alerted.' : '.')); }, 500);
-      }, function (e) { b.disabled = false; b.textContent = 'Upload'; note('lt-note-msg', 'err', e.message); });
+      }, function (e) { b.disabled = false; b.textContent = LIM() ? 'Upload and alert Brian' : 'Upload letter'; note('lt-note-msg', 'err', e.message); });
   });
 }
 function wireStaff(s) {
@@ -885,7 +889,7 @@ function wireStaff(s) {
 
 /* ── batches ──────────────────────────────────────────────────────────── */
 /* who can be put on the Remove list: anyone with (or about to get) access */
-var CAN_REMOVE = ['active', 'final_approved', 'certs_sent_to_cpao', 'training_complete', 'approved_training_assigned', 'sent_to_cpao'];
+var CAN_REMOVE = ['active', 'final_approved', 'certs_sent_to_cpao', 'training_complete', 'approved_training_assigned', 'sent_to_cpao', 'cpao_correction_requested'];
 function batchesView(open) {
   var b = DATA.batches, sa = SA();
   var adds = DATA.staff.filter(function (s) { return s.status === 'queued_for_batch'; });
@@ -946,7 +950,13 @@ function batchesView(open) {
   });
   document.querySelectorAll('[data-unremove]').forEach(function (x) {
     x.addEventListener('click', function () {
-      api('POST', 'status', { id: x.getAttribute('data-unremove'), status: 'active' }).then(function () { return refresh(false).then(function () { batchesView(); }); },
+      api('POST', 'unremove', { id: x.getAttribute('data-unremove') }).then(function (j) {
+        return refresh(false).then(function () {
+          batchesView();
+          note('b-note', 'ok', 'Taken off the Remove list — back to "' + (LABEL[j.status] || j.status) + '".' +
+            (j.rebuild ? ' They\'re still on the unsent form below: press "Pull in everyone ready and build the form" to rebuild it without them.' : ''));
+        });
+      },
         function (e) { note('b-note', 'err', e.message); });
     });
   });
@@ -969,17 +979,22 @@ function batchesView(open) {
         ' from ' + DATA.constants.site_admin_email + ' now?\n\nEveryone on it will be marked Sent to CPAO.')) { return; }
       x.disabled = true; x.textContent = 'Sending…';
       api('POST', 'send_batch', { id: x.getAttribute('data-send') }).then(function (j) {
-        return refresh(false).then(function () { batchesView(); note('b-note', 'ok', 'Sent to ' + j.to + ' from ' + j.from + ' with ' + j.files + ' file' + (j.files === 1 ? '' : 's') + '. It\'s in your Sent Items, and everyone on it is now Sent to CPAO.'); });
+        return refresh(false).then(function () { batchesView(); note('b-note', 'ok', 'Sent to ' + j.to + ' from ' + j.from + ' with ' + j.files + ' file' + (j.files === 1 ? '' : 's') + '. It\'s in your Sent Items, and everyone on it is now Sent to CPAO.' + skippedNote(j)); });
       }, function (e) { x.disabled = false; x.textContent = '✉ Send to CPAO'; note('b-note', 'err', e.message); });
     });
   });
   document.querySelectorAll('[data-sent]').forEach(function (x) {
     x.addEventListener('click', function () {
       if (!confirm('Mark this batch as sent to CPAO? Adds move to "Sent to CPAO" and removals to "Removed".')) { return; }
-      api('POST', 'mark_sent', { id: x.getAttribute('data-sent') }).then(function () { return refresh(false).then(function () { batchesView(); }); },
+      api('POST', 'mark_sent', { id: x.getAttribute('data-sent') }).then(function (j) { return refresh(false).then(function () { batchesView(); if (skippedNote(j)) { note('b-note', 'ok', 'Marked as sent.' + skippedNote(j)); } }); },
         function (e) { note('b-note', 'err', e.message); });
     });
   });
+}
+
+/* people on the form whose stage changed after it was built aren't moved */
+function skippedNote(j) {
+  return j && j.skipped && j.skipped.length ? ' Not moved (their stage changed after the form was built): ' + j.skipped.join(', ') + '.' : '';
 }
 
 /* ── settings ─────────────────────────────────────────────────────────── */

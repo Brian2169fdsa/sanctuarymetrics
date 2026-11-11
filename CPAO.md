@@ -180,16 +180,25 @@ Send to CPAO needs the Microsoft sign-in app to have the **Mail.Send** applicati
 - It signs the form, flattens it, and merges it with each person's CP-101 into one bundle.
 - It adds a task: "Weekly CPAO batch ready: n add, m remove".
 
-**Then Brian:**
-1. Downloads the bundle from **Weekly batches**.
-2. Emails it to CP-AOOperationsTeam@azahcccs.gov **from his own mailbox**. Only the site administrator may email CPAO.
-3. Presses **Mark as Sent**.
+**Then Brian**, on **Weekly batches**, either:
+- presses **✉ Send to CPAO**, which emails it from his mailbox and marks it sent, or
+- downloads the bundle, emails it to CP-AOOperationsTeam@azahcccs.gov from his own mailbox, and presses **I sent it myself — mark as sent**.
+
+Only the site administrator may email CPAO.
 
 **Mark as Sent:**
 - moves adds to *Sent to CPAO* and removals to *Removed*
-- adds a "Check CPAO status" task for 14 days later
+- adds a "Check CPAO status" task for 14 days later, when the form has any adds
 
-**When CPAO replies,** set each person's status on their page. *Correction requested* and *Training complete* add a task for you ("Create HEAplus account for …").
+**When CPAO replies,** set each person's status on their page. *CPAO wants a correction* and *Certificates turned in* add a task for you, and *Final approval* adds "Create HEAplus account for …".
+
+**What can be set by hand:** only the stages after the application is with CPAO (plus Denied, Removal requested and Removed). The server refuses anything else, for example:
+- putting someone who never got access on the Remove list
+- recording a denial before the application was sent
+
+**Undo on the Remove list** puts the person back at the stage they were on before, not always Active. If they're already on an unsent Add/Remove form, rebuild it.
+
+**Mark as Sent** only moves people who are still waiting for that form. Anyone whose stage changed after it was built (for example, taken off the Remove list) is left alone, and the page names them.
 
 **Re-running a batch:** press **Build the batch now** under Weekly batches. It replaces any batch not yet marked sent, including its task and files. Use it after a late countersign, or to send before the scheduled day.
 

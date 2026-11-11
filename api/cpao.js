@@ -75,6 +75,8 @@ function wetMode() { return String(process.env.CPAO_REQUIRE_WET_SIGNATURE || '')
 function ipOf(req) { return str(String(req.headers['x-forwarded-for'] || '').split(',')[0] || (req.socket && req.socket.remoteAddress), 60) || null; }
 function site(req) { return (process.env.SITE_URL || ('https://' + req.headers.host)).replace(/\/+$/, ''); }
 function nowIso() { return new Date().toISOString(); }
+/* a header the page URI-encoded (X-Course, X-Note); bad encoding → as typed */
+function header(req, name, max) { const v = String(req.headers[name] || ''); try { return str(decodeURIComponent(v), max); } catch (e) { return str(v, max); } }
 function db(method, table, query, body, headers) { return supabase(method, query, body, headers, table); }
 
 /* JSON body with a bigger limit than lib/db (signature PNGs) */
@@ -477,7 +479,8 @@ async function sendBack(req, me, b) {
   let emailed = false;
   try {
     emailed = await G.sendMail(s.email, 'Please fix your Individual User Application',
-      s.first_name + ', one thing to fix on your HEAplus application:\n\n' + note + '\n\nOpen it here: ' + url + '\n\n— Brian');
+      s.first_name + ', one thing to fix on your HEAplus application:\n\n' + note + '\n\nOpen it here: ' + url +
+        (s.sign_in === 'code' ? '\nUse the same 6-digit access code I gave you before.' : '') + '\n\n— Brian');
   } catch (e) { /* the link is shown to the admin */ }
   await audit(me.email, 'send_back', s.id, { emailed: emailed }, req);
   return { ok: true, link: url, emailed: emailed };
@@ -493,6 +496,8 @@ async function setStatus(req, me, b) {
   const s = await staffById(b.id);
   const to = b.status;
   if (STATUSES.indexOf(to) < 0) { throw bad('Unknown status.'); }
+  const problem = to === s.status ? '' : R.statusChangeProblem(s.status, to);
+  if (problem) { throw bad(s.first_name + ' ' + s.last_name + ': ' + problem); }
   if (to === 'remove_requested' && b.confirm_deactivated !== true) {
     throw bad('Confirm their HEAplus account is already deactivated first.');
   }
@@ -527,6 +532,22 @@ async function setStatus(req, me, b) {
   await audit(me.email, 'status', s.id, { from: s.status, to: to }, req);
   if (to === 'removed') { await purgeStaff(s.id, 'removed'); }
   return { ok: true };
+}
+
+/* Undo on the Remove list: back to the stage they were at before (from the
+   audit log), not always "Active" */
+async function unremove(req, me, b) {
+  const s = await staffById(b.id);
+  if (s.status !== 'remove_requested') { throw bad('They aren\'t on the Remove list.'); }
+  const log = await db('GET', 'cpao_audit_log', '?staff_id=eq.' + s.id + '&action=eq.status&select=detail&order=at.desc&limit=50');
+  const hit = log.filter(function (e) { return e.detail && e.detail.to === 'remove_requested'; })[0];
+  const back = hit && R.CAN_REMOVE.indexOf(hit.detail.from) >= 0 ? hit.detail.from : 'active';
+  await setStaff(s.id, { status: back }, 'Taken off the Remove list');
+  await audit(me.email, 'status', s.id, { from: s.status, to: back, undo: true }, req);
+  /* an unsent Add/Remove form that lists them needs building again */
+  const drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=id,rows');
+  const onDraft = drafts.some(function (d) { return (d.rows || []).some(function (r) { return r.staff_id === s.id; }); });
+  return { ok: true, status: back, rebuild: onDraft };
 }
 
 /* follow-ups: anything CPAO or the person still needs, with an optional
@@ -678,8 +699,8 @@ async function sendBatch(req, me, id) {
   try { await G.sendToCpao(m.subject, m.text, files); }
   catch (e) { await audit(me.email, 'batch_email_failed', null, { batch_id: id, code: e.code || 'error' }, req); throw bad(e.message, e.code === 'graph' ? 502 : 400); }
   await audit(me.email, 'batch_emailed', null, { batch_id: id, to: R.C.cpao_ops_email, files: files.length }, req);
-  await markSent(req, me, id);
-  return { ok: true, to: R.C.cpao_ops_email, from: R.C.site_admin_email, files: files.length };
+  const sent = await markSent(req, me, id);
+  return { ok: true, to: R.C.cpao_ops_email, from: R.C.site_admin_email, files: files.length, skipped: sent.skipped };
 }
 
 async function markSent(req, me, id) {
@@ -689,18 +710,31 @@ async function markSent(req, me, id) {
   if (b.status !== 'draft') { throw bad('That batch was already marked sent.'); }
   const sentAt = nowIso();
   await db('PATCH', 'cpao_batches', '?id=eq.' + id, { status: 'sent', sent_at: sentAt });
-  for (const r of b.rows || []) {
+  /* only move people still waiting for this form: someone taken off the
+     Remove list (or moved by hand) after it was built is left alone */
+  const rows = b.rows || [];
+  const ids = rows.map(function (r) { return r.staff_id; }).filter(function (x) { return UUID.test(String(x || '')); });
+  const now = {};
+  if (ids.length) { (await db('GET', 'cpao_staff', '?id=in.(' + ids.join(',') + ')&select=id,status')).forEach(function (x) { now[x.id] = x.status; }); }
+  const skipped = [];
+  let adds = 0;
+  for (const r of rows) {
     const removing = /^Remove/.test(r.action);
+    if (now[r.staff_id] !== (removing ? 'remove_requested' : 'queued_for_batch')) { skipped.push(r.name); continue; }
+    if (!removing) { adds++; }
     await setStaff(r.staff_id, { status: removing ? 'removed' : 'sent_to_cpao' }, removing ? 'Removal sent to CPAO' : 'Sent to CPAO');
     await audit(me.email, 'status', r.staff_id, { to: removing ? 'removed' : 'sent_to_cpao', batch_id: id }, req);
     if (removing) { await purgeStaff(r.staff_id, 'removed'); }
   }
   await closeProject(b.project_id);
-  await project('Check CPAO status for batch ' + R.mdy(b.week_of),
-    'Sent ' + R.mdy(R.today()) + ':\n' + (b.rows || []).map(function (r) { return '- ' + r.name + ' — ' + r.action; }).join('\n') +
-    '\n\nUpdate each person\'s status on ' + site(req) + '/cpao-admin.html when CPAO replies.', R.addDays(R.today(), 14), me);
-  await audit(me.email, 'batch_sent', null, { batch_id: id }, req);
-  return { ok: true };
+  /* removals need no follow-up from CPAO */
+  if (adds) {
+    await project('Check CPAO status for batch ' + R.mdy(b.week_of),
+      'Sent ' + R.mdy(R.today()) + ':\n' + rows.map(function (r) { return '- ' + r.name + ' — ' + r.action; }).join('\n') +
+      '\n\nUpdate each person\'s status on ' + site(req) + '/cpao-admin.html when CPAO replies.', R.addDays(R.today(), 14), me);
+  }
+  await audit(me.email, 'batch_sent', null, { batch_id: id, skipped: skipped.length }, req);
+  return { ok: true, skipped: skipped };
 }
 
 /* ── retention ──────────────────────────────────────────────────────────── */
@@ -786,7 +820,7 @@ async function mailUpload(req, me, q) {
   if (!kind) { throw bad('Pick what the letter says.'); }
   const on = str(q.date, 10);
   if (on && !R.isDate(on)) { throw bad('The letter date isn\'t a date.'); }
-  const noteText = str(decodeURIComponent(String(req.headers['x-note'] || '')), 500);
+  const noteText = header(req, 'x-note', 500);
   const raw = await S.readRaw(req, 4000000);
   const ext = raw.toString('ascii', 0, 5) === '%PDF-' ? 'pdf' : S.imageType(raw) === 'image/jpeg' ? 'jpg' : S.imageType(raw) === 'image/png' ? 'png' : null;
   if (!ext) { throw bad('Upload the letter as a PDF, JPG or PNG.'); }
@@ -817,7 +851,7 @@ async function certUpload(req, me, s, q) {
   if (CERT_STATUSES.indexOf(s.status) < 0) {
     throw bad('Certificates are uploaded once CPAO has approved the background check and assigned the AZLearns training.');
   }
-  const course = str(decodeURIComponent(String(req.headers['x-course'] || '')), 120);
+  const course = header(req, 'x-course', 120);
   const raw = await S.readRaw(req, 4000000);
   const ext = raw.toString('ascii', 0, 5) === '%PDF-' ? 'pdf' : S.imageType(raw) === 'image/jpeg' ? 'jpg' : S.imageType(raw) === 'image/png' ? 'png' : null;
   if (!ext) { throw bad('Upload the certificate as a PDF, JPG or PNG.'); }
@@ -868,6 +902,8 @@ async function mailRoute(req, res, action, me, q, manager) {
   if (manager && req.method === 'GET' && action === 'directory') { return sendJSON(res, 200, await directoryList()); }
   if (manager && req.method === 'POST' && action === 'invite') {
     const b = await body(req);
+    /* re-sending works; reapplying after a denial is Brian's call */
+    if (b.id && (await staffById(b.id)).status === 'denied') { throw bad('Only the HEAplus admins can invite someone to reapply after a denial.', 403); }
     return sendJSON(res, 200, await invite(req, me, Object.assign(b, { existing: false, is_site_admin: false })));
   }
   if (manager) { return sendJSON(res, 403, { error: 'forbidden', message: 'This is a read-only view — managers can invite people, and see where everyone is.' }); }
@@ -973,6 +1009,7 @@ async function adminRoute(req, res, action, me, q) {
     case 'countersign': return sendJSON(res, 200, await countersign(req, me, b.id));
     case 'send_back': return sendJSON(res, 200, await sendBack(req, me, b));
     case 'status': return sendJSON(res, 200, await setStatus(req, me, b));
+    case 'unremove': return sendJSON(res, 200, await unremove(req, me, b));
     case 'followup': return sendJSON(res, 200, await followup(req, me, b));
     case 'settings': return sendJSON(res, 200, await saveSettings(req, me, b));
     case 'batch': return sendJSON(res, 200, await buildBatch(req, me.email));
