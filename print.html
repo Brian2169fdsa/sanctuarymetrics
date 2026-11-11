@@ -53,6 +53,14 @@
 .sh:hover{box-shadow:0 14px 30px rgba(22,38,59,.14);transform:translateY(-3px);border-color:#cfdde5}
 .sh:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .sh[hidden]{display:none}
+.sh-cell{position:relative;display:flex}
+.sh-cell>.sh{flex:1}
+.sh-cell[hidden]{display:none}
+.sh-dl{position:absolute;top:12px;right:12px;z-index:2;font-size:12px;font-weight:700;color:#16263B;background:#fff;border:1px solid #cfdde5;
+  padding:6px 11px;border-radius:16px;text-decoration:none;box-shadow:0 4px 12px rgba(22,38,59,.15)}
+.sh-dl:hover{background:#16263B;color:#fff;border-color:#16263B}
+.sh-dl:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.sh-dl[hidden]{display:none}
 .sh-img{position:relative;height:250px;background:linear-gradient(160deg,#f3f7fa,#e6eef3);display:grid;place-items:center;overflow:hidden}
 .sh-img img.fly{height:214px;width:auto;max-width:none;border-radius:4px;box-shadow:0 10px 24px rgba(22,38,59,.22);transition:transform .2s}
 .sh:hover .sh-img img.fly{transform:scale(1.04)}
@@ -304,7 +312,8 @@ function shopTiles() {
       text: f.audience ? 'For ' + f.audience.charAt(0).toLowerCase() + f.audience.slice(1) + '.' : '',
       meta: n > 1 ? n + ' versions · 25–1,000 prints' : '25–1,000 prints', go: 'Open editor',
       badge: n > 1 ? n + ' versions' : '',
-      img: '<img class="fly" src="' + esc(flyerThumb(f.versions[0])) + '" alt="" loading="lazy">'
+      img: '<img class="fly" src="' + esc(flyerThumb(f.versions[0])) + '" alt="" loading="lazy">',
+      flyer: f.id
     });
   });
   (DECKS || []).forEach(function (d) {
@@ -333,12 +342,35 @@ function shopTiles() {
   return tiles;
 }
 function tileHtml(t) {
-  return '<a class="sh' + (t.cls ? ' ' + t.cls : '') + '" href="' + esc(t.href) + '" data-cat="' + t.cat + '"' +
-    (CAT !== 'all' && CAT !== t.cat ? ' hidden' : '') + '>' +
+  /* each tile sits in a cell, so a flyer's "Download PDF" link can sit on
+     it without being a link inside a link */
+  return '<div class="sh-cell" data-cat="' + t.cat + '"' + (CAT !== 'all' && CAT !== t.cat ? ' hidden' : '') + '>' +
+    '<a class="sh' + (t.cls ? ' ' + t.cls : '') + '" href="' + esc(t.href) + '">' +
     '<div class="sh-img">' + t.img + (t.badge ? '<span class="sh-badge">' + esc(t.badge) + '</span>' : '') + '</div>' +
     '<div class="sh-body"><span class="sh-kind">' + esc(t.kind) + '</span><b>' + esc(t.title) + '</b>' +
       (t.text ? '<p>' + esc(t.text) + '</p>' : '') +
-      '<div class="sh-foot"><span>' + esc(t.meta) + '</span><span class="sh-go">' + esc(t.go) + ' →</span></div></div></a>';
+      '<div class="sh-foot"><span>' + esc(t.meta) + '</span><span class="sh-go">' + esc(t.go) + ' →</span></div></div></a>' +
+    (t.flyer ? '<a class="sh-dl" data-flyer="' + esc(t.flyer) + '" hidden>⤓ PDF</a>' : '') + '</div>';
+}
+/* show "⤓ PDF" on flyers that have one in print/flyers/: a direct download
+   for a single PDF, or the flyer page (one button per version) for several */
+function wirePdfs() {
+  document.querySelectorAll('.sh-dl[data-flyer]').forEach(function (a) {
+    var f = FLYER_CATALOG.filter(function (x) { return x.id === a.getAttribute('data-flyer'); })[0];
+    if (!f) { return; }
+    Promise.all(f.versions.map(flyerHasPdf)).then(function (has) {
+      var with_ = f.versions.filter(function (v, i) { return has[i]; });
+      if (!with_.length) { return; }
+      if (with_.length === 1) {
+        a.href = flyerPdf(with_[0]); a.setAttribute('download', flyerPdfName(f, with_[0]));
+        a.textContent = '⤓ PDF'; a.title = 'Download the ' + f.title + ' flyer as a PDF';
+      } else {
+        a.href = 'flyer.html?id=' + encodeURIComponent(f.id) + '#pdf';
+        a.textContent = '⤓ ' + with_.length + ' PDFs'; a.title = 'Download a version of ' + f.title + ' as a PDF';
+      }
+      a.hidden = false;
+    });
+  });
 }
 function shopSection() {
   var tiles = shopTiles();
@@ -388,6 +420,7 @@ function render() {
     pageFooter('print requests');
   if (view === 'cards') { refreshCard(); }
   wire();
+  wirePdfs();
   if (document.getElementById('orders')) {
     wireOrders();
     if (ORD || ORD_ERR) { drawOrders(); } else { loadOrders(); }
@@ -780,7 +813,7 @@ function wire() {
     b.addEventListener('click', function () {
       CAT = b.getAttribute('data-cat');
       document.querySelectorAll('.sh-cat').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      document.querySelectorAll('.sh[data-cat]').forEach(function (t) { t.hidden = CAT !== 'all' && CAT !== t.getAttribute('data-cat'); });
+      document.querySelectorAll('.sh-cell[data-cat]').forEach(function (t) { t.hidden = CAT !== 'all' && CAT !== t.getAttribute('data-cat'); });
     });
   });
 }

@@ -7,7 +7,11 @@
    2. Add an entry below. A flyer with several versions lists each one under
       `versions`; they share the same areas when the layout matches, or give
       a version its own `areas`.
-   3. `areas` are the parts people can ask to change. Each has a name, what it
+   3. Optional: the print-ready PDF people can download. Save it in
+      print/flyers/ as <id>.pdf, named after the version id (for example
+      life-story.pdf, adolescent-b.pdf). A "Download PDF" button appears on
+      its own: no change needed here. PDFs are only served to signed-in staff.
+   4. `areas` are the parts people can ask to change. Each has a name, what it
       says now (quoted in the request so marketing knows exactly what's
       meant), and where it sits on the flyer as % of the image: [left, top,
       width, height]. Areas may overlap; the smaller one wins a click.
@@ -176,4 +180,19 @@ function flyerAreas(f, v) {
   });
 }
 function flyerImg(v) { return 'print/flyers/' + v.id + '.webp'; }
+function flyerPdf(v) { return 'print/flyers/' + v.id + '.pdf'; }
+/* does this version have a PDF in print/flyers/? Asked once per page */
+var _flyerPdf = {};
+function flyerHasPdf(v) {
+  if (!_flyerPdf[v.id]) {
+    _flyerPdf[v.id] = fetch(flyerPdf(v), { method: 'HEAD', credentials: 'same-origin' }).then(function (r) {
+      return r.ok && /pdf/i.test(r.headers.get('content-type') || '');
+    }, function () { return false; });
+  }
+  return _flyerPdf[v.id];
+}
+/* the file name it saves as, e.g. Sanctuary - Adolescent Program - Version B.pdf */
+function flyerPdfName(f, v) {
+  return ('Sanctuary - ' + f.title + (f.versions.length > 1 ? ' - ' + v.label : '') + '.pdf').replace(/[\\/:*?"<>|]+/g, '');
+}
 function flyerThumb(v) { return 'print/flyers/' + v.id + '-thumb.webp'; }
