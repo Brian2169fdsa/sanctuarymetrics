@@ -193,6 +193,8 @@ function flyerHasPdf(v) {
 }
 /* the file name it saves as, e.g. Sanctuary - Adolescent Program - Version B.pdf */
 function flyerPdfName(f, v) {
-  return ('Sanctuary - ' + f.title + (f.versions.length > 1 ? ' - ' + v.label : '') + '.pdf').replace(/[\\/:*?"<>|]+/g, '');
+  /* plain characters only: browsers drop a download name with a dash like "—" */
+  return ('Sanctuary - ' + f.title + (f.versions.length > 1 ? ' - ' + v.label : '') + '.pdf')
+    .replace(/[\u2013\u2014]/g, '-').replace(/[’‘]/g, "'").replace(/[^\x20-\x7E]+/g, '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ');
 }
 function flyerThumb(v) { return 'print/flyers/' + v.id + '-thumb.webp'; }
