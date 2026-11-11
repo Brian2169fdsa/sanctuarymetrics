@@ -78,6 +78,10 @@
   .fe-more{grid-template-columns:1fr}
   .fe-body{padding-left:12px}
 }
+.fe-dl{margin:12px 0 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fe-dl[hidden]{display:none}
+.fe-dl .btn{text-decoration:none}
+.fe-dl span{font-size:12.5px;color:var(--muted)}
 </style>
 </head>
 <body><div class="sheet" id="sheet"></div>
@@ -190,10 +194,25 @@ function render() {
       (FLYER.versions.length > 1 ? '<p class="lead" style="margin-bottom:0">' + FLYER.versions.length +
         ' versions — pick the one you want to change or print.</p>' : '') +
       versionsHtml() +
+      '<div class="fe-dl" id="fe-dl" hidden></div>' +
       '<div class="fe" id="fe">' + artHtml() + panelHtml() + '</div>' +
     '</section>' + pageFooter('flyer requests');
   wire();
   summary();
+  pdfButton();
+}
+/* "Download PDF" for the version on screen, when print/flyers/<id>.pdf exists */
+function pdfButton() {
+  var box = document.getElementById('fe-dl'), v = VERSION;
+  if (!box) { return; }
+  box.hidden = true;
+  flyerHasPdf(v).then(function (has) {
+    if (!has || v !== VERSION) { return; }
+    box.innerHTML = '<a class="btn" href="' + esc(flyerPdf(v)) + '" download="' + esc(flyerPdfName(FLYER, v)) + '">⤓ Download PDF' +
+      (FLYER.versions.length > 1 ? ' — ' + esc(v.label) : '') + '</a><span>The print-ready file, to print yourself or send to a printer.</span>';
+    box.hidden = false;
+    if (location.hash === '#pdf') { box.scrollIntoView({ block: 'center' }); }
+  });
 }
 
 /* redraw just the flyer and the list (keeps the form below as typed) */
@@ -257,6 +276,7 @@ function wire() {
       history.replaceState(null, '', 'flyer.html?id=' + encodeURIComponent(FLYER.id) + '&v=' + encodeURIComponent(v.id));
       document.querySelectorAll('.fe-ver').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
       redraw();
+      pdfButton();
     });
   });
   document.getElementById('fe-num').addEventListener('change', function () {
