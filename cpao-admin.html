@@ -283,6 +283,7 @@ function setupWarnings() {
   if (!DATA.settings.site_admin_phone) { w.push('Add your <b>office phone</b> under Settings — it goes on the Org form.'); }
   if (!s.ai) { w.push('<b>ANTHROPIC_API_KEY</b> isn\'t set — every application will come to you for a manual check.'); }
   if (!s.cron) { w.push('<b>CRON_SECRET</b> isn\'t set — the weekly batch won\'t build itself (use "Build the batch now").'); }
+  if (s.last_mail_check && !s.last_mail_check.ok) { w.push('The daily check of your email for CPAO replies failed (' + day(s.last_mail_check.at) + '): ' + esc(s.last_mail_check.error) + ' See CPAO.md → "Emails from CPAO".'); }
   if (s.wet) { w.push('Pen-signature mode is on (CPAO_REQUIRE_WET_SIGNATURE): staff print, sign and upload a scan.'); }
   return w.length ? '<div class="warnbox"><b>Finish setting up</b><ul><li>' + w.join('</li><li>') + '</li></ul></div>' : '';
 }
@@ -327,7 +328,11 @@ function rosterView() {
       (MGR() ? '' : '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-sa" style="margin-top:3px"><span>Also a Site Administrator (Add-SA)' +
         '<span class="fh">Only tick this if they will also be a CP-AO Site Administrator like you. Most staff are plain "Add".</span></span></label>' +
       '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-existing" style="margin-top:3px"><span>They already have HEAplus access — just add them to the tracker' +
-        '<span class="fh">No invite and no forms: they go straight on the roster as Active. The CP-101 is only for people added from now on. Works for the people you tick above too.</span></span></label>') +
+        '<span class="fh">No invite and no forms: they go straight on the roster as Active. The CP-101 is only for people added from now on. Works for the people you tick above too.</span></span></label>' +
+      '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-paper" style="margin-top:3px"><span>Their CP-101 is already filled out and signed on paper — upload it instead of sending the form' +
+        '<span class="fh">They skip the online form. They still get an email with a link to follow their progress on the HEAplus tab. One person at a time.</span></span></label>' +
+      '<div id="i-paper-w" class="f2" style="grid-column:1/-1" hidden><label class="fl wide">Their filled-out CP-101 (one PDF, all 4 pages, up to 8 MB)<input type="file" id="i-paper-file" accept="application/pdf"></label>' +
+        (SA() ? '<label class="ck" style="grid-column:1/-1"><input type="checkbox" id="i-paper-signed"> I\'ve already countersigned it (it goes straight to the next Add/Remove form)</label>' : '') + '</div>') +
       '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
@@ -337,7 +342,8 @@ function rosterView() {
         return '<tr><td>' + (LIM() ? '' : '<input type="checkbox" data-sel="' + s.id + '"' + (SEL[s.id] ? ' checked' : '') + ' aria-label="Select ' + esc(s.first_name + ' ' + s.last_name) + '">') + '</td>' +
           '<td><a class="nm" data-open="' + s.id + '" href="#staff=' + s.id + '">' + esc(s.first_name + ' ' + s.last_name) + '</a>' + (s.is_site_admin ? ' <span class="pill">SA</span>' : '') +
             '<div class="sm">' + esc(s.title_position || '') + (s.title_position && s.email ? ' · ' : '') + esc(s.email || '') +
-              (s.sign_in === 'code' ? ' · <span title="Opens the link with an access code, not Microsoft sign-in">personal email</span>' : '') + '</div></td>' +
+              (s.sign_in === 'code' ? ' · <span title="Opens the link with an access code, not Microsoft sign-in">personal email</span>' : '') +
+              (s.app && s.app.paper ? ' · <span title="Their CP-101 was uploaded already filled out">paper form</span>' : '') + '</div></td>' +
           '<td>' + stageCell(s) + '</td>' +
           '<td>' + esc(s.last_action || '') + '<div class="sm">' + when(s.last_action_at) +
             ((s.followups || []).length ? ' · ' + s.followups.length + ' follow-up' + (s.followups.length === 1 ? '' : 's') : '') + '</div></td>' +
@@ -367,15 +373,40 @@ function wireRoster() {
   $('inv-open').addEventListener('click', function () { $('inv-card').hidden = false; loadDir(); $('d-q').focus(); });
   wireDir();
   $('inv-close').addEventListener('click', function () { $('inv-card').hidden = true; });
-  if ($('i-existing')) $('i-existing').addEventListener('change', function () {
-    var ex = $('i-existing').checked;
-    $('i-go').textContent = ex ? 'Add to the tracker' : 'Send invite';
+  var modes = function () {
+    var ex = $('i-existing') && $('i-existing').checked, pa = $('i-paper') && $('i-paper').checked;
+    $('i-go').textContent = ex ? 'Add to the tracker' : pa ? 'Add and upload their CP-101' : 'Send invite';
     $('d-go').textContent = $('d-go').textContent.replace(/^(Invite|Add)/, ex ? 'Add' : 'Invite');
     $('i-signin').closest('label').hidden = ex;
-  });
+    if ($('i-paper-w')) { $('i-paper-w').hidden = !pa; }
+  };
+  if ($('i-existing')) $('i-existing').addEventListener('change', function () { if ($('i-existing').checked && $('i-paper')) { $('i-paper').checked = false; } modes(); });
+  if ($('i-paper')) $('i-paper').addEventListener('change', function () { if ($('i-paper').checked && $('i-existing')) { $('i-existing').checked = false; } modes(); });
   $('inv').addEventListener('submit', function (e) {
     e.preventDefault();
-    var btn = $('i-go'); btn.disabled = true;
+    var btn = $('i-go');
+    var paper = $('i-paper') && $('i-paper').checked, file = paper && $('i-paper-file').files[0];
+    if (paper) {
+      if (!file) { return note('i-note', 'err', 'Choose their filled-out CP-101 (PDF).'); }
+      if (file.size > 8000000) { return note('i-note', 'err', 'That PDF is over 8 MB — scan it at a lower resolution.'); }
+    }
+    btn.disabled = true;
+    if (paper) {
+      return api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
+        title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value, work_address: $('i-addr').value,
+        is_site_admin: !!($('i-sa') && $('i-sa').checked), sign_in: $('i-signin').value, paper: true })
+        .then(function (j) { return uploadPaper(j.staff.id, file, $('i-paper-signed') && $('i-paper-signed').checked).then(function (u) { return { j: j, u: u }; }, function (err) {
+          err.message = j.staff.first_name + ' is on the roster, but the upload didn\'t work: ' + err.message + ' Open them and upload it again.'; throw err; }); })
+        .then(function (r) {
+          btn.disabled = false;
+          note('i-note', 'ok', r.j.staff.first_name + ' ' + r.j.staff.last_name + '\'s CP-101 is uploaded — ' + (r.u.status === 'queued_for_batch' ? 'queued for the next Add/Remove form.' : 'ready for you to countersign.') +
+            (r.u.emailed ? ' They got an email with a link to follow their progress.' : r.u.watch_link ? ' Send them this link to follow their progress (they sign in with their Sanctuary account):' : ''));
+          $('i-link').innerHTML = !r.u.emailed && r.u.watch_link ? '<div class="linkbox"><input readonly value="' + esc(r.u.watch_link) + '" aria-label="Progress link"><button type="button" class="btn alt" data-copy>Copy</button></div>' : '';
+          wireCopy();
+          ['i-first', 'i-last', 'i-email', 'i-hire', 'i-paper-file'].forEach(function (id) { $(id).value = ''; });
+          refresh(false);
+        }, function (err) { btn.disabled = false; note('i-note', 'err', err.message); refresh(false); });
+    }
     api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
       title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value,
       work_address: $('i-addr').value, is_site_admin: !!($('i-sa') && $('i-sa').checked), sign_in: $('i-signin').value, existing: !!($('i-existing') && $('i-existing').checked) }).then(function (j) {
@@ -497,6 +528,7 @@ function wireDir() {
   $('d-go').addEventListener('click', function () {
     var emails = Object.keys(DIR_SEL).filter(function (k) { return DIR_SEL[k]; });
     var btn = $('d-go'), out = [];
+    if ($('i-paper') && $('i-paper').checked) { $('d-out').innerHTML = '<div class="note err">Paper forms go one at a time: click their name to fill the form below, then upload their CP-101.</div>'; return; }
     btn.disabled = true;
     emails.reduce(function (p, e) {
       return p.then(function () {
@@ -518,6 +550,12 @@ function wireDir() {
       refresh(false);
     });
   });
+}
+/* their already filled-out paper CP-101, instead of the online form */
+function uploadPaper(id, file, countersigned) {
+  return fetch('/api/cpao?action=paper_upload&id=' + encodeURIComponent(id) + (countersigned ? '&countersigned=1' : ''), {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/pdf' }, body: file
+  }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); });
 }
 function linkBox(url, code) {
   return '<div class="linkbox"><input readonly value="' + esc(url) + '" aria-label="Invite link"><button type="button" class="btn alt" data-copy>Copy</button></div>' +
@@ -616,7 +654,8 @@ function drawStaff(j) {
           row('Paid or volunteer', ans.pay_status === 'volunteer' ? 'Volunteer' : ans.pay_status === 'paid' ? 'Paid employee' : '') +
           row('Hire date', day(ans.hire_date)) +
           row('Conditions agreed', when(a.conditions_agreed_at)) +
-          row('Signed', a.wet_signed ? 'Pen-signed scan uploaded ' + when(a.user_signed_at) : when(a.user_signed_at) + (a.user_ip ? ' <span class="sm">from ' + esc(a.user_ip) + '</span>' : '')) +
+          (ans.source === 'paper' ? row('Form', 'Paper CP-101 uploaded already filled out — <b>View their CP-101</b> to check it') : '') +
+          row('Signed', ans.source === 'paper' ? 'On paper' : a.wet_signed ? 'Pen-signed scan uploaded ' + when(a.user_signed_at) : when(a.user_signed_at) + (a.user_ip ? ' <span class="sm">from ' + esc(a.user_ip) + '</span>' : '')) +
           row('Submitted', when(a.submitted_at)) + row('Countersigned', when(a.sa_signed_at)) +
           '</dl>' + (j.links.signature ? '<p class="sub" style="margin:10px 0 4px">Their signature</p><img class="sigimg" src="' + esc(j.links.signature) + '" alt="Staff member\'s signature">' : '') +
           (a.key_problem ? '<div class="note err">' + esc(a.key_problem) + '</div>' : '')
@@ -639,10 +678,10 @@ function drawStaff(j) {
             '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
             '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
         '</div>' +
-        denialCard(s) +
+        denialCard(s) + paperCard(s) +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Follow-ups</div>' +
           ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
-            return '<li>' + esc(f.text) + (f.file ? ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' : '') +
+            return '<li>' + esc(f.text) + (f.file ? ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' : '') + emailLink(f.link) +
               '<div class="sm">' + when(f.at) + ' · ' + esc(f.by || '') + (f.due ? ' · reminder ' + day(f.due) : '') + '</div></li>';
           }).join('') + '</ul>' : '<p class="sub" style="margin:0 0 10px">Nothing yet. Log anything CPAO asks for, calls, emails or what you\'re waiting on.</p>') +
           '<div class="f2"><label class="fl wide">New follow-up<textarea id="fu-text" rows="2" maxlength="1000" placeholder="e.g. CPAO asked for a clearer copy of page 4 — re-sent 10/24"></textarea></label>' +
@@ -668,6 +707,21 @@ function drawStaff(j) {
   wireStaff(s);
   api('GET', 'audit&id=' + s.id).then(function (x) { $('s-audit').innerHTML = auditTable(x.entries); });
 }
+/* an Outlook link on a CPAO email follow-up (only Microsoft links) */
+function emailLink(url) {
+  return url && /^https:\/\/(outlook\.office(365)?\.com|outlook\.live\.com)\//.test(url)
+    ? ' <a class="reveal" href="' + esc(url) + '" target="_blank" rel="noopener">Open email ↗</a>' : '';
+}
+/* before they've submitted: upload their already filled-out paper CP-101 instead */
+function paperCard(s) {
+  if (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) < 0) { return ''; }
+  return '<div class="card"><details><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600">Already have their filled-out CP-101? Upload it instead</summary>' +
+    '<p class="sub" style="margin:8px 0 10px">Skips the online form: they go to Ready to countersign. Their invite link stops working, and they get an email with a link to follow their progress.</p>' +
+    '<div class="f2"><label class="fl wide">Their filled-out, signed CP-101 (one PDF, all 4 pages, up to 8 MB)<input type="file" id="pp-file" accept="application/pdf"></label></div>' +
+    (SA() ? '<label class="ck" style="margin-top:8px"><input type="checkbox" id="pp-signed"> I\'ve already countersigned it (it goes straight to the next Add/Remove form)</label>' : '') +
+    '<div class="btnrow"><button type="button" class="btn" id="pp-go">Upload their CP-101</button></div></details></div>';
+}
+
 /* where this person is in the 10 steps, with the date of each */
 function tracker(s) {
   var cur = cpaoStageOf(s.status);
@@ -808,11 +862,30 @@ function wireStaff(s) {
   if ($('sign')) {
     $('sign').addEventListener('click', function () {
       var btn = $('sign'); btn.disabled = true; btn.textContent = 'Generating…';
-      api('POST', 'countersign', { id: s.id }).then(function () { afterChange(s.id); },
+      api('POST', 'countersign', { id: s.id }).then(function (j) {
+        afterChange(s.id);
+        if (j.stamped === false) { setTimeout(function () { note('s-note', 'err', 'Countersigned, but your signature couldn\'t be put on their scan (page 4 isn\'t a standard letter-size page). Open "View signed CP-101" and make sure page 4 is signed before it goes to CPAO.'); }, 500); }
+      },
         function (e) { btn.disabled = false; btn.textContent = 'Countersign and generate PDF'; note('s-note', 'err', e.message); });
     });
   }
   if ($('pdf')) { $('pdf').addEventListener('click', function () { viewPdf(s.id); }); }
+  if ($('pp-go')) {
+    $('pp-go').addEventListener('click', function () {
+      var f = $('pp-file').files[0];
+      if (!f) { return note('s-note', 'err', 'Choose their filled-out CP-101 (PDF).'); }
+      if (f.size > 8000000) { return note('s-note', 'err', 'That PDF is over 8 MB — scan it at a lower resolution.'); }
+      var b = $('pp-go'); b.disabled = true; b.textContent = 'Uploading…';
+      uploadPaper(s.id, f, $('pp-signed') && $('pp-signed').checked).then(function (j) {
+        afterChange(s.id);
+        setTimeout(function () {
+          note('s-note', 'ok', 'Their CP-101 is uploaded — ' + (j.status === 'queued_for_batch' ? 'queued for the next Add/Remove form.' : 'ready for you to countersign.') +
+            (j.emailed ? ' They got an email with a link to follow their progress.' : j.watch_link ? ' Send them this link to follow their progress:' : ''));
+          if (!j.emailed && j.watch_link) { $('s-link').innerHTML = '<div class="linkbox"><input readonly value="' + esc(j.watch_link) + '" aria-label="Progress link"><button type="button" class="btn alt" data-copy>Copy</button></div>'; wireCopy(); }
+        }, 500);
+      }, function (e) { b.disabled = false; b.textContent = 'Upload their CP-101'; note('s-note', 'err', e.message); });
+    });
+  }
   if ($('push')) {
     $('push').addEventListener('click', function () {
       if (!confirm('Build the Add/Remove form for ' + s.first_name + ' ' + s.last_name + ' now, without waiting for the weekly batch?')) { return; }
@@ -933,14 +1006,47 @@ function batchesView(open) {
         '<td>' + (x.bundle_storage_key ? '<button class="btn alt" data-file="' + esc(x.bundle_storage_key) + '">Bundle</button> <button class="btn alt" data-file="' + esc(x.org_form_storage_key) + '">Org form</button>' +
             '<div class="sm" style="margin-top:4px">Add/Remove form' + (nAdd ? ' + ' + nAdd + ' CP-101' + (nAdd === 1 ? '' : 's') : '') + '</div>' : '<span class="sm">Removed (retention)</span>') + '</td>' +
         '<td>' + (x.status === 'draft' && sa ? '<button class="btn" data-send="' + x.id + '" data-n="' + (1 + nAdd) + '">✉ Send to CPAO</button>' +
+            '<div style="margin-top:6px">' + (x.outlook_draft_link && /^https:\/\//.test(x.outlook_draft_link)
+              ? '<a class="reveal" href="' + esc(x.outlook_draft_link) + '" target="_blank" rel="noopener">Open the draft in Outlook ↗</a> · <button class="reveal" data-draft="' + x.id + '">Make it again</button>'
+              : '<button class="reveal" data-draft="' + x.id + '">Create Outlook draft</button>') + '</div>' +
             '<div style="margin-top:6px"><button class="reveal" data-sent="' + x.id + '">I sent it myself — mark as sent</button></div>' : '') + '</td></tr>';
     }).join('') + '</tbody></table>' : '<div class="placeholder">No Add/Remove forms yet.</div>') +
     '<p class="sub" style="margin-top:12px"><b>Send to CPAO</b> emails the Add/Remove form and every CP-101 from <b>' + esc(DATA.constants.site_admin_email) + '</b> to <b>' +
-      esc(DATA.constants.cpao_ops_email) + '</b> (it\'s saved in your Sent Items) and marks everyone on it as Sent to CPAO. Only the site administrator may email CPAO.</p>');
+      esc(DATA.constants.cpao_ops_email) + '</b> (it\'s saved in your Sent Items) and marks everyone on it as Sent to CPAO. Only the site administrator may email CPAO. ' +
+      'Building the form also leaves the same email as a <b>draft in your Outlook</b>, with everything attached — send it from there if you\'d rather, then press "I sent it myself".</p>' +
+    '<div class="card" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div style="font-family:Fraunces,serif;font-size:19px;font-weight:600">Emails from CPAO</div>' +
+      '<button class="btn alt" id="mail-go">Check my email now</button></div>' +
+      '<p class="sub" style="margin:4px 0 10px">Every morning at 8:00 the site reads ' + esc(DATA.constants.site_admin_email) + ' for new emails from ' +
+        esc((DATA.setup.mail_domains || ['azahcccs.gov']).join(', ')) + '. Each one is filed on the person it names and gives you a task. ' +
+        (DATA.setup.mail_check === false ? '<b>It\'s off</b> — Microsoft sign-in isn\'t set up, or CPAO_CHECK_EMAIL is false.' :
+          DATA.setup.last_mail_check ? 'Last checked ' + when(DATA.setup.last_mail_check.at) + (DATA.setup.last_mail_check.ok ? '.' : ' — <b>it failed</b>: ' + esc(DATA.setup.last_mail_check.error)) : 'Not checked yet.') + '</p>' +
+      '<div class="note" id="mail-note" hidden></div><div id="mail-list"><p class="sub">Loading…</p></div></div>');
+  loadEmails();
+  if ($('mail-go')) {
+    $('mail-go').addEventListener('click', function () {
+      var btn = $('mail-go'); btn.disabled = true; btn.textContent = 'Checking…';
+      api('POST', 'mail_check', {}).then(function (j) {
+        btn.disabled = false; btn.textContent = 'Check my email now';
+        note('mail-note', 'ok', j.off ? 'The email check is off (see CPAO.md).' : 'Checked ' + j.checked + ' email' + (j.checked === 1 ? '' : 's') + ' from CPAO — ' + j.new + ' new.');
+        refresh(false).then(loadEmails);
+      }, function (e) { btn.disabled = false; btn.textContent = 'Check my email now'; note('mail-note', 'err', e.message); });
+    });
+  }
+  document.querySelectorAll('[data-draft]').forEach(function (x) {
+    x.addEventListener('click', function () {
+      var label = x.textContent; x.disabled = true; x.textContent = 'Making the draft…';
+      api('POST', 'outlook_draft', { id: x.getAttribute('data-draft') }).then(function (j) {
+        return refresh(false).then(function () { batchesView(); note('b-note', 'ok', 'A draft to ' + DATA.constants.cpao_ops_email + ' with ' + j.files + ' file' + (j.files === 1 ? '' : 's') + ' attached is in your Outlook Drafts. Review it, send it, then press "I sent it myself — mark as sent".'); });
+      }, function (e) { x.disabled = false; x.textContent = label; note('b-note', 'err', e.message); });
+    });
+  });
   if ($('build')) {
     $('build').addEventListener('click', function () {
       var btn = $('build'); btn.disabled = true; btn.textContent = 'Building…';
-      api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. Check the bundle, then press Send to CPAO.'); }); },
+      api('POST', 'batch', {}).then(function (j) { return refresh(false).then(function () { batchesView(j.batch_id); note('b-note', j.outlook_draft_error ? 'err' : 'ok', j.empty ? 'Nobody to send.' : 'Built: ' + j.add + ' add, ' + j.remove + ' remove. ' +
+          (j.outlook_draft ? 'A draft to CPAO with everything attached is in your Outlook Drafts. ' : j.outlook_draft_error ? 'The Outlook draft didn\'t work: ' + j.outlook_draft_error + ' ' : '') +
+          'Check the bundle, then press Send to CPAO (or send the draft and press "I sent it myself").'); }); },
         function (e) { btn.disabled = false; btn.textContent = '⤓ Pull in everyone ready and build the form'; note('b-note', 'err', e.message); });
     });
   }
@@ -990,6 +1096,24 @@ function batchesView(open) {
         function (e) { note('b-note', 'err', e.message); });
     });
   });
+}
+
+/* the latest emails from CPAO the daily check found */
+function loadEmails() {
+  if (!$('mail-list')) { return; }
+  api('GET', 'cpao_emails').then(function (j) {
+    var names = {}; DATA.staff.forEach(function (x) { names[x.id] = x; });
+    $('mail-list').innerHTML = j.emails.length ? '<ul class="fu">' + j.emails.map(function (m) {
+      var who = (m.staff_ids || []).map(function (id) { return names[id]; }).filter(Boolean);
+      return '<li><b>' + esc(m.subject || '(no subject)') + '</b> <span class="pill">' + esc(j.kinds[m.kind] || m.kind || '') + '</span>' + emailLink(m.web_link) +
+        '<div class="sm">' + when(m.received_at) + ' · ' + esc(m.from_address || '') + (m.attachments ? ' · attachments' : '') + ' · ' +
+          (who.length ? who.map(function (x) { return '<a href="#staff=' + x.id + '" data-open="' + x.id + '">' + esc(x.first_name + ' ' + x.last_name) + '</a>'; }).join(', ') : 'not matched to anyone on the roster') +
+        '</div></li>';
+    }).join('') + '</ul>' : '<p class="sub" style="margin:0">None yet.</p>';
+    $('mail-list').querySelectorAll('[data-open]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); openStaff(a.getAttribute('data-open')); });
+    });
+  }, function (e) { $('mail-list').innerHTML = '<p class="sub">' + esc(e.message) + '</p>'; });
 }
 
 /* people on the form whose stage changed after it was built aren't moved */

@@ -697,6 +697,27 @@ alter table public.cpao_batches      enable row level security;
 alter table public.cpao_audit_log    enable row level security;
 alter table public.cpao_settings     enable row level security;
 
+-- the Outlook draft to CPAO left when an Add/Remove form is built
+alter table public.cpao_batches add column if not exists outlook_draft_id   text;
+alter table public.cpao_batches add column if not exists outlook_draft_link text;
+
+-- emails from CPAO found in the site admin's mailbox by the daily check.
+-- Only the subject, sender, date and an Outlook link — never the body.
+create table if not exists public.cpao_emails (
+  message_id    text primary key,              -- the email's Internet message id: each is logged once
+  received_at   timestamptz not null,
+  from_address  text,
+  subject       text,
+  web_link      text,
+  kind          text,                          -- a keyword hint: denied, correction, final, approved, other
+  attachments   boolean not null default false,
+  staff_ids     jsonb not null default '[]'::jsonb,  -- roster people it names
+  project_id    uuid,                          -- the task it made for Brian
+  created_at    timestamptz not null default now()
+);
+create index if not exists cpao_emails_received on public.cpao_emails (received_at desc);
+alter table public.cpao_emails enable row level security;
+
 -- the private bucket for signatures and generated PDFs
 insert into storage.buckets (id, name, public)
 values ('cpao', 'cpao', false)

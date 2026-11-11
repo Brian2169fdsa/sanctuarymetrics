@@ -178,3 +178,81 @@ test('manual stage changes follow the process', () => {
   assert.ok(P('sent_to_cpao', 'queued_for_batch'), 'set by the process');
   assert.ok(P('removed', 'active'), 'removed starts over');
 });
+
+test('CPAO emails: which person, and a hint of what it says', () => {
+  assert.ok(R.nameIn('RE: HEAplus access for Jane Example', 'Jane', 'Example'));
+  assert.ok(R.nameIn('Background check result — Example, Jane', 'Jane', 'Example'));
+  assert.ok(R.nameIn('Jane Q. Example has been approved', 'Jane', 'Example'));
+  assert.ok(R.nameIn('About MARY-ANN O\'NEIL', 'Mary-Ann', "O'Neil"));
+  assert.ok(!R.nameIn('Janet Examples', 'Jane', 'Example'), 'whole words only');
+  assert.ok(!R.nameIn('Weekly update', 'Jane', 'Example'));
+  assert.equal(R.emailKind('Your application was denied'), 'denied');
+  assert.equal(R.emailKind('Not approved: background check'), 'denied');
+  assert.equal(R.emailKind('Please resubmit page 4 — signature missing'), 'correction');
+  assert.equal(R.emailKind('Final approval for HEAplus'), 'final');
+  assert.equal(R.emailKind('Approved - AZLearns training assigned'), 'approved');
+  assert.equal(R.emailKind('Hello'), 'other');
+});
+
+test('paper CP-101: countersignature stamped on page 4, odd sizes kept as they are', async () => {
+  const blank = require('fs').readFileSync(require('path').join(__dirname, '..', 'cpao', 'assets', 'IndividualUserApplicationForm.pdf'));
+  const sig = F.signature(400, 60);
+  const out = await P.countersignScan(blank, { sa_signature: sig, sa_signed_at: '2026-11-11T18:00:00Z' });
+  assert.equal(out.stamped, true);
+  const doc = await PDFDocument.load(out.pdf);
+  assert.equal(doc.getPageCount(), 4);
+  /* a scan whose pages aren't letter size is left alone */
+  const odd = await PDFDocument.create();
+  for (let i = 0; i < 4; i++) { odd.addPage([595, 842]); }
+  const bytes = await odd.save();
+  const kept = await P.countersignScan(bytes, { sa_signature: sig, sa_signed_at: '2026-11-11T18:00:00Z' });
+  assert.equal(kept.stamped, false);
+  assert.equal(kept.pdf, bytes);
+  /* not a PDF at all: kept, not thrown */
+  assert.equal((await P.countersignScan(Buffer.from('nope'), {})).stamped, false);
+});
+
+test('Outlook: draft with big and small attachments; CPAO mail filter', async () => {
+  const G = require('../lib/cpao-graph');
+  const saved = { fetch: global.fetch, id: process.env.MS_CLIENT_ID, secret: process.env.MS_CLIENT_SECRET };
+  process.env.MS_CLIENT_ID = 'x'; process.env.MS_CLIENT_SECRET = 'y';
+  const calls = [];
+  global.fetch = async function (url, o) {
+    o = o || {};
+    calls.push({ url: String(url), method: o.method || 'GET', body: o.body, headers: o.headers || {} });
+    const json = function (j, status) { return { ok: true, status: status || 200, json: async () => j, text: async () => JSON.stringify(j) }; };
+    if (/oauth2/.test(url)) { return json({ access_token: 't' }); }
+    if (/createUploadSession/.test(url)) { return json({ uploadUrl: 'https://upload.example/s' }, 201); }
+    if (/upload\.example/.test(url)) { return json({}, 200); }
+    if (/\/attachments$/.test(url)) { return json({}, 201); }
+    if (/\/messages\?/.test(url)) {
+      return json({ value: [
+        { id: 'a', internetMessageId: '<a@x>', subject: 'Jane Example approved', from: { emailAddress: { address: 'Ops@AZAHCCCS.gov' } }, receivedDateTime: '2026-11-11T10:00:00Z', webLink: 'https://outlook.office365.com/a', bodyPreview: '', hasAttachments: false },
+        { id: 'b', subject: 'Newsletter', from: { emailAddress: { address: 'news@example.com' } }, receivedDateTime: '2026-11-11T09:00:00Z' }
+      ] });
+    }
+    if (/\/messages$/.test(url) && o.method === 'POST') { return json({ id: 'd1', webLink: 'https://outlook.office365.com/d1' }, 201); }
+    return json({}, 202);
+  };
+  try {
+    const big = Buffer.alloc(3500000, 1), small = Buffer.alloc(1000, 2);
+    const d = await G.draftToCpao('s', 't', [{ name: 'a.pdf', bytes: small }, { name: 'b.pdf', bytes: big }]);
+    assert.deepEqual(d, { id: 'd1', web_link: 'https://outlook.office365.com/d1' });
+    const puts = calls.filter((c) => c.method === 'PUT');
+    assert.equal(puts.length, 2, 'big file goes up in chunks');
+    assert.equal(puts[1].headers['Content-Range'], 'bytes 3276800-3499999/3500000');
+    assert.ok(!puts[0].headers.Authorization, 'no token on the upload URL');
+    assert.equal(calls.filter((c) => /\/attachments$/.test(c.url)).length, 1, 'small file attached directly');
+    const mail = await G.cpaoMail('2026-11-10T00:00:00Z');
+    assert.equal(mail.length, 1);
+    assert.equal(mail[0].key, '<a@x>');
+    /* turned off */
+    process.env.CPAO_CREATE_OUTLOOK_DRAFT = 'false';
+    assert.equal(await G.draftToCpao('s', 't', []), false);
+    assert.ok(await G.draftToCpao('s', 't', [], true), 'the button still works');
+  } finally {
+    global.fetch = saved.fetch; delete process.env.CPAO_CREATE_OUTLOOK_DRAFT;
+    if (saved.id === undefined) { delete process.env.MS_CLIENT_ID; } else { process.env.MS_CLIENT_ID = saved.id; }
+    if (saved.secret === undefined) { delete process.env.MS_CLIENT_SECRET; } else { process.env.MS_CLIENT_SECRET = saved.secret; }
+  }
+});

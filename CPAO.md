@@ -15,7 +15,7 @@ This replaces the email-and-paper process for HEAplus access:
 
 ## Setting it up (once)
 
-1. **Supabase → SQL Editor:** run `supabase/cpao.sql`. It's also in `ALL.sql`. It creates the tables and a **private** `cpao` storage bucket.
+1. **Supabase → SQL Editor:** run `supabase/cpao.sql`. It's also in `ALL.sql`. It creates the tables and a **private** `cpao` storage bucket. It's safe to re-run, so run it again after each update; the latest added the `cpao_emails` table and the Outlook draft columns.
 2. **Vercel → Settings → Environment Variables**, then redeploy:
 
    | Variable | |
@@ -25,7 +25,9 @@ This replaces the email-and-paper process for HEAplus access:
    | `ANTHROPIC_API_KEY` | Already set for the site. Without it, every application comes to Brian for a manual check. |
    | `CPAO_MODEL` | Optional. Defaults to `claude-sonnet-5-5`. |
    | `CPAO_SEND_EMAIL=true` | Optional. Emails invites and "please fix" notes from Brian's mailbox through Microsoft Graph. It needs the **Mail.Send** application permission, admin-consented, on the Microsoft sign-in app. When this is off, the admin page shows the link to copy into Teams or Outlook. |
-   | `CPAO_CREATE_OUTLOOK_DRAFT=true` | Optional. The weekly batch leaves a **draft** to CPAO in Brian's Outlook with the PDFs attached. It needs **Mail.ReadWrite**. The draft is never sent automatically. |
+   | `CPAO_CREATE_OUTLOOK_DRAFT` | **On by default** once Microsoft sign-in is set up. Building an Add/Remove form (weekly, Build now or Push through now) leaves a **draft** to CPAO in Brian's Outlook, with the form and every CP-101 attached. It needs **Mail.ReadWrite**. The draft is never sent automatically. Set it to `false` to stop the automatic drafts; the **Create Outlook draft** button still works. |
+   | `CPAO_CHECK_EMAIL` | **On by default** once Microsoft sign-in is set up. Every morning the site reads Brian's mailbox for new emails from CPAO (see "Emails from CPAO"). It needs **Mail.ReadWrite** (or Mail.Read). Set it to `false` to turn it off. |
+   | `CPAO_MAIL_DOMAINS` | Optional. Which senders count as CPAO for the email check, comma-separated. Defaults to `azahcccs.gov`, which includes its subdomains. |
    | `CPAO_REQUIRE_WET_SIGNATURE=true` | Optional. Pen-signature mode; see below. |
 3. On `cpao-admin.html` → **Settings**:
    - add your office phone (it goes on the Org form)
@@ -170,7 +172,64 @@ Seven steps, saved as they go, so they can stop and come back with the same link
    - It only ever sends when you press it.
 5. **If you send it yourself instead:** press **I sent it myself — mark as sent**.
 
-Send to CPAO needs the Microsoft sign-in app to have the **Mail.Send** application permission (admin-consented in Entra ID). Without it, or if the files are over about 3 MB, the page says so and nothing is sent.
+Send to CPAO needs the Microsoft sign-in app to have the **Mail.Send** and **Mail.ReadWrite** application permissions, admin-consented in Entra ID. The email is built as a draft and then sent, so large batches attach fine. Without the permissions, the page says so and nothing is sent.
+
+### The Outlook draft
+
+Building the Add/Remove form also leaves the same email as a **draft** in Brian's Outlook Drafts. It's addressed to CP-AO Operations, with the Add/Remove form and every CP-101 attached.
+
+**To send it from Outlook:**
+1. Look it over.
+2. Send it.
+3. On Weekly batches, press **I sent it myself — mark as sent**.
+
+**On the batch row:**
+- **Open the draft in Outlook ↗** opens it.
+- **Make it again** (or **Create Outlook draft**, if there isn't one) makes a fresh one.
+
+**What happens to a waiting draft:**
+- Rebuilding the form replaces it.
+- **Send to CPAO** deletes it, so the email can't go twice.
+- A draft you already sent is never touched.
+
+## Emails from CPAO
+
+Every morning at 8:00, with the scheduled job, the site reads Brian's mailbox (every folder) for new emails from CPAO. Those are senders on `CPAO_MAIL_DOMAINS`, by default `azahcccs.gov`.
+
+**For each new email:**
+- **Matching:** it's matched to people on the roster whose first and last name appear in the subject or the start of the email ("Jane Example" or "Example, Jane").
+- **Follow-ups:** it's filed in each matched person's follow-ups with an **Open email ↗** link.
+- **Task:** you get a bell alert and a task, like "CPAO email about Jane Example (Approved / training?): …".
+  - The hint in brackets comes from words in the email: denied, correction, final approval, approved/training.
+  - Denials and corrections are marked Hot.
+  - An email that names nobody on the roster still gets a task.
+- **Your call:** nobody's stage changes on its own. Read the email, then press their ✓ next step, or record the denial.
+
+**Where to see them:** Weekly batches → **Emails from CPAO** lists the latest. **Check my email now** runs the check right away.
+
+**Privacy:** only the subject, sender, date and an Outlook link are saved. The email's text is never stored or sent anywhere. Each email is logged once, so checking again never makes duplicate tasks.
+
+**If it fails** (for example, the permission is missing), it shows in the "Finish setting up" box. To switch it on, add the **Mail.ReadWrite** application permission to the sign-in app in Entra ID and grant admin consent.
+
+## An already filled-out CP-101 (paper form)
+
+If someone already filled out and signed a CP-101 on paper, upload that instead of having them do the online form.
+
+**Before you upload:** scan all 4 pages into one PDF, not photos, up to 8 MB.
+
+**Three ways to upload it:**
+- **New person:** in **+ Invite someone**, fill in their details, tick **Their CP-101 is already filled out and signed on paper**, choose the PDF, and press **Add and upload their CP-101**. Paper forms go one person at a time.
+- **Someone already invited** who hasn't submitted: open them and use **Already have their filled-out CP-101? Upload it instead**.
+- **The staff member themself:** on the first step of their invite link, **Already filled out and signed the paper CP-101? Upload it instead**.
+
+**What happens next:**
+1. They skip the online form and the automatic check. They go to **Ready to countersign**, with a task for you to look it over first, since nothing checked it.
+2. Their invite link stops working.
+3. When you upload it, they get an email with a link to follow their progress on the HEAplus tab, where they'll upload their AZLearns certificates later. People invited at a personal email get a note instead, because they can't sign in to the site.
+4. **Countersign** puts your signature, today's date and your name on page 4 of their scan, in the same places as on the online form. If page 4 isn't a standard letter-size page, the scan is kept as it is, and the page asks you to check it's signed.
+5. **If you already signed the paper form yourself:** as the site admin, tick **I've already countersigned it**. It then goes straight onto the next Add/Remove form.
+
+Managers can't upload paper forms.
 
 ## How the weekly batch works
 
@@ -178,6 +237,7 @@ Send to CPAO needs the Microsoft sign-in app to have the **Mail.Send** applicati
 - The scheduled job collects everyone *Queued for batch* (Add, or Add-SA) and *Removal requested* (Remove, or Remove-SA).
 - It fills the Organization User Application, with 6 people per copy; more people means more copies, merged.
 - It signs the form, flattens it, and merges it with each person's CP-101 into one bundle.
+- It leaves the email to CPAO as a draft in Brian's Outlook, with everything attached.
 - It adds a task: "Weekly CPAO batch ready: n add, m remove".
 
 **Then Brian**, on **Weekly batches**, either:
@@ -250,7 +310,7 @@ CPAO has historically received wet-signed scans. Until they confirm that drawn s
   - `lib/cpao.js`: validators and the Claude check
   - `lib/cpao-pdf.js`: pdf-lib
   - `lib/cpao-crypto.js`: encryption
-  - `lib/cpao-graph.js`: optional mail
+  - `lib/cpao-graph.js`: Outlook: invites, drafts, Send to CPAO, reading CPAO emails, the staff picker
   - `api/cpao.js`: everything else
 - `npm test` runs the validators, SSN rules, 6-row overflow, AI-answer parsing and encryption tests.
 - `npm run cpao:golden` re-renders `cpao/golden/*.png`: both forms filled with obviously fake data (Jane Example, SSN 000-00-0000), to check alignment by eye. It needs `pdftoppm`.

@@ -18,6 +18,8 @@
                                             pre-filled CP-101 to print and sign
      POST ?action=scan   (raw PDF body)     …and the signed scan
      POST ?action=submit                    Layer A + Claude check → routed
+     POST ?action=paper  (raw PDF body)     an already filled-out paper CP-101
+                                            instead of the online form
 
    WHO SEES WHAT on cpao-admin.html (access() in lib/auth.js):
      cpao_admin   the admin side below — site admins plus CPAO_ADMINS. Only a
@@ -38,10 +40,17 @@
      POST ?action=invite | update | reveal | countersign | send_back | status | followup
                  | settings | batch | push {id} (Add/Remove form for one person now)
                  | mark_sent | send_batch {id} (email it to CPAO from the site admin's mailbox) | rotate | purge
+                 | outlook_draft {id} (a draft to CPAO in his Outlook, files attached)
+                 | mail_check (read his mail for new emails from CPAO now)
+     POST ?action=paper_upload&id=[&countersigned=1]  (raw PDF) their already
+                 filled-out CP-101 instead of the online form
+     GET  ?action=cpao_emails               the latest emails from CPAO
 
    CRON (vercel.json, daily 15:00 UTC = 8:00 Phoenix): GET ?action=cron with
    Authorization: Bearer <CRON_SECRET>. Builds the weekly batch on
-   settings.batch_weekday and runs the retention purge every day.
+   settings.batch_weekday (which leaves an Outlook draft to CPAO), checks
+   the site admin's mail for new emails from CPAO, and runs the retention
+   purge — every day.
 
    PII rules: date of birth, SSN and home address are sealed with
    lib/cpao-crypto.js before they're stored, are only decrypted for the staff
@@ -206,7 +215,8 @@ function staffView(staff, app, x) {
     submitted: !!app.submitted_at && !editable(staff),
     /* the email note is for Brian, not something they must change */
     issues: staff.status === 'needs_fix' && ai ? (ai.issues || []).filter(function (i) { return !(i.field === 'email' && i.severity === 'warn'); }) : [],
-    wet: wetMode(), titles: R.TITLE_OPTIONS, site_admin: R.C.site_admin_name, org: R.C.dba
+    wet: wetMode(), titles: R.TITLE_OPTIONS, site_admin: R.C.site_admin_name, org: R.C.dba,
+    sign_in: staff.sign_in || 'microsoft'
   };
 }
 
@@ -243,6 +253,10 @@ async function staffRoute(req, res, action) {
     await db('PATCH', 'cpao_applications', '?id=eq.' + app.id, { wet_signed_upload_key: key, user_signed_at: nowIso(), user_ip: ipOf(req), step: Math.max(app.step, 7), updated_at: nowIso() });
     await audit(me.email, 'sign_wet_upload', staff.id, { pages: pages }, req);
     return sendJSON(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && action === 'paper') {
+    const raw = await S.readRaw(req, 8000000);
+    return sendJSON(res, 200, await paperUpload(req, me.email, staff, raw, { self: true }));
   }
   if (req.method === 'POST' && action === 'save') {
     const b = await body(req);
@@ -325,6 +339,67 @@ async function staffRoute(req, res, action) {
   throw bad('Unknown action.', 404);
 }
 
+/* ── an already filled-out paper CP-101 ─────────────────────────────────────
+   Instead of the online form, the person (from their invite link) or a
+   HEAplus admin uploads the CP-101 they filled out and signed on paper: one
+   PDF, all 4 pages. It skips the form and the automatic check and goes
+   straight to "ready to countersign" (or, when the site admin says he
+   already countersigned it, straight to the Add/Remove form queue).
+   Countersigning stamps his signature on page 4 (P.countersignScan).
+   An admin upload emails the person a link to follow their progress. */
+async function paperUpload(req, actor, s, raw, opt) {
+  opt = opt || {};
+  if (!editable(s)) { throw bad('Their application is already in — a paper form can only replace it before it\'s submitted.'); }
+  if (raw.toString('ascii', 0, 5) !== '%PDF-') { throw bad('Upload the filled-out CP-101 as one PDF (scan it — not photos).'); }
+  let pages;
+  try { pages = await P.pageCount(raw); } catch (e) { throw bad('That PDF couldn\'t be opened. Scan it again as a PDF.'); }
+  if (pages !== 4) { throw bad('The CP-101 has 4 pages — this PDF has ' + pages + '. Scan all 4 pages into one PDF.'); }
+  const app = await appFor(s);
+  const key = 'applications/' + s.id + '/' + app.id + '/paper-cp101.pdf';
+  await S.upload(BUCKET, key, raw, 'application/pdf');
+  const now = nowIso();
+  const answers = Object.assign({}, app.answers || {}, { source: 'paper', first_name: s.first_name, last_name: s.last_name,
+    email: (app.answers || {}).email || s.email });
+  const name = s.first_name + ' ' + s.last_name;
+  const patch = { answers: answers, wet_signed_upload_key: key, submitted_at: now, step: 7, updated_at: now,
+    ai_check_result: { status: 'admin_review', issues: [], layer: 'paper', checked_at: now,
+      admin_notes: 'An already filled-out paper CP-101 was uploaded' + (opt.self ? ' by ' + name : '') +
+        ', so there was no automatic check. Open it (View their CP-101) and check every field and both pages are complete before countersigning.' } };
+  await closeProject(s.project_id);
+  const clear = { invite_token_hash: null, invite_expires_at: null };
+  if (opt.countersigned) {
+    /* he signed the paper himself: it's the record as it is */
+    const pdfKey = 'applications/' + s.id + '/' + app.id + '/' + P.cp101FileName(answers);
+    await S.upload(BUCKET, pdfKey, raw, 'application/pdf');
+    Object.assign(patch, { pdf_storage_key: pdfKey, sa_signed_at: now });
+    await db('PATCH', 'cpao_applications', '?id=eq.' + app.id, patch);
+    await setStaff(s.id, Object.assign({ status: 'countersigned' }, clear), 'Paper CP-101 uploaded — already countersigned');
+    await setStaff(s.id, { status: 'queued_for_batch', project_id: null }, 'Paper CP-101 — queued for the weekly batch');
+  } else {
+    await db('PATCH', 'cpao_applications', '?id=eq.' + app.id, patch);
+    const p = await project('CP-101 ready to countersign (paper form): ' + name,
+      'Their already filled-out paper CP-101 was uploaded' + (opt.self ? ' by them' : '') + '. There was no automatic check — look it over first.\n\nOpen it: ' +
+      site(req) + '/cpao-admin.html#staff=' + s.id, R.addBusinessDays(R.today(), 2), opt.by || null, 'Med');
+    await setStaff(s.id, Object.assign({ status: 'ready_for_countersign', project_id: p.id }, clear), 'Paper CP-101 uploaded — ready to countersign');
+  }
+  await audit(actor, 'paper_upload', s.id, { self: !!opt.self, countersigned: !!opt.countersigned }, req);
+  /* they still follow along: the HEAplus tab shows their 10 steps */
+  const watch = site(req) + '/cpao-admin.html';
+  let emailed = false;
+  if (!opt.self) {
+    try {
+      emailed = await G.sendMail(s.email, 'Your HEAplus application is in', [
+        s.first_name + ', I\'ve put in your Individual User Application (CP-101) for HEAplus access — there\'s no online form for you to fill out.', '',
+        s.sign_in === 'code' ? 'I\'ll let you know when there\'s something for you to do. The AHCCCS background check can take 1 week to 3 months.'
+          : 'You can follow where it is, any time, on the HEAplus tab (sign in with your Sanctuary Microsoft account): ' + watch +
+            '\nOnce AHCCCS approves the background check, that\'s also where you upload your AZLearns certificates.',
+        '', '— Brian'].join('\n'));
+    } catch (e) { /* the page shows the link */ }
+  }
+  return { ok: true, status: opt.countersigned ? 'queued_for_batch' : 'ready_for_countersign', emailed: emailed,
+           watch_link: s.sign_in === 'code' ? null : watch };
+}
+
 /* ═════════════════════════════ ADMIN SIDE ═══════════════════════════════ */
 
 async function invite(req, me, b) {
@@ -367,6 +442,15 @@ async function invite(req, me, b) {
       delete s.invite_token_hash; delete s.invite_code_hash;
       return { ok: true, staff: s, existing: true };
     }
+    /* their CP-101 is already filled out on paper: on the roster, no form
+       link — the page uploads the PDF next (paper_upload) */
+    if (b.paper === true) {
+      s = (await db('POST', 'cpao_staff', '', Object.assign(row, { last_action: 'Added — paper CP-101 to upload', last_action_at: nowIso() })))[0];
+      try { s = await setStaff(s.id, {}, null, 'invited'); } catch (e) { /* stage_dates not added yet */ }
+      await audit(me.email, 'add_paper', s.id, null, req);
+      delete s.invite_token_hash; delete s.invite_code_hash;
+      return { ok: true, staff: s, paper: true };
+    }
     s = (await db('POST', 'cpao_staff', '', Object.assign(row, fields, { last_action: 'Invited', last_action_at: nowIso() })))[0];
     if (personal) { const c = codeFields(s); code = c.code; s = await setStaff(s.id, c.fields); }
   }
@@ -389,22 +473,35 @@ async function roster(me) {
     delete s.invite_token_hash; delete s.invite_code_hash;
     return s;
   });
-  const apps = await db('GET', 'cpao_applications', '?select=id,staff_id,step,submitted_at,sa_signed_at,pdf_storage_key,batch_id,ai_check_result,purged_at,created_at&order=created_at.desc');
+  const apps = await db('GET', 'cpao_applications', '?select=id,staff_id,step,submitted_at,sa_signed_at,pdf_storage_key,batch_id,ai_check_result,purged_at,created_at,source:answers->>source&order=created_at.desc');
   const latest = {};
   apps.forEach(function (a) { if (!latest[a.staff_id]) { latest[a.staff_id] = a; } });
   const st = await settings();
-  const batches = await db('GET', 'cpao_batches', '?select=id,week_of,status,rows,sent_at,project_id,org_form_storage_key,bundle_storage_key,created_at&order=created_at.desc&limit=30');
+  /* select=*: the Outlook draft columns may not be added yet */
+  const batches = (await db('GET', 'cpao_batches', '?select=*&order=created_at.desc&limit=30')).map(function (x) {
+    return { id: x.id, week_of: x.week_of, status: x.status, rows: x.rows, sent_at: x.sent_at, project_id: x.project_id,
+      org_form_storage_key: x.org_form_storage_key, bundle_storage_key: x.bundle_storage_key, created_at: x.created_at,
+      outlook_draft_link: x.outlook_draft_link || null };
+  });
+  /* the last email check, so a missing permission shows up on the page */
+  let mailCheck = null;
+  try {
+    mailCheck = (await db('GET', 'cpao_audit_log', '?action=in.(mail_check,mail_check_failed)&select=action,at,detail&order=at.desc&limit=1'))[0] || null;
+  } catch (e) { /* fine */ }
   return {
     staff: staff.map(function (s) {
       const a = latest[s.id];
       return Object.assign({}, s, { app: a ? { id: a.id, step: a.step, submitted_at: a.submitted_at, sa_signed_at: a.sa_signed_at,
-        has_pdf: !!a.pdf_storage_key, ai_status: a.ai_check_result && a.ai_check_result.status, purged: !!a.purged_at } : null });
+        has_pdf: !!a.pdf_storage_key, ai_status: a.ai_check_result && a.ai_check_result.status, purged: !!a.purged_at, paper: a.source === 'paper' } : null });
     }),
     batches: batches,
     settings: { site_admin_phone: st.site_admin_phone || '', has_signature: !!st.site_admin_signature_key,
                 batch_weekday: st.batch_weekday, pdf_retention_days: st.pdf_retention_days },
     setup: { pii_key: K.configured(), ai: !!process.env.ANTHROPIC_API_KEY, model: R.MODEL, cron: !!process.env.CRON_SECRET,
-             email: G.emailOn(), outlook_draft: G.draftOn(), wet: wetMode() },
+             email: G.emailOn(), outlook_draft: G.draftOn(), wet: wetMode(), mail_check: G.mailCheckOn(),
+             mail_domains: G.cpaoDomains(),
+             last_mail_check: mailCheck ? { at: mailCheck.at, ok: mailCheck.action === 'mail_check',
+               error: mailCheck.action === 'mail_check_failed' ? (mailCheck.detail || {}).error || 'failed' : null } : null },
     statuses: STATUSES, titles: R.TITLE_OPTIONS, constants: R.C
   };
 }
@@ -442,9 +539,13 @@ async function countersign(req, me, id) {
   const x = K.open(a.sensitive_ciphertext);
   const signedAt = nowIso();
   let pdf;
+  let stamped = null;
   if (a.wet_signed_upload_key) {
-    /* wet-signed: the scan is the record; it already carries both pages 1-4 */
-    pdf = await S.download(BUCKET, a.wet_signed_upload_key);
+    /* a pen-signed scan or an uploaded paper form: his signature, the date
+       and his name go on page 4 */
+    const out = await P.countersignScan(await S.download(BUCKET, a.wet_signed_upload_key),
+      { sa_signature: await S.download(BUCKET, st.site_admin_signature_key), sa_signed_at: signedAt });
+    pdf = out.pdf; stamped = out.stamped;
   } else {
     pdf = await P.cp101({ answers: a.answers, sensitive: x, user_signature: await S.download(BUCKET, a.user_signature_key),
       user_signed_at: a.user_signed_at, sa_signature: await S.download(BUCKET, st.site_admin_signature_key), sa_signed_at: signedAt });
@@ -452,12 +553,12 @@ async function countersign(req, me, id) {
   const key = 'applications/' + s.id + '/' + a.id + '/' + P.cp101FileName(a.answers);
   await S.upload(BUCKET, key, Buffer.from(pdf), 'application/pdf');
   await db('PATCH', 'cpao_applications', '?id=eq.' + a.id, { sa_signed_at: signedAt, pdf_storage_key: key, updated_at: signedAt });
-  await audit(me.email, 'countersign', s.id, { file: key.split('/').pop() }, req);
+  await audit(me.email, 'countersign', s.id, { file: key.split('/').pop(), stamped: stamped }, req);
   await closeProject(s.project_id);
   await setStaff(s.id, { status: 'countersigned' }, 'Countersigned');
   await setStaff(s.id, { status: 'queued_for_batch', project_id: null }, 'Countersigned — queued for the weekly batch');
   await audit(me.email, 'status', s.id, { to: 'queued_for_batch' }, req);
-  return { ok: true };
+  return { ok: true, stamped: stamped };
 }
 
 async function sendBack(req, me, b) {
@@ -616,7 +717,7 @@ async function buildBatch(req, actor, only) {
   const sig = await S.download(BUCKET, st.site_admin_signature_key);
   /* a re-run replaces any batch that wasn't sent yet (a push replaces only
      a draft that was just for them) */
-  let drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=id,project_id,org_form_storage_key,bundle_storage_key,rows');
+  let drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=*');
   if (only) {
     drafts = drafts.filter(function (d) { return (d.rows || []).some(function (r) { return only.indexOf(r.staff_id) >= 0; }); });
     if (drafts.some(function (d) { return (d.rows || []).some(function (r) { return only.indexOf(r.staff_id) < 0; }); })) {
@@ -625,6 +726,7 @@ async function buildBatch(req, actor, only) {
   }
   for (const d of drafts) {
     await closeProject(d.project_id);
+    await G.deleteDraft(d.outlook_draft_id);
     try { await S.remove(BUCKET, [d.org_form_storage_key, d.bundle_storage_key].filter(Boolean)); } catch (e) { /* gone already */ }
     await db('PATCH', 'cpao_applications', '?batch_id=eq.' + d.id, { batch_id: null });
     await db('DELETE', 'cpao_batches', '?id=eq.' + d.id, null, { Prefer: 'return=minimal' });
@@ -657,21 +759,61 @@ async function buildBatch(req, actor, only) {
   }
 
   const nAdd = rows.filter(function (r) { return /^Add/.test(r.action); }).length, nRemove = rows.length - nAdd;
-  const draft = G.draftOn();
+  /* the email to CPAO waits as a draft in his Outlook, everything attached */
+  let draft = null, draftError = null;
+  try {
+    const m = cpaoEmail(weekOf, nAdd, nRemove);
+    draft = await G.draftToCpao(m.subject, m.text, [{ name: orgName, bytes: org }].concat(files));
+    if (draft) { await saveDraftRef(batch.id, draft); }
+  } catch (e) { draftError = e.message; await audit(actor, 'outlook_draft_failed', null, { batch_id: batch.id, code: e.code || 'error' }, req); }
   const p = await project((only ? 'CPAO Add/Remove form ready: ' + rows.map(function (r) { return r.name; }).join(', ') : 'Weekly CPAO batch ready: ' + nAdd + ' add, ' + nRemove + ' remove'), [
     'Who:'].concat(rows.map(function (r) { return '- ' + r.name + ' — ' + r.action; })).concat([
     '', 'Download the bundle and the Org form: ' + site(req) + '/cpao-admin.html#batch=' + batch.id,
     '', 'Review → send to ' + R.C.cpao_ops_email + ' from your mailbox (only the site admin may email CPAO) → click Mark as Sent.',
-    draft ? 'A draft with the files attached is waiting in your Outlook Drafts.' : ''
+    draft ? 'A draft to CPAO with every file attached is waiting in your Outlook Drafts' + (draft.web_link ? ': ' + draft.web_link : '.') : ''
   ]).join('\n'), weekOf, null, 'Hot');
   await db('PATCH', 'cpao_batches', '?id=eq.' + batch.id, { org_form_storage_key: base + orgName, bundle_storage_key: base + bundleName, project_id: p.id });
-  let drafted = false;
-  try {
-    const m = cpaoEmail(weekOf, nAdd, nRemove);
-    drafted = await G.draftToCpao(m.subject, m.text, [{ name: orgName, bytes: org }].concat(files));
-  } catch (e) { await audit(actor, 'outlook_draft_failed', null, null, req); }
-  await audit(actor, 'batch_built', null, { batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: drafted }, req);
-  return { ok: true, batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: drafted };
+  await audit(actor, 'batch_built', null, { batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: !!draft }, req);
+  return { ok: true, batch_id: batch.id, add: nAdd, remove: nRemove, outlook_draft: draft ? (draft.web_link || true) : false,
+           outlook_draft_error: draftError };
+}
+
+/* the Outlook draft's id and link, on the batch (columns from supabase/cpao.sql) */
+async function saveDraftRef(batchId, d) {
+  try { await db('PATCH', 'cpao_batches', '?id=eq.' + batchId, { outlook_draft_id: d.id, outlook_draft_link: d.web_link }); }
+  catch (e) { /* columns not added yet: the draft is still in Outlook */ }
+}
+/* the Org form plus every CP-101 on a batch, as attachments */
+async function batchFiles(b) {
+  if (!b.org_form_storage_key) { throw bad('The files for this batch are gone — build it again.'); }
+  const files = [{ name: b.org_form_storage_key.split('/').pop(), bytes: await S.download(BUCKET, b.org_form_storage_key) }];
+  for (const a of await db('GET', 'cpao_applications', '?batch_id=eq.' + b.id + '&select=pdf_storage_key&order=created_at.asc')) {
+    if (a.pdf_storage_key) { files.push({ name: a.pdf_storage_key.split('/').pop(), bytes: await S.download(BUCKET, a.pdf_storage_key) }); }
+  }
+  return files;
+}
+async function draftBatch(id) {
+  if (!UUID.test(String(id || ''))) { throw bad('Which batch?'); }
+  const b = (await db('GET', 'cpao_batches', '?id=eq.' + id + '&select=*'))[0];
+  if (!b) { throw bad('That batch isn\'t here any more.', 404); }
+  if (b.status !== 'draft') { throw bad('That batch was already sent.'); }
+  return b;
+}
+/* "Create Outlook draft" on a batch: a fresh draft (replacing ours, if it's
+   still a draft) */
+async function outlookDraft(req, me, id) {
+  const b = await draftBatch(id);
+  const files = await batchFiles(b);
+  const nAdd = (b.rows || []).filter(function (r) { return /^Add/.test(r.action); }).length;
+  const m = cpaoEmail(b.week_of, nAdd, (b.rows || []).length - nAdd);
+  await G.deleteDraft(b.outlook_draft_id);
+  let d;
+  try { d = await G.draftToCpao(m.subject, m.text, files, true); }
+  catch (e) { await audit(me.email, 'outlook_draft_failed', null, { batch_id: id, code: e.code || 'error' }, req); throw bad(e.message, 502); }
+  if (!d) { throw bad('Microsoft sign-in isn\'t set up for the site (MS_CLIENT_ID / MS_CLIENT_SECRET), so it can\'t reach your Outlook.'); }
+  await saveDraftRef(id, d);
+  await audit(me.email, 'outlook_draft', null, { batch_id: id, files: files.length }, req);
+  return { ok: true, link: d.web_link, files: files.length };
 }
 
 /* the email to CP-AO Operations (an Outlook draft, or "Send to CPAO") */
@@ -685,20 +827,15 @@ function cpaoEmail(weekOf, nAdd, nRemove) {
 /* "Send to CPAO": Brian's click emails the Org form and every CP-101 in the
    batch from his mailbox to CP-AO Operations, then marks the batch sent */
 async function sendBatch(req, me, id) {
-  if (!UUID.test(String(id || ''))) { throw bad('Which batch?'); }
-  const b = (await db('GET', 'cpao_batches', '?id=eq.' + id + '&select=*'))[0];
-  if (!b) { throw bad('That batch isn\'t here any more.', 404); }
-  if (b.status !== 'draft') { throw bad('That batch was already sent.'); }
-  if (!b.org_form_storage_key) { throw bad('The files for this batch are gone — build it again.'); }
-  const files = [{ name: b.org_form_storage_key.split('/').pop(), bytes: await S.download(BUCKET, b.org_form_storage_key) }];
-  for (const a of await db('GET', 'cpao_applications', '?batch_id=eq.' + id + '&select=pdf_storage_key&order=created_at.asc')) {
-    if (a.pdf_storage_key) { files.push({ name: a.pdf_storage_key.split('/').pop(), bytes: await S.download(BUCKET, a.pdf_storage_key) }); }
-  }
+  const b = await draftBatch(id);
+  const files = await batchFiles(b);
   const nAdd = (b.rows || []).filter(function (r) { return /^Add/.test(r.action); }).length;
   const m = cpaoEmail(b.week_of, nAdd, (b.rows || []).length - nAdd);
   try { await G.sendToCpao(m.subject, m.text, files); }
   catch (e) { await audit(me.email, 'batch_email_failed', null, { batch_id: id, code: e.code || 'error' }, req); throw bad(e.message, e.code === 'graph' ? 502 : 400); }
   await audit(me.email, 'batch_emailed', null, { batch_id: id, to: R.C.cpao_ops_email, files: files.length }, req);
+  /* so the same email isn't sent twice from the waiting draft */
+  await G.deleteDraft(b.outlook_draft_id);
   const sent = await markSent(req, me, id);
   return { ok: true, to: R.C.cpao_ops_email, from: R.C.site_admin_email, files: files.length, skipped: sent.skipped };
 }
@@ -727,6 +864,9 @@ async function markSent(req, me, id) {
     if (removing) { await purgeStaff(r.staff_id, 'removed'); }
   }
   await closeProject(b.project_id);
+  /* a leftover Outlook draft (he sent it another way) would invite a
+     second send; one he sent from is no longer a draft and is left alone */
+  await G.deleteDraft(b.outlook_draft_id);
   /* removals need no follow-up from CPAO */
   if (adds) {
     await project('Check CPAO status for batch ' + R.mdy(b.week_of),
@@ -773,6 +913,56 @@ async function purge() {
     await db('PATCH', 'cpao_batches', '?id=eq.' + b.id, { org_form_storage_key: null, bundle_storage_key: null });
   }
   return { purged_applications: n, purged_pdfs: pdfs };
+}
+
+/* ── emails from CPAO ───────────────────────────────────────────────────────
+   Every morning (and on "Check now"), the site admin's mailbox is read for
+   new emails from the CPAO domains. Each is logged once (cpao_emails, keyed
+   by its Internet message id), filed in the follow-ups of anyone on the
+   roster it names, and becomes a task + bell alert for Brian. Nothing about
+   the person's stage changes on its own: he reads it and moves them on.
+   Only the subject, sender, date and an Outlook link are kept — never the
+   body. */
+async function checkCpaoMail(req, actor) {
+  if (!G.mailCheckOn()) { return { off: true }; }
+  try {
+    const last = (await db('GET', 'cpao_emails', '?select=received_at&order=received_at.desc&limit=1'))[0];
+    const since = last ? new Date(new Date(last.received_at).getTime() - 36e5) : new Date(Date.now() - 3 * 864e5);
+    const mails = (await G.cpaoMail(since.toISOString())).reverse();   /* oldest first */
+    const staff = await db('GET', 'cpao_staff', '?status=not.in.(removed)&select=id,first_name,last_name,followups');
+    let fresh = 0;
+    for (const m of mails) {
+      const hay = m.subject + ' ' + m.preview;
+      const who = staff.filter(function (x) { return R.nameIn(hay, x.first_name, x.last_name); });
+      const kind = R.emailKind(hay);
+      const rows = await db('POST', 'cpao_emails', '?on_conflict=message_id', { message_id: m.key, received_at: m.received_at,
+        from_address: m.from.slice(0, 200), subject: m.subject, web_link: m.web_link, kind: kind, attachments: m.attachments,
+        staff_ids: who.map(function (x) { return x.id; }) }, { Prefer: 'return=representation,resolution=ignore-duplicates' });
+      if (!rows || !rows.length) { continue; }   /* seen before */
+      fresh++;
+      const names = who.map(function (x) { return x.first_name + ' ' + x.last_name; });
+      const when = new Date(m.received_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Phoenix' });
+      const p = await project('CPAO email' + (names.length ? ' about ' + names.join(', ') : '') + ' (' + R.EMAIL_KINDS[kind] + '): ' + m.subject.slice(0, 160),
+        ['From ' + m.from + ', ' + when + (m.attachments ? ' — has attachments' : '') + '.',
+         m.web_link ? 'Open it in Outlook: ' + m.web_link : '', '',
+         names.length ? who.map(function (x) { return x.first_name + ' ' + x.last_name + ': ' + site(req) + '/cpao-admin.html#staff=' + x.id; }).join('\n')
+           : 'It doesn\'t name anyone on the roster — open it to see who it\'s about.',
+         '', 'Read it, then move the person on (or log a follow-up) on the HEAplus tab.'].join('\n'),
+        R.addBusinessDays(R.today(), 1), null, kind === 'denied' || kind === 'correction' ? 'Hot' : 'Med');
+      try { await db('PATCH', 'cpao_emails', '?message_id=eq.' + encodeURIComponent(m.key), { project_id: p.id }); } catch (e) { /* fine */ }
+      for (const x of who) {
+        x.followups = (x.followups || []).concat([{ at: nowIso(), by: 'CPAO email check', kind: 'email', email_kind: kind,
+          link: m.web_link, due: null, text: 'Email from CPAO (' + when + '): ' + m.subject }]).slice(-100);
+        await setStaff(x.id, { followups: x.followups }, 'Email from CPAO: ' + m.subject.slice(0, 80));
+      }
+    }
+    await audit(actor, 'mail_check', null, { checked: mails.length, new: fresh }, req);
+    return { checked: mails.length, new: fresh };
+  } catch (e) {
+    const msg = e.code ? e.message : /cpao_emails/.test(e.message) ? 'The cpao_emails table isn\'t in Supabase yet — run supabase/cpao.sql.' : 'Couldn\'t check the mailbox.';
+    await audit(actor, 'mail_check_failed', null, { error: msg }, req);
+    throw bad(msg, 502);
+  }
 }
 
 /* re-seal everything sealed with CPAO_PII_KEY_OLD under the current key */
@@ -904,7 +1094,7 @@ async function mailRoute(req, res, action, me, q, manager) {
     const b = await body(req);
     /* re-sending works; reapplying after a denial is Brian's call */
     if (b.id && (await staffById(b.id)).status === 'denied') { throw bad('Only the HEAplus admins can invite someone to reapply after a denial.', 403); }
-    return sendJSON(res, 200, await invite(req, me, Object.assign(b, { existing: false, is_site_admin: false })));
+    return sendJSON(res, 200, await invite(req, me, Object.assign(b, { existing: false, is_site_admin: false, paper: false })));
   }
   if (manager) { return sendJSON(res, 403, { error: 'forbidden', message: 'This is a read-only view — managers can invite people, and see where everyone is.' }); }
   if (req.method === 'GET' && action === 'file') {
@@ -929,7 +1119,7 @@ async function selfRoute(req, res, action, me) {
   return sendJSON(res, 200, { self: true, mine: mine, site_admin: R.C.site_admin_name });
 }
 
-const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1 };
+const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1, outlook_draft: 1 };
 
 /* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
 async function directoryList() {
@@ -970,12 +1160,23 @@ async function adminRoute(req, res, action, me, q) {
       res.setHeader('Content-Disposition', 'inline; filename="CP-101-preview.pdf"');
       return res.end(Buffer.from(pdf));
     }
+    if (action === 'cpao_emails') {
+      return sendJSON(res, 200, { emails: await db('GET', 'cpao_emails', '?select=message_id,received_at,from_address,subject,web_link,kind,staff_ids,attachments&order=received_at.desc&limit=30'),
+        kinds: R.EMAIL_KINDS });
+    }
     if (action === 'app_pdf') {
       const a = await latestApp((await staffById(q.id)).id);
       if (!a || !a.pdf_storage_key) { throw bad('No PDF yet — countersign first.'); }
       return sendJSON(res, 200, await fileLink(req, me, a.pdf_storage_key));
     }
     throw bad('Unknown action.', 404);
+  }
+  /* the paper CP-101 comes in raw, before any JSON body is read */
+  if (action === 'paper_upload') {
+    const s = await staffById(q.id);
+    if (q.countersigned === '1' && !access(me).admin) { throw bad('Only ' + R.C.site_admin_name + ' can say it\'s already countersigned.', 403); }
+    const raw = await S.readRaw(req, 8000000);
+    return sendJSON(res, 200, await paperUpload(req, me.email, s, raw, { countersigned: q.countersigned === '1', by: me }));
   }
   const b = await body(req);
   switch (action) {
@@ -1019,6 +1220,8 @@ async function adminRoute(req, res, action, me, q) {
     }
     case 'mark_sent': return sendJSON(res, 200, await markSent(req, me, b.id));
     case 'send_batch': return sendJSON(res, 200, await sendBatch(req, me, b.id));
+    case 'outlook_draft': return sendJSON(res, 200, await outlookDraft(req, me, b.id));
+    case 'mail_check': return sendJSON(res, 200, Object.assign({ ok: true }, await checkCpaoMail(req, me.email)));
     case 'rotate': return sendJSON(res, 200, await rotate(req, me));
     case 'purge': { const r = await purge(); await audit(me.email, 'purge_run', null, r, req); return sendJSON(res, 200, Object.assign({ ok: true }, r)); }
   }
@@ -1035,12 +1238,13 @@ async function cron(req, res) {
   if (day === st.batch_weekday) {
     try { out.batch = await buildBatch(req, 'cron'); } catch (e) { out.batch_error = e.bad ? e.message : 'failed'; await audit('cron', 'batch_failed', null, { error: out.batch_error }, req); }
   }
+  try { out.mail = await checkCpaoMail(req, 'cron'); } catch (e) { out.mail_error = e.bad ? e.message : 'failed'; }
   out.purge = await purge();
   return sendJSON(res, 200, out);
 }
 
 /* ══════════════════════════════════════════════════════════════════════ */
-const STAFF_ACTIONS = { apply: 1, save: 1, print: 1, scan: 1, submit: 1 };
+const STAFF_ACTIONS = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, paper: 1 };
 const NEEDS_KEY = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, reveal: 1, countersign: 1, rotate: 1, preview_pdf: 1 };
 
 module.exports = async function handler(req, res) {
