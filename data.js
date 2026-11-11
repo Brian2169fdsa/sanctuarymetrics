@@ -56,7 +56,9 @@ var WINDOWS = {
   siteOct29_30:  'Sep 29 – Oct 28, 2026',
   liOct29:       'Sep 28 – Oct 27, 2026',
   twLastOct29:   'Oct 15 – 28, 2026',
-  twPriorOct29:  'Oct 1 – 14, 2026'
+  twPriorOct29:  'Oct 1 – 14, 2026',
+  twLastNov11:   'Oct 29 – Nov 10, 2026',
+  twPriorNov11:  'Oct 16 – 28, 2026'
 };
 
 var CHANNEL_META = {
@@ -2956,6 +2958,119 @@ var L10 = {
    selector so earlier fortnights stay readable.                            */
 var TWOWEEK_SETS = {};
 
+/* Nov 11 gap pull · last 13 days = Oct 29 – Nov 10 · prior 13 days = Oct 16 – 28.
+   Verified pulls, Nov 11 (pipeline/pulls/*-2026-11-11.md). It bridges the
+   Oct 29 snapshot and the next full one. The pulls give the current values
+   and each platform's own change vs. the preceding 13 days; the prior
+   column is summed from the Oct 29 pull's daily values, and every one
+   reproduces the platform's change. Uniques (viewers, unique users,
+   visitors) can't be summed from days, so their prior column is blank.
+   LinkedIn runs a day behind (Oct 28 – Nov 9 vs. Oct 15 – 27). Instagram
+   wasn't pulled.                                                         */
+TWOWEEK_SETS['2026-11-11'] = {
+  label: 'Nov 11 update · Oct 29 – Nov 10 vs. Oct 16 – 28 (13 days)',
+  last: WINDOWS.twLastNov11,
+  prior: WINDOWS.twPriorNov11,
+  days: 13,
+  note: 'A 13-day bridge pulled on Nov 11, between the Oct 29 report and the next full snapshot: every figure is 13 days against ' +
+        'the 13 days before, set in each platform\'s date picker, and every change is the platform\'s own. The prior column comes ' +
+        'from the Oct 29 pull\'s daily values (they reproduce each platform\'s change exactly). Unique counts can\'t be added up ' +
+        'from days, so their prior column is blank. Instagram was not pulled this time.',
+  headline: [
+    { ch: 0, row: 'Views', lab: 'Facebook views' },
+    { ch: 1, row: 'Total leads (calls + forms)', lab: 'Website leads' },
+    { ch: 3, row: 'Impressions', lab: 'LinkedIn impressions' },
+    { ch: 0, row: 'Content interactions', lab: 'Facebook interactions' }
+  ],
+  channels: [
+    {
+      key: 'facebook',
+      head: ['Metric', 'Oct 29 – Nov 10', 'Oct 16 – 28', 'Change'],
+      rows: [
+        ['Views', '5,361', '4,399', '▲ 21.9%'],
+        ['Viewers (unique)', '~1,500', '—', '▲ 6.5%'],
+        ['Content interactions', '162', '72', '▲ 125%'],
+        ['Follows', '12', '11', '▲ 9.1%'],
+        ['Page visits', '245', '276', '▼ 11.2%'],
+        ['Link clicks', '3', '10', '▼ 70%']
+      ],
+      extra: {
+        title: 'Posts published Oct 29 – Nov 10 (8)',
+        head: ['Published', 'Post', 'Views', 'Viewers', 'Interactions', 'Shares'],
+        rows: [
+          ['Nov 5', 'Joey Landin — Voices That Matter conference (multi-photo)', '1,098', '591', '39', '0'],
+          ['Nov 6', 'PAL Forward — "bring a group"', '594', '314', '15', '12'],
+          ['Nov 6', 'Thank you Mercy Care / Reach Family Services (multi-photo)', '569', '324', '18', '0'],
+          ['Nov 4', 'SCI year-end giving / AZ tax credit', '409', '239', '15', '13'],
+          ['Nov 3', '"Luxury" in treatment', '182', '107', '3', '1'],
+          ['Nov 9', 'PAL Forward — "This Friday"', '175', '111', '2', '1'],
+          ['Nov 5', 'Commercial insurance / IOP in-network', '148', '79', '2', '0'],
+          ['Oct 31', 'PAL Forward 2026 announcement (Reel)', '128', '66', '4', '0']
+        ]
+      },
+      note: 'Eight posts in 13 days drove the jump: Nov 4 – 7 alone brought 3,504 views and 136 interactions. Followers 2,464 on ' +
+            'Nov 10 (2,456 on Oct 29). Meta shows viewers rounded (~1.5K).'
+    },
+    {
+      key: 'website',
+      head: ['Metric', 'Oct 29 – Nov 10', 'Oct 16 – 28', 'Change'],
+      rows: [
+        ['User visits', '941', '930', '▲ 1%'],
+        ['Unique users', '888', '—', '▲ 1%'],
+        ['Total leads (calls + forms)', '34', '44', '▼ 23%'],
+        ['Click-to-call', '17', '26', '▼ 35%'],
+        ['Form submissions', '17', '18', '▼ 6%'],
+        ['Conversion rate', '3.6%', '4.7%', '▼ 23%'],
+        ['AI-bot visits (kept separate)', '3,077', '2,872', '▲ 7%']
+      ],
+      extra: {
+        title: 'Pages and sources (Oct 29 – Nov 10, Duda)',
+        head: ['Item', 'Value'],
+        rows: [
+          ['Page views', '1,627 (1,453 unique) · avg. time on page 1:59 · bounce rate 68.9%'],
+          ['Sources', 'Direct 63% · Search 33% · Referral 2% · Unknown 3%'],
+          ['Top pages', 'Home 600 · Contact 128 · How do you break an addiction to someone 127 · About 54 · Rose Garden 51 · ' +
+                        'Roadrunner Home 48 · Our Team 47 · Inpatient 42 · For Patients 36 · IOP 29'],
+          ['Top AI bots', 'exa.ai crawler 17% · Apple Search 13% · Amazonbot 11% · Meta-WebIndexer 9% · Bytespider 8% · Ahrefs 7%']
+        ]
+      },
+      note: 'Traffic held steady but leads fell: calls dropped from 26 to 17. Contact page visitors stayed 3½ minutes on average.'
+    },
+    {
+      key: 'instagram',
+      pending: 'Instagram wasn\'t part of the Nov 11 pull. It comes back with the next full snapshot.'
+    },
+    {
+      key: 'linkedin',
+      windowOverride: 'Oct 28 – Nov 9, 2026 vs. Oct 15 – 27, 2026',
+      windowChip: 'LinkedIn custom range · 13 days vs. 13 days',
+      head: ['Metric', 'Oct 28 – Nov 9', 'Oct 15 – 27', 'Change'],
+      rows: [
+        ['Impressions', '846', '602', '▲ 40.5%'],
+        ['Reactions', '27', '11', '▲ 145.5%'],
+        ['Comments', '0', '1', '▼ 100%'],
+        ['Reposts', '0', '0', '—'],
+        ['Page views', '126', '113', '▲ 11.5%'],
+        ['Unique visitors', '47', '—', '▲ 9.3%']
+      ],
+      extra: {
+        title: 'Posts Nov 4 – 9',
+        head: ['Date', 'Post', 'Impressions', 'Clicks', 'Reactions', 'Comments', 'Reposts', 'Eng. rate'],
+        rows: [
+          ['Nov 8', 'Collaborative post (partner shout-out, accepted by Joseph Landin)', '579', '—', '18', '3', '0', '—'],
+          ['Nov 6', 'Joey Landin — Voices That Matter', '502', '271', '25', '0', '2', '59.4%'],
+          ['Nov 9', 'PAL Forward — "This Friday"', '152', '2', '5', '0', '1', '5.3%'],
+          ['Nov 6', 'Commercial insurance / IOP in-network', '66', '1', '3', '0', '0', '6.1%'],
+          ['Nov 4', 'SCI year-end giving', '18', '2', '0', '0', '0', '11.1%']
+        ]
+      },
+      note: 'The Joey Landin post did most of the work: 271 clicks and a 59% engagement rate. The Nov 8 collaborative post\'s ' +
+            'numbers aren\'t counted in the page totals above. Followers 1,476 on Nov 9 (1,463 on Oct 29). Page views: 34 desktop, ' +
+            '92 mobile. Visitors by job: Administrative 19.8%, Community & Social Services 15.9%, Business Development 11.1%.'
+    }
+  ]
+};
+
 /* Oct 29 report · last 2 weeks = Oct 15 – 28 · prior 2 weeks = Oct 1 – 14.
    Verified pull, Oct 29. The Oct 1 – 14 column matches the Oct 15 report.
    LinkedIn runs on its own cut (Oct 14 – 27 vs. Sep 30 – Oct 13).         */
@@ -3378,7 +3493,7 @@ TWOWEEK_SETS['2026-09-03'] = {
 };
 
 /* newest first — the two-week selector defaults to TWOWEEK_ORDER[0] */
-var TWOWEEK_ORDER = ['2026-10-29', '2026-10-15', '2026-10-01', '2026-09-17', '2026-09-03'];
+var TWOWEEK_ORDER = ['2026-11-11', '2026-10-29', '2026-10-15', '2026-10-01', '2026-09-17', '2026-09-03'];
 
 /* back-compat alias: anything reading TWOWEEK gets the newest fortnight */
 var TWOWEEK = TWOWEEK_SETS[TWOWEEK_ORDER[0]];

@@ -57,7 +57,7 @@ function channelBlock(ch, set) {
 
   s += '<p class="sub">' + (ch.windowOverride
          ? esc(ch.windowOverride) + ' &nbsp;·&nbsp; <span class="win-chip">' + esc(ch.windowChip || 'LinkedIn export cut · 15 days vs. 15 days') + '</span>'
-         : esc(set.last) + ' vs. ' + esc(set.prior) + ' &nbsp;·&nbsp; <span class="win-chip">14 days vs. 14 days</span>') +
+         : esc(set.last) + ' vs. ' + esc(set.prior) + ' &nbsp;·&nbsp; <span class="win-chip">' + (set.days || 14) + ' days vs. ' + (set.days || 14) + ' days</span>') +
        '</p>' + table(ch.head, ch.rows);
   if (ch.extra) {
     s += card(ch.extra.title, table(ch.extra.head, ch.extra.rows));
@@ -96,8 +96,8 @@ function render(id) {
       '<div class="eyebrow">Fortnightly view</div>' +
       '<h2 style="font-size:26px;margin:6px 0 0">Last two weeks vs. the two before</h2>' +
       '<p class="lead">A high-level read on the fortnight — <b>' + esc(set.last) + '</b> measured against ' +
-      '<b>' + esc(set.prior) + '</b>. This is a like-for-like 14-day comparison, which the snapshot report deliberately ' +
-      'is not: there the channels run on different export windows. Channels without a 14-day cut are shown blank rather ' +
+      '<b>' + esc(set.prior) + '</b>. This is a like-for-like ' + (set.days || 14) + '-day comparison, which the snapshot report deliberately ' +
+      'is not: there the channels run on different export windows. Channels without a ' + (set.days || 14) + '-day cut are shown blank rather ' +
       'than estimated.</p>' +
       headline(set) +
       '<p class="note" style="font-size:11.5px;color:var(--muted);margin:10px 0 0">' + set.note + '</p>' +

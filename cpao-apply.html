@@ -159,7 +159,15 @@ function step1(a) {
     text('middle_initial', 'Middle initial', a.middle_initial, 'maxlength="1" autocomplete="off" style="max-width:90px"' + (a.no_middle_name ? ' disabled' : '')) +
     tick('no_middle_name', 'I don\'t have a middle name', a.no_middle_name) +
     text('last_name', 'Legal last name', a.last_name, 'autocomplete="family-name" maxlength="40"') +
-    tick('legal_name_ack', 'My name matches my driver\'s license exactly (no nicknames).', a.legal_name_ack);
+    tick('legal_name_ack', 'My name matches my driver\'s license exactly (no nicknames).', a.legal_name_ack) + paperBox();
+}
+/* someone who already filled out and signed the paper CP-101 uploads it
+   instead of doing the 7 steps */
+function paperBox() {
+  return '<details class="priv" style="margin-top:6px"><summary style="cursor:pointer;font-weight:700">Already filled out and signed the paper CP-101? Upload it instead</summary>' +
+    '<p style="margin:8px 0">Scan all 4 pages into <b>one PDF</b> (not photos) and upload it here. You can skip the rest of this form; ' + esc(D.site_admin) + ' will check it before it goes to AHCCCS.</p>' +
+    '<div class="fq"><label for="paper">Your filled-out CP-101 (PDF, up to 8 MB)</label><input type="file" id="paper" accept="application/pdf"></div>' +
+    '<button type="button" class="btn" id="paper-go">Upload and submit</button><p class="msg err" id="paper-err" role="alert" hidden></p></details>';
 }
 function step2() {
   var x = D.sensitive;
@@ -438,6 +446,21 @@ function wire() {
         a.href = u; a.download = 'CP-101.pdf'; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
       }, function (err) { $('formerr').hidden = false; $('formerr').textContent = err.message; });
+    });
+  }
+  var pg = $('paper-go');
+  if (pg) {
+    pg.addEventListener('click', function () {
+      var f = $('paper').files[0], pe = $('paper-err');
+      pe.hidden = true;
+      if (!f) { pe.hidden = false; pe.textContent = 'Choose the PDF first.'; return; }
+      if (f.size > 8000000) { pe.hidden = false; pe.textContent = 'That PDF is over 8 MB — scan it at a lower resolution.'; return; }
+      if (!confirm('Submit this PDF as your application? You won\'t be able to change it afterwards.')) { return; }
+      pg.disabled = true; pg.textContent = 'Uploading…';
+      fetch('/api/cpao?action=paper', { method: 'POST', credentials: 'same-origin', headers: { 'X-CPAO-Token': TOKEN, 'X-CPAO-Code': CODE || '', 'Content-Type': 'application/pdf' }, body: f })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); })
+        .then(function (j) { D.editable = false; D.staff.status = j.status; finished(); window.scrollTo(0, 0); },
+          function (err) { pg.disabled = false; pg.textContent = 'Upload and submit'; pe.hidden = false; pe.textContent = err.message; });
     });
   }
   var sc = $('scan');
