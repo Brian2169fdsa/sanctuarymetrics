@@ -57,6 +57,9 @@ var WINDOWS = {
   liOct29:       'Sep 28 – Oct 27, 2026',
   twLastOct29:   'Oct 15 – 28, 2026',
   twPriorOct29:  'Oct 1 – 14, 2026',
+  metaNov11:     'Oct 29 – Nov 10, 2026',
+  siteNov11:     'Oct 29 – Nov 10, 2026',
+  liNov11:       'Oct 28 – Nov 9, 2026',
   twLastNov11:   'Oct 29 – Nov 10, 2026',
   twPriorNov11:  'Oct 16 – 28, 2026'
 };
@@ -2731,7 +2734,209 @@ var SNAP_OCT29 = {
   ]
 };
 
+/* ── update: Nov 11, 2026 ────────────────────────────────────────────────
+   A 13-day bridge between the Oct 29 snapshot and the next full one, from
+   the Nov 11 pulls (pipeline/pulls/*-2026-11-11.md). Every window is 13 days
+   (LinkedIn runs a day behind) and every change is the platform's own,
+   against the 13 days before. Instagram was not pulled. Prior values where
+   shown come from the Oct 29 pull's daily figures and reproduce each
+   platform's change exactly.                                             */
+var SNAP_NOV11 = {
+  id: '2026-11-11',
+  label: 'Nov 11 update (13 days)',
+  reportDate: 'Nov 11, 2026',
+  dataLine: 'Facebook 10/29–11/10 · Website 10/29–11/10 · LinkedIn 10/28–11/09 · each vs. the 13 days before · Instagram not pulled',
+  summary: {
+    measured: true,
+    lead: 'Posting picked up, and it showed. In the 13 days to Nov 10, <b>Facebook views rose 21.9% to 5,361</b> and ' +
+          '<b>interactions more than doubled to 162 (▲ 125%)</b> on 8 posts, against 4 in the 13 days before. The Joey Landin ' +
+          '"Voices That Matter" post led on both platforms: 1,098 views on Facebook, and on LinkedIn 502 impressions and 271 clicks. ' +
+          '<b>LinkedIn impressions rose 40.5% to 846</b> and reactions 145%. The <b>website held steady on traffic</b> (941 visits, ' +
+          '▲ 1%) but <b>leads slipped to 34 (▼ 23%)</b>, mostly fewer calls (17, down from 26). This is a 13-day update, not a full ' +
+          'snapshot: Instagram wasn\'t pulled, and the totals are smaller than the Oct 29 report\'s 28- and 30-day windows.',
+    kpis: [
+      { lab: 'Facebook views',       num: '5,361', chg: '▲ 21.9%', dir: 'up',   note: '162 interactions (▲ 125%) · 8 posts',          w: WINDOWS.metaNov11 },
+      { lab: 'Website leads',        num: '34',    chg: '▼ 23%',   dir: 'down', note: '17 calls · 17 forms · 3.6% conversion',         w: WINDOWS.siteNov11 },
+      { lab: 'LinkedIn impressions', num: '846',   chg: '▲ 40.5%', dir: 'up',   note: '27 reactions (▲ 145.5%) · 1,476 followers',     w: WINDOWS.liNov11 },
+      { lab: 'Website visits',       num: '941',   chg: '▲ 1%',    dir: 'up',   note: '888 unique users · 1,627 page views',           w: WINDOWS.siteNov11 }
+    ],
+    reach: [
+      { label: 'Facebook views (13d)',       value: 5361, color: '#2C5468', w: WINDOWS.metaNov11 },
+      { label: 'Website visits (13d)',       value: 941,  color: '#1C9AD6', w: WINDOWS.siteNov11 },
+      { label: 'LinkedIn impressions (13d)', value: 846,  color: '#D98A1F', w: WINDOWS.liNov11 }
+    ],
+    reachNote: 'All three are 13-day windows: Facebook and the website Oct 29 – Nov 10, LinkedIn Oct 28 – Nov 9 (its data runs a ' +
+               'day behind). They pick up where the Oct 29 snapshot\'s windows end. Instagram was not pulled for this update.',
+    rollup: {
+      head: ['Channel', 'Reach', 'Engagement', 'Leads / contacts', 'Followers', 'Source window'],
+      rows: [
+        ['Website',   '941 visits',      '3.6% conversion rate',      '34 leads (17 calls · 17 forms)', '—',     WINDOWS.siteNov11],
+        ['Facebook',  '5,361 views',     '162 interactions',          '3 link clicks · 245 page visits', '2,464', WINDOWS.metaNov11],
+        ['Instagram', 'Not pulled',      '—',                         '—',                               '—',     'Not in this update'],
+        ['LinkedIn',  '846 impressions', '27 reactions · 0 comments', '126 page views · 47 visitors',    '1,476', WINDOWS.liNov11]
+      ]
+    }
+  },
+  channels: {
+    website: {
+      measured: true,
+      source: 'source: Duda Performance dashboard · vs. the preceding 13 days (Oct 16 – 28) · verified pull Nov 11',
+      window: WINDOWS.siteNov11,
+      kpis: [
+        { lab: 'User visits',     num: '941',   chg: '▲ 1%',  dir: 'up',   note: '930 in the 13 days before',  w: WINDOWS.siteNov11 },
+        { lab: 'Unique users',    num: '888',   chg: '▲ 1%',  dir: 'up',                                      w: WINDOWS.siteNov11 },
+        { lab: 'Total leads',     num: '34',    chg: '▼ 23%', dir: 'down', note: '44 in the 13 days before',   w: WINDOWS.siteNov11 },
+        { lab: 'Click to call',   num: '17',    chg: '▼ 35%', dir: 'down', note: '26 in the 13 days before',   w: WINDOWS.siteNov11 },
+        { lab: 'Form submissions', num: '17',   chg: '▼ 6%',  dir: 'down', note: '18 in the 13 days before',   w: WINDOWS.siteNov11 },
+        { lab: 'Conversion rate', num: '3.6%',  chg: '▼ 23%', dir: 'down', note: '4.7% in the 13 days before', w: WINDOWS.siteNov11 },
+        { lab: 'Page views',      num: '1,627', note: '1,453 unique · 1:59 avg. time · 68.9% bounce',          w: WINDOWS.siteNov11 },
+        { lab: 'AI-bot visits',   num: '3,077', chg: '▲ 7%',  dir: 'up',   note: 'kept separate from visits',  w: WINDOWS.siteNov11 }
+      ],
+      sources: {
+        title: 'Traffic sources',
+        head: ['Source', 'Share of visits'],
+        rows: [['Direct', '63%'], ['Search', '33%'], ['Referral', '2%'], ['Unknown', '3%']],
+        note: 'Shares as Duda shows them; it gave no counts per source in this pull.'
+      },
+      seo: {
+        title: 'AI bots (3,077 visits, kept out of the visit count)',
+        head: ['Bot', 'Share'],
+        rows: [['exa.ai crawler', '17%'], ['Apple Search', '13%'], ['Amazonbot', '11%'], ['Meta-WebIndexer', '9%'], ['Bytespider', '8%'], ['Ahrefs', '7%']]
+      },
+      topPages: {
+        title: 'Top pages',
+        head: ['Page', 'Views', 'Unique', 'Avg. time'],
+        rows: [
+          ['Home', '600', '534', '2:23'],
+          ['Contact', '128', '108', '3:36'],
+          ['How do you break an addiction to someone (blog)', '127', '124', '1:31'],
+          ['About', '54', '50', '1:20'],
+          ['Rose Garden', '51', '41', '1:41'],
+          ['The Roadrunner Home', '48', '40', '0:52'],
+          ['Our Team', '47', '39', '3:28'],
+          ['Inpatient recovery programs', '42', '35', '2:30'],
+          ['For patients', '36', '33', '1:04'],
+          ['Intensive outpatient programs', '29', '25', '4:38']
+        ],
+        note: 'People who reach the Contact and Our Team pages stay 3½ minutes; the IOP page holds them longest (4:38).'
+      },
+      pending: ['Daily visits and leads (not in this pull)', 'Device split and referrer domains'],
+      pendingNote: 'The Nov 11 pull took the 13-day totals only. <b>PII/PHI:</b> counts only; no form contents.',
+      footnote: 'Traffic held, leads didn\'t: calls fell from 26 to 17 while visits rose slightly. Worth checking the phone ' +
+                'number and click-to-call on the Home and Contact pages before the next snapshot.'
+    },
+    facebook: {
+      measured: true,
+      source: 'source: Meta Business Suite · vs. the preceding 13 days (Oct 16 – 28) · verified pull Nov 11',
+      window: WINDOWS.metaNov11,
+      kpis: [
+        { lab: 'Views',          num: '5,361', chg: '▲ 21.9%', dir: 'up',   note: '4,399 in the 13 days before',    w: WINDOWS.metaNov11 },
+        { lab: 'Viewers',        num: '~1,500', chg: '▲ 6.5%', dir: 'up',   note: 'Meta shows it rounded (1.5K)',   w: WINDOWS.metaNov11 },
+        { lab: 'Interactions',   num: '162',   chg: '▲ 125%',  dir: 'up',   note: '72 in the 13 days before',       w: WINDOWS.metaNov11 },
+        { lab: 'Link clicks',    num: '3',     chg: '▼ 70%',   dir: 'down', note: '10 in the 13 days before',       w: WINDOWS.metaNov11 },
+        { lab: 'Page visits',    num: '245',   chg: '▼ 11.2%', dir: 'down', note: '276 in the 13 days before',      w: WINDOWS.metaNov11 },
+        { lab: 'Follows',        num: '12',    chg: '▲ 9.1%',  dir: 'up',   note: '11 in the 13 days before',       w: WINDOWS.metaNov11 },
+        { lab: 'Followers (lifetime)', num: '2,464', note: 'as of Nov 10 · +8 since Oct 29',                       w: WINDOWS.metaNov11 },
+        { lab: 'Posts published', num: '8',    note: '4 in the 13 days before',                                     w: WINDOWS.metaNov11 }
+      ],
+      weekly: {
+        title: 'Daily views',
+        note: 'Meta\'s daily values; they add up to 5,361 exactly. Nov 4 – 7 (the giving post, the Joey Landin and Mercy Care ' +
+              'posts, PAL Forward) brought 3,504 views and 136 interactions in four days.',
+        series: [
+          { label: '10/29', value: 191 }, { label: '10/30', value: 92 },  { label: '10/31', value: 170 }, { label: '11/1', value: 111 },
+          { label: '11/2', value: 99 },   { label: '11/3', value: 182 },  { label: '11/4', value: 764 },  { label: '11/5', value: 646 },
+          { label: '11/6', value: 1540 }, { label: '11/7', value: 554 },  { label: '11/8', value: 326 },  { label: '11/9', value: 371 },
+          { label: '11/10', value: 315 }
+        ]
+      },
+      supporting: {
+        title: 'Daily detail',
+        head: ['Day', 'Views', 'Viewers', 'Interactions', 'Page visits', 'Follows'],
+        rows: [
+          ['Oct 29', '191', '46', '0', '19', '2'], ['Oct 30', '92', '33', '0', '5', '0'], ['Oct 31', '170', '49', '3', '23', '0'],
+          ['Nov 1', '111', '40', '1', '18', '1'], ['Nov 2', '99', '31', '0', '24', '1'], ['Nov 3', '182', '80', '2', '16', '2'],
+          ['Nov 4', '764', '337', '48', '16', '1'], ['Nov 5', '646', '231', '19', '46', '1'], ['Nov 6', '1,540', '575', '48', '12', '2'],
+          ['Nov 7', '554', '292', '21', '29', '1'], ['Nov 8', '326', '158', '7', '7', '1'], ['Nov 9', '371', '154', '8', '12', '0'],
+          ['Nov 10', '315', '134', '5', '18', '0']
+        ]
+      },
+      topPosts: {
+        title: 'Posts published in the window (all 8)',
+        note: 'Post figures as of the Nov 11 pull. The giving post and "bring a group" were shared 25 times between them.',
+        head: ['Post', 'Date', 'Views', 'Viewers', 'Interactions', 'Shares'],
+        rows: [
+          ['Joey Landin — Voices That Matter conference (multi-photo)', 'Nov 5', '1,098', '591', '39', '0'],
+          ['PAL Forward — "bring a group"', 'Nov 6', '594', '314', '15', '<b>12</b>'],
+          ['Thank you Mercy Care / Reach Family Services (multi-photo)', 'Nov 6', '569', '324', '18', '0'],
+          ['SCI year-end giving / AZ tax credit', 'Nov 4', '409', '239', '15', '<b>13</b>'],
+          ['"Luxury" in treatment', 'Nov 3', '182', '107', '3', '1'],
+          ['PAL Forward — "This Friday"', 'Nov 9', '175', '111', '2', '1'],
+          ['Commercial insurance / IOP in-network', 'Nov 5', '148', '79', '2', '0'],
+          ['PAL Forward 2026 announcement (Reel)', 'Oct 31', '128', '66', '4', '0']
+        ]
+      },
+      footnote: 'Twice the posts, twice the interactions. People-centred posts (Joey Landin, the Mercy Care thank-you) drew the ' +
+                'most views; posts that ask people to do something (give, bring a group) drew the shares. Link clicks were low (3).'
+    },
+    instagram: {
+      measured: false,
+      pending: true,
+      plannedWindow: 'Oct 29 – Nov 10, 2026',
+      lastWindow: 'Oct 1 – 28, 2026 (Oct 29 snapshot)'
+    },
+    linkedin: {
+      measured: true,
+      source: 'source: LinkedIn Page Admin analytics · vs. the preceding 13 days (Oct 15 – 27) · verified pull Nov 11',
+      window: WINDOWS.liNov11,
+      kpis: [
+        { lab: 'Impressions',     num: '846', chg: '▲ 40.5%',  dir: 'up',   note: '602 in the 13 days before', w: WINDOWS.liNov11 },
+        { lab: 'Reactions',       num: '27',  chg: '▲ 145.5%', dir: 'up',   note: '11 in the 13 days before',  w: WINDOWS.liNov11 },
+        { lab: 'Comments',        num: '0',   chg: '▼ 100%',   dir: 'down', note: '1 in the 13 days before',   w: WINDOWS.liNov11 },
+        { lab: 'Page views',      num: '126', chg: '▲ 11.5%',  dir: 'up',   note: '34 desktop · 92 mobile',    w: WINDOWS.liNov11 },
+        { lab: 'Unique visitors', num: '47',  chg: '▲ 9.3%',   dir: 'up',                                      w: WINDOWS.liNov11 },
+        { lab: 'Followers',       num: '1,476', note: 'as of Nov 9 · +13 since Oct 29',                         w: WINDOWS.liNov11 }
+      ],
+      topPosts: {
+        title: 'Posts Nov 4 – 9',
+        head: ['Post', 'Date', 'Impressions', 'Clicks', 'Reactions', 'Comments', 'Reposts', 'Eng. rate'],
+        rows: [
+          ['Collaborative post (partner shout-out, accepted by Joseph Landin)', 'Nov 8', '579', '—', '18', '3', '0', '—'],
+          ['Joey Landin — Voices That Matter', 'Nov 6', '502', '<b>271</b>', '25', '0', '2', '<b>59.4%</b>'],
+          ['PAL Forward — "This Friday"', 'Nov 9', '152', '2', '5', '0', '1', '5.3%'],
+          ['Commercial insurance / IOP in-network', 'Nov 6', '66', '1', '3', '0', '0', '6.1%'],
+          ['SCI year-end giving', 'Nov 4', '18', '2', '0', '0', '0', '11.1%']
+        ]
+      },
+      extra: [
+        {
+          title: 'Who visited the page',
+          head: ['Job function', 'Share of visitors'],
+          rows: [['Administrative', '19.8%'], ['Community & Social Services', '15.9%'], ['Business Development', '11.1%'],
+                 ['Legal', '9.5%'], ['Operations', '9.5%']]
+        }
+      ],
+      warn: '<b>Collaborative post:</b> the Nov 8 partner post\'s 579 impressions are not counted in the page totals above — ' +
+            'LinkedIn reports collaborative posts separately.',
+      footnote: 'One post did most of the work: the Joey Landin post drew 271 clicks and a 59% engagement rate. Most other posts ' +
+                'drew under 3 clicks.'
+    }
+  },
+  recommendations: [
+    '<b>Keep the posting pace.</b> Eight Facebook posts in 13 days (against four) doubled interactions. The new <b>Publish to ' +
+      'Facebook &amp; LinkedIn</b> button on the Social Media tab is built to make that pace easy to keep.',
+    '<b>Check the phone path on the website.</b> Visits held but calls fell from 26 to 17. Test click-to-call on the Home and ' +
+      'Contact pages on a phone, and make sure the number shown is the admissions line.',
+    '<b>Lead with people.</b> The Joey Landin post led on both platforms (1,098 Facebook views; 271 LinkedIn clicks). Plan one ' +
+      'staff or partner story a week, and post it to LinkedIn as well as Facebook.',
+    '<b>Ask for the share.</b> The two posts that asked people to act (give, bring a group) drew 25 shares between them; the rest ' +
+      'drew almost none.',
+    '<b>Pull Instagram in the next full snapshot.</b> It wasn\'t part of this update; as of Oct 29 it had no posts in October.'
+  ]
+};
+
 var REPORTS = {};
+REPORTS[SNAP_NOV11.id] = SNAP_NOV11;
 REPORTS[SNAP_OCT29.id] = SNAP_OCT29;
 REPORTS[SNAP_OCT15.id] = SNAP_OCT15;
 REPORTS[SNAP_OCT1.id]  = SNAP_OCT1;
@@ -2741,7 +2946,7 @@ REPORTS[SNAP_AUG20.id] = SNAP_AUG20;
 REPORTS[SNAP_AUG6.id]  = SNAP_AUG6;
 
 /* newest first — the selector defaults to REPORT_ORDER[0] */
-var REPORT_ORDER = ['2026-10-29', '2026-10-15', '2026-10-01', '2026-09-17', '2026-09-03', '2026-08-20', '2026-08-06'];
+var REPORT_ORDER = ['2026-11-11', '2026-10-29', '2026-10-15', '2026-10-01', '2026-09-17', '2026-09-03', '2026-08-20', '2026-08-06'];
 
 /* ── LinkedIn competitor comparison (separate export) ───────────────────
    One table per pull. COMPETITORS is always the latest; each snapshot's
@@ -3815,3 +4020,5 @@ SNAP_OCT15.biziq = BIZIQ_OCT15;
 SNAP_OCT15.l10 = L10;
 SNAP_OCT29.biziq = BIZIQ_OCT15;
 SNAP_OCT29.l10 = L10;
+SNAP_NOV11.biziq = BIZIQ_OCT15;
+SNAP_NOV11.l10 = L10;

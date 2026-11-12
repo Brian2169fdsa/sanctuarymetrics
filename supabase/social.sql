@@ -37,6 +37,10 @@ create index if not exists social_posts_time on public.social_posts (created_at 
 create index if not exists social_posts_status on public.social_posts (status);
 alter table public.social_posts enable row level security;
 
+-- publishing to Facebook and LinkedIn through Make (SOCIAL.md → "Publishing"):
+-- {state: sending|done|partial|failed, at, by, platforms[], token, results{facebook, linkedin}}
+alter table public.social_posts add column if not exists publish jsonb;
+
 -- the private bucket for the photos
 insert into storage.buckets (id, name, public)
 values ('social', 'social', false)
