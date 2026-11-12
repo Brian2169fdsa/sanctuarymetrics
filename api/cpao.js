@@ -42,8 +42,13 @@
                  | mark_sent | send_batch {id} (email it to CPAO from the site admin's mailbox) | rotate | purge
                  | outlook_draft {id} (a draft to CPAO in his Outlook, files attached)
                  | mail_check (read his mail for new emails from CPAO now)
-     POST ?action=paper_upload&id=[&countersigned=1]  (raw PDF) their already
-                 filled-out CP-101 instead of the online form
+     POST ?action=paper_upload&id=[&stage=countersign|queued|sent&sent_on=]  (raw
+                 PDF) their already filled-out CP-101 instead of the online form;
+                 queued/sent (site admin only): he already countersigned it, or
+                 it already went to CPAO on sent_on
+     POST ?action=remove_now {id, reason, last_day?, confirm_deactivated, send}
+                 let someone go: their Remove row on an Add/Remove form, made
+                 from their records and emailed to CPAO right away (site admin)
      GET  ?action=cpao_emails               the latest emails from CPAO
 
    CRON (vercel.json, daily 15:00 UTC = 8:00 Phoenix): GET ?action=cron with
@@ -118,17 +123,26 @@ async function settings() {
 }
 /* every status change (and the Add/Remove form) stamps the date it happened
    in stage_dates, which the person page's stage tracker shows */
-async function setStaff(id, fields, action, stage) {
+/* stageAt: when the step really happened (catching up on paper), else now */
+async function setStaff(id, fields, action, stage, stageAt) {
   const f = Object.assign({ updated_at: nowIso() }, fields);
   if (action) { f.last_action = action; f.last_action_at = f.updated_at; }
   stage = stage || f.status;
   if (stage) {
     try {
       const cur = (await db('GET', 'cpao_staff', '?id=eq.' + id + '&select=stage_dates'))[0];
-      f.stage_dates = Object.assign({}, (cur && cur.stage_dates) || {}, { [stage]: f.updated_at });
+      f.stage_dates = Object.assign({}, (cur && cur.stage_dates) || {}, { [stage]: stageAt || f.updated_at });
     } catch (e) { /* stage_dates not added yet (supabase/cpao.sql) — keep going without it */ }
   }
   return (await db('PATCH', 'cpao_staff', '?id=eq.' + id, f))[0];
+}
+/* a YYYY-MM-DD from the page, as a time (noon Phoenix); not in the future */
+function pastDay(d, what) {
+  d = str(d, 10);
+  if (!d) { return null; }
+  if (!R.isDate(d)) { throw bad((what || 'The date') + ' isn\'t a date.'); }
+  if (d > R.today()) { throw bad((what || 'The date') + ' can\'t be in the future.'); }
+  return d + 'T19:00:00.000Z';
 }
 function owner() { return str(process.env.CPAO_OWNER || process.env.PRINT_OWNER, 120) || R.C.site_admin_name; }
 async function project(title, notes, due, by, importance) {
@@ -367,14 +381,35 @@ async function paperUpload(req, actor, s, raw, opt) {
         ', so there was no automatic check. Open it (View their CP-101) and check every field and both pages are complete before countersigning.' } };
   await closeProject(s.project_id);
   const clear = { invite_token_hash: null, invite_expires_at: null };
-  if (opt.countersigned) {
+  /* stage: 'countersign' (default) · 'queued' (he already countersigned it)
+     · 'sent' (it already went to CPAO on opt.sent_on, outside the portal) */
+  const stage = opt.stage === 'sent' || opt.stage === 'queued' ? opt.stage : opt.countersigned ? 'queued' : 'countersign';
+  if (stage === 'queued' || stage === 'sent') {
     /* he signed the paper himself: it's the record as it is */
+    const sentAt = stage === 'sent' ? pastDay(opt.sent_on, 'The date it went to CPAO') : null;
+    if (stage === 'sent' && !sentAt) { throw bad('Add the date it was sent to CPAO.'); }
     const pdfKey = 'applications/' + s.id + '/' + app.id + '/' + P.cp101FileName(answers);
     await S.upload(BUCKET, pdfKey, raw, 'application/pdf');
-    Object.assign(patch, { pdf_storage_key: pdfKey, sa_signed_at: now });
+    if (sentAt) { answers.sent_on = sentAt.slice(0, 10); patch.answers = answers; }
+    Object.assign(patch, { pdf_storage_key: pdfKey, sa_signed_at: sentAt || now });
     await db('PATCH', 'cpao_applications', '?id=eq.' + app.id, patch);
-    await setStaff(s.id, Object.assign({ status: 'countersigned' }, clear), 'Paper CP-101 uploaded — already countersigned');
-    await setStaff(s.id, { status: 'queued_for_batch', project_id: null }, 'Paper CP-101 — queued for the weekly batch');
+    await setStaff(s.id, Object.assign({ status: 'countersigned' }, clear), 'Paper CP-101 uploaded — already countersigned', null, sentAt);
+    if (stage === 'queued') {
+      await setStaff(s.id, { status: 'queued_for_batch', project_id: null }, 'Paper CP-101 — queued for the weekly batch');
+    } else {
+      /* it's with CPAO already: dated as it really happened, with the usual
+         reminder to check on it two weeks after it went */
+      await setStaff(s.id, { status: 'queued_for_batch' }, null, null, sentAt);
+      await setStaff(s.id, {}, null, 'org_form', sentAt);
+      const due = R.addDays(sentAt.slice(0, 10), 14) < R.today() ? R.addBusinessDays(R.today(), 1) : R.addDays(sentAt.slice(0, 10), 14);
+      const p = await project('Check CPAO status: ' + name, 'Their CP-101 went to CPAO on ' + R.mdy(sentAt.slice(0, 10)) +
+        ' (before it was in the portal). Update their stage when CPAO replies: ' + site(req) + '/cpao-admin.html#staff=' + s.id, due, opt.by || null);
+      const fresh = await staffById(s.id);
+      await setStaff(s.id, { status: 'sent_to_cpao', project_id: p.id, followups: (fresh.followups || []).concat([{ at: now,
+        by: (opt.by && (opt.by.name || opt.by.email)) || actor, kind: 'note', due: null,
+        text: 'Paper CP-101 added to the portal; it was sent to CPAO on ' + R.mdy(sentAt.slice(0, 10)) + '.' }]).slice(-100) },
+        'Already sent to CPAO on ' + R.mdy(sentAt.slice(0, 10)), null, sentAt);
+    }
   } else {
     await db('PATCH', 'cpao_applications', '?id=eq.' + app.id, patch);
     const p = await project('CP-101 ready to countersign (paper form): ' + name,
@@ -382,21 +417,22 @@ async function paperUpload(req, actor, s, raw, opt) {
       site(req) + '/cpao-admin.html#staff=' + s.id, R.addBusinessDays(R.today(), 2), opt.by || null, 'Med');
     await setStaff(s.id, Object.assign({ status: 'ready_for_countersign', project_id: p.id }, clear), 'Paper CP-101 uploaded — ready to countersign');
   }
-  await audit(actor, 'paper_upload', s.id, { self: !!opt.self, countersigned: !!opt.countersigned }, req);
+  await audit(actor, 'paper_upload', s.id, { self: !!opt.self, stage: stage, sent_on: stage === 'sent' ? str(opt.sent_on, 10) : null }, req);
   /* they still follow along: the HEAplus tab shows their 10 steps */
   const watch = site(req) + '/cpao-admin.html';
   let emailed = false;
   if (!opt.self) {
     try {
       emailed = await G.sendMail(s.email, 'Your HEAplus application is in', [
-        s.first_name + ', I\'ve put in your Individual User Application (CP-101) for HEAplus access — there\'s no online form for you to fill out.', '',
+        s.first_name + ', I\'ve put in your Individual User Application (CP-101) for HEAplus access — there\'s no online form for you to fill out.' +
+          (stage === 'sent' ? ' It went to AHCCCS on ' + R.mdy(str(opt.sent_on, 10)) + '.' : ''), '',
         s.sign_in === 'code' ? 'I\'ll let you know when there\'s something for you to do. The AHCCCS background check can take 1 week to 3 months.'
           : 'You can follow where it is, any time, on the HEAplus tab (sign in with your Sanctuary Microsoft account): ' + watch +
             '\nOnce AHCCCS approves the background check, that\'s also where you upload your AZLearns certificates.',
         '', '— Brian'].join('\n'));
     } catch (e) { /* the page shows the link */ }
   }
-  return { ok: true, status: opt.countersigned ? 'queued_for_batch' : 'ready_for_countersign', emailed: emailed,
+  return { ok: true, status: stage === 'sent' ? 'sent_to_cpao' : stage === 'queued' ? 'queued_for_batch' : 'ready_for_countersign', emailed: emailed,
            watch_link: s.sign_in === 'code' ? null : watch };
 }
 
@@ -629,8 +665,10 @@ async function setStatus(req, me, b) {
       R.addBusinessDays(R.today(), 2), me);
     fields.project_id = p.id;
   }
-  await setStaff(s.id, fields, 'Status: ' + to.replace(/_/g, ' '));
-  await audit(me.email, 'status', s.id, { from: s.status, to: to }, req);
+  /* catching up: the date it really happened */
+  const on = pastDay(b.on, 'The date it happened');
+  await setStaff(s.id, fields, 'Status: ' + to.replace(/_/g, ' ') + (on ? ' (on ' + R.mdy(on.slice(0, 10)) + ')' : ''), null, on);
+  await audit(me.email, 'status', s.id, { from: s.status, to: to, on: on ? on.slice(0, 10) : null }, req);
   if (to === 'removed') { await purgeStaff(s.id, 'removed'); }
   return { ok: true };
 }
@@ -649,6 +687,77 @@ async function unremove(req, me, b) {
   const drafts = await db('GET', 'cpao_batches', '?status=eq.draft&select=id,rows');
   const onDraft = drafts.some(function (d) { return (d.rows || []).some(function (r) { return r.staff_id === s.id; }); });
   return { ok: true, status: back, rebuild: onDraft };
+}
+
+/* ── let someone go ─────────────────────────────────────────────────────
+   One step for the site admin when someone leaves: the reason is logged, and
+   - if CPAO never had them (still applying, or not yet sent): they're simply
+     closed out — invite stopped, tasks closed, their data deleted, and an
+     unsent Add/Remove form that was only for them is withdrawn
+   - if they have (or are getting) access: their Remove row goes on an
+     Add/Remove form of its own, filled from their records and signed, and
+     it's emailed to CPAO at once (send). If the email can't go, the form
+     waits on Weekly batches to send by hand. */
+const BEFORE_CPAO = ['invited', 'in_progress', 'needs_fix', 'ready_for_countersign', 'countersigned', 'queued_for_batch', 'denied'];
+async function removeNow(req, me, b) {
+  const s = await staffById(b.id);
+  const name = s.first_name + ' ' + s.last_name;
+  if (s.status === 'removed') { throw bad(name + ' is already removed.'); }
+  const reason = str(b.reason, 300);
+  if (!reason) { throw bad('Say why they\'re being removed.'); }
+  const lastDay = str(b.last_day, 10);
+  if (lastDay && !R.isDate(lastDay)) { throw bad('The last day isn\'t a date.'); }
+  const note = { at: nowIso(), by: me.name || me.email, kind: 'removal', due: null,
+                 text: 'Removed — ' + reason + (lastDay ? ' (last day ' + R.mdy(lastDay) + ')' : '') };
+  const followups = (s.followups || []).concat([note]).slice(-100);
+  await closeProject(s.project_id);
+
+  if (BEFORE_CPAO.indexOf(s.status) >= 0) {
+    /* withdraw an unsent form that was only for them */
+    const drafts = (await db('GET', 'cpao_batches', '?status=eq.draft&select=*')).filter(function (d) {
+      return (d.rows || []).some(function (r) { return r.staff_id === s.id; }); });
+    let rebuild = false;
+    for (const d of drafts) {
+      if ((d.rows || []).every(function (r) { return r.staff_id === s.id; })) {
+        await closeProject(d.project_id);
+        await G.deleteDraft(d.outlook_draft_id);
+        try { await S.remove(BUCKET, [d.org_form_storage_key, d.bundle_storage_key].filter(Boolean)); } catch (e) { /* gone */ }
+        await db('PATCH', 'cpao_applications', '?batch_id=eq.' + d.id, { batch_id: null });
+        await db('DELETE', 'cpao_batches', '?id=eq.' + d.id, null, { Prefer: 'return=minimal' });
+      } else { rebuild = true; }
+    }
+    await setStaff(s.id, { status: 'removed', project_id: null, followups: followups, invite_token_hash: null, invite_expires_at: null },
+      'Removed before CPAO had them — ' + reason.slice(0, 80));
+    await audit(me.email, 'remove_now', s.id, { from: s.status, to: 'removed', sent: false }, req);
+    await purgeStaff(s.id, 'removed');
+    return { ok: true, mode: 'closed', rebuild: rebuild,
+             message: name + ' is removed. CPAO never had their application, so no Remove form was needed.' +
+               (rebuild ? ' They were on an unsent Add/Remove form with other people: build it again on Weekly batches.' : '') };
+  }
+
+  if (b.confirm_deactivated !== true) { throw bad('Confirm their HEAplus account is deactivated (or that you\'re about to do it).'); }
+  if (s.status !== 'remove_requested') {
+    await setStaff(s.id, { status: 'remove_requested', project_id: null, followups: followups }, 'Let go — removal requested');
+    await audit(me.email, 'status', s.id, { from: s.status, to: 'remove_requested', reason: 'remove_now' }, req);
+  } else {
+    await setStaff(s.id, { followups: followups, project_id: null }, 'Let go — removal requested');
+  }
+  const built = await buildBatch(req, me.email, [s.id]);
+  await audit(me.email, 'remove_now', s.id, { batch_id: built.batch_id, send: b.send === true }, req);
+  if (b.send !== true) {
+    return { ok: true, mode: 'built', batch_id: built.batch_id,
+             message: 'The Remove form for ' + name + ' is built. Send it from Weekly batches.' };
+  }
+  try {
+    const sent = await sendBatch(req, me, built.batch_id);
+    return { ok: true, mode: 'sent', batch_id: built.batch_id, to: sent.to,
+             message: 'Done. The Remove form for ' + name + ' was emailed to ' + sent.to + ' from ' + sent.from +
+               ', and they\'re marked Removed. Their personal data is deleted.' };
+  } catch (e) {
+    return { ok: true, mode: 'built', batch_id: built.batch_id, send_error: e.message,
+             message: 'The Remove form for ' + name + ' is built, but it couldn\'t be emailed: ' + e.message +
+               ' It\'s waiting on Weekly batches — send it from there, or download it and email CPAO yourself.' };
+  }
 }
 
 /* follow-ups: anything CPAO or the person still needs, with an optional
@@ -741,7 +850,11 @@ async function buildBatch(req, actor, only) {
     files.push({ name: a.pdf_storage_key.split('/').pop(), bytes: bytes });
     appIds.push(a.id);
   }
-  removes.forEach(function (s) { rows.push(Object.assign(P.orgRow(s, null, s.is_site_admin ? 'Remove-SA' : 'Remove'), { staff_id: s.id })); });
+  /* a Remove row carries the same details their Add row had */
+  for (const s of removes) {
+    const a = await latestApp(s.id);
+    rows.push(Object.assign(P.orgRow(s, a && !a.purged_at ? a.answers : null, s.is_site_admin ? 'Remove-SA' : 'Remove'), { staff_id: s.id }));
+  }
   if (!rows.length) { await audit(actor, 'batch_empty', null, { note: 'queued people had no countersigned PDF' }, req); return { ok: true, empty: true }; }
 
   const weekOf = R.today();
@@ -898,6 +1011,11 @@ async function purge() {
     const apps = await db('GET', 'cpao_applications', '?batch_id=eq.' + b.id + '&purged_at=is.null&select=id,staff_id,user_signature_key,wet_signed_upload_key');
     for (const a of apps) { await purgeApp(a, '90 days after the batch was sent'); n++; }
   }
+  /* paper forms that went to CPAO outside the portal have no batch: they
+     follow the same 90 days from the date they were sent */
+  const outside = await db('GET', 'cpao_applications', '?batch_id=is.null&purged_at=is.null&answers->>sent_on=lt.' +
+    cutoff.slice(0, 10) + '&select=id,staff_id,user_signature_key,wet_signed_upload_key');
+  for (const a of outside) { await purgeApp(a, '90 days after it was sent to CPAO'); n++; }
   /* generated PDFs follow the retention setting */
   const old = new Date(Date.now() - (st.pdf_retention_days || 365) * 864e5).toISOString();
   const apps = await db('GET', 'cpao_applications', '?pdf_storage_key=not.is.null&sa_signed_at=lt.' + encodeURIComponent(old) + '&select=id,staff_id,pdf_storage_key');
@@ -1119,7 +1237,7 @@ async function selfRoute(req, res, action, me) {
   return sendJSON(res, 200, { self: true, mine: mine, site_admin: R.C.site_admin_name });
 }
 
-const SITE_ADMIN_ONLY = { countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1, outlook_draft: 1 };
+const SITE_ADMIN_ONLY = { remove_now: 1, countersign: 1, settings: 1, batch: 1, push: 1, mark_sent: 1, send_batch: 1, rotate: 1, purge: 1, outlook_draft: 1 };
 
 /* the Microsoft 365 staff list for the invite picker; failures are a message, not an error page */
 async function directoryList() {
@@ -1174,9 +1292,11 @@ async function adminRoute(req, res, action, me, q) {
   /* the paper CP-101 comes in raw, before any JSON body is read */
   if (action === 'paper_upload') {
     const s = await staffById(q.id);
-    if (q.countersigned === '1' && !access(me).admin) { throw bad('Only ' + R.C.site_admin_name + ' can say it\'s already countersigned.', 403); }
+    const stage = q.stage === 'sent' || q.stage === 'queued' ? q.stage : q.countersigned === '1' ? 'queued' : 'countersign';
+    if (stage !== 'countersign' && !access(me).admin) { throw bad('Only ' + R.C.site_admin_name + ' can say it\'s already countersigned or sent.', 403); }
+    if (stage === 'sent') { pastDay(q.sent_on, 'The date it went to CPAO'); }
     const raw = await S.readRaw(req, 8000000);
-    return sendJSON(res, 200, await paperUpload(req, me.email, s, raw, { countersigned: q.countersigned === '1', by: me }));
+    return sendJSON(res, 200, await paperUpload(req, me.email, s, raw, { stage: stage, sent_on: q.sent_on, by: me }));
   }
   const b = await body(req);
   switch (action) {
@@ -1211,6 +1331,7 @@ async function adminRoute(req, res, action, me, q) {
     case 'send_back': return sendJSON(res, 200, await sendBack(req, me, b));
     case 'status': return sendJSON(res, 200, await setStatus(req, me, b));
     case 'unremove': return sendJSON(res, 200, await unremove(req, me, b));
+    case 'remove_now': return sendJSON(res, 200, await removeNow(req, me, b));
     case 'followup': return sendJSON(res, 200, await followup(req, me, b));
     case 'settings': return sendJSON(res, 200, await saveSettings(req, me, b));
     case 'batch': return sendJSON(res, 200, await buildBatch(req, me.email));
