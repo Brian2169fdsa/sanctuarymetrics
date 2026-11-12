@@ -231,6 +231,31 @@ If someone already filled out and signed a CP-101 on paper, upload that instead 
 
 Managers can't upload paper forms.
 
+## Someone leaves: remove them in one step
+
+On their card, open **Leaving Sanctuary? Remove them** (site admin only). Pick why they're leaving, and add their last day and an optional note. Keep the note short and factual.
+
+**If CPAO has their application** (Sent to CPAO, or any later step):
+1. Deactivate their HEAplus account, then tick the box to confirm it.
+2. Leave **Email the Remove form to CPAO now** ticked and press **Remove and send to CPAO**.
+3. The site builds an Add/Remove form with just their **Remove** row, filled in from their records. It signs the form and emails it to CP-AO Operations from your mailbox.
+4. They're marked **Removed**, the reason goes in their follow-ups, and their SSN, birth date and address are deleted.
+
+If the email can't go, the form waits on **Weekly batches** for you to send.
+
+**If CPAO doesn't have them yet** (still applying, or not yet sent), no form is needed. **Remove** stops their invite, closes their tasks and deletes their data. If they were on an unsent Add/Remove form just for them, that form is withdrawn. If the form also has other people, the page asks you to build it again.
+
+## Catching up on applications already in progress
+
+**Paper CP-101s:** when you upload one (in **+ Invite someone** or on their card), **Where is it now?** sets where they start:
+- **Ready for me to countersign**
+- **I've countersigned it**: it goes on the next Add/Remove form.
+- **It was already sent to CPAO** on a date you give. They start at **Sent to CPAO**, every step is dated when it really happened, and there's a task to check on it two weeks after it went.
+
+**Later steps:** **Change the stage** has a **Date it happened** box, so steps can be dated when they really happened.
+
+**Retention:** a paper form sent to CPAO outside the portal follows the same rule as everything else. Its personal data is deleted 90 days after the date it was sent.
+
 ## How the weekly batch works
 
 **Every batch day at 8:00 am Phoenix time:**

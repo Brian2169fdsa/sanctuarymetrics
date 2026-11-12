@@ -332,7 +332,7 @@ function rosterView() {
       '<label class="ck" style="grid-column:1/-1;align-items:flex-start"><input type="checkbox" id="i-paper" style="margin-top:3px"><span>Their CP-101 is already filled out and signed on paper — upload it instead of sending the form' +
         '<span class="fh">They skip the online form. They still get an email with a link to follow their progress on the HEAplus tab. One person at a time.</span></span></label>' +
       '<div id="i-paper-w" class="f2" style="grid-column:1/-1" hidden><label class="fl wide">Their filled-out CP-101 (one PDF, all 4 pages, up to 8 MB)<input type="file" id="i-paper-file" accept="application/pdf"></label>' +
-        (SA() ? '<label class="ck" style="grid-column:1/-1"><input type="checkbox" id="i-paper-signed"> I\'ve already countersigned it (it goes straight to the next Add/Remove form)</label>' : '') + '</div>') +
+        paperStageHtml('i-paper') + '</div>') +
       '<div class="btnrow" style="grid-column:1/-1"><button class="btn" type="submit" id="i-go">Send invite</button><button type="button" class="btn alt" id="inv-close">Cancel</button>' +
         '<span class="sub" style="margin:0">Makes their personal link (14 days). It\'s step 1 of 10 below.</span></div>' +
       '<div style="grid-column:1/-1"><div class="note" id="i-note" hidden></div><div id="i-link"></div></div>' +
@@ -381,6 +381,7 @@ function wireRoster() {
     if ($('i-paper-w')) { $('i-paper-w').hidden = !pa; }
   };
   if ($('i-existing')) $('i-existing').addEventListener('change', function () { if ($('i-existing').checked && $('i-paper')) { $('i-paper').checked = false; } modes(); });
+  wirePaperStage('i-paper');
   if ($('i-paper')) $('i-paper').addEventListener('change', function () { if ($('i-paper').checked && $('i-existing')) { $('i-existing').checked = false; } modes(); });
   $('inv').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -389,17 +390,18 @@ function wireRoster() {
     if (paper) {
       if (!file) { return note('i-note', 'err', 'Choose their filled-out CP-101 (PDF).'); }
       if (file.size > 8000000) { return note('i-note', 'err', 'That PDF is over 8 MB — scan it at a lower resolution.'); }
+      if (paperStage('i-paper').stage === 'sent' && !paperStage('i-paper').sent_on) { return note('i-note', 'err', 'Add the date it was sent to CPAO.'); }
     }
     btn.disabled = true;
     if (paper) {
       return api('POST', 'invite', { first_name: $('i-first').value, last_name: $('i-last').value, email: $('i-email').value,
         title_position: $('i-title').value, worker_type: $('i-type').value, hire_date: $('i-hire').value, work_address: $('i-addr').value,
         is_site_admin: !!($('i-sa') && $('i-sa').checked), sign_in: $('i-signin').value, paper: true })
-        .then(function (j) { return uploadPaper(j.staff.id, file, $('i-paper-signed') && $('i-paper-signed').checked).then(function (u) { return { j: j, u: u }; }, function (err) {
+        .then(function (j) { return uploadPaper(j.staff.id, file, paperStage('i-paper')).then(function (u) { return { j: j, u: u }; }, function (err) {
           err.message = j.staff.first_name + ' is on the roster, but the upload didn\'t work: ' + err.message + ' Open them and upload it again.'; throw err; }); })
         .then(function (r) {
           btn.disabled = false;
-          note('i-note', 'ok', r.j.staff.first_name + ' ' + r.j.staff.last_name + '\'s CP-101 is uploaded — ' + (r.u.status === 'queued_for_batch' ? 'queued for the next Add/Remove form.' : 'ready for you to countersign.') +
+          note('i-note', 'ok', r.j.staff.first_name + ' ' + r.j.staff.last_name + '\'s CP-101 is uploaded — ' + paperDone(r.u.status) +
             (r.u.emailed ? ' They got an email with a link to follow their progress.' : r.u.watch_link ? ' Send them this link to follow their progress (they sign in with their Sanctuary account):' : ''));
           $('i-link').innerHTML = !r.u.emailed && r.u.watch_link ? '<div class="linkbox"><input readonly value="' + esc(r.u.watch_link) + '" aria-label="Progress link"><button type="button" class="btn alt" data-copy>Copy</button></div>' : '';
           wireCopy();
@@ -551,9 +553,34 @@ function wireDir() {
     });
   });
 }
+/* where an already filled-out paper CP-101 is now (the site admin can say
+   it's countersigned, or already went to CPAO on a date) */
+function paperStageHtml(p) {
+  if (!SA()) { return ''; }
+  return '<label class="fl">Where is it now?<select id="' + p + '-stage">' +
+      '<option value="countersign">Ready for me to countersign</option>' +
+      '<option value="queued">I\'ve countersigned it — put it on the next Add/Remove form</option>' +
+      '<option value="sent">It was already sent to CPAO</option></select></label>' +
+    '<label class="fl" id="' + p + '-sent-w" hidden>Sent to CPAO on<input type="date" id="' + p + '-sent"></label>';
+}
+function wirePaperStage(p) {
+  if (!$(p + '-stage')) { return; }
+  $(p + '-stage').addEventListener('change', function () { $(p + '-sent-w').hidden = $(p + '-stage').value !== 'sent'; });
+}
+function paperStage(p) {
+  var st = $(p + '-stage') ? $(p + '-stage').value : 'countersign';
+  return { stage: st, sent_on: st === 'sent' ? $(p + '-sent').value : '' };
+}
+function paperDone(status) {
+  return status === 'sent_to_cpao' ? 'at "Sent to CPAO", dated when it went, with a task to check on it.'
+    : status === 'queued_for_batch' ? 'queued for the next Add/Remove form.' : 'ready for you to countersign.';
+}
 /* their already filled-out paper CP-101, instead of the online form */
-function uploadPaper(id, file, countersigned) {
-  return fetch('/api/cpao?action=paper_upload&id=' + encodeURIComponent(id) + (countersigned ? '&countersigned=1' : ''), {
+function uploadPaper(id, file, where) {
+  where = where || {};
+  if (where.stage === 'sent' && !where.sent_on) { return Promise.reject(new Error('Add the date it was sent to CPAO.')); }
+  return fetch('/api/cpao?action=paper_upload&id=' + encodeURIComponent(id) + '&stage=' + encodeURIComponent(where.stage || 'countersign') +
+      (where.sent_on ? '&sent_on=' + encodeURIComponent(where.sent_on) : ''), {
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/pdf' }, body: file
   }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { throw new Error(j.message || 'Upload failed (' + r.status + ').'); } return j; }); });
 }
@@ -678,7 +705,7 @@ function drawStaff(j) {
             '<label class="fl wide">What to fix<textarea id="sb-note" rows="2" maxlength="1000" placeholder="e.g. Your DOB says 1919 — please check the year."></textarea></label></div>' +
             '<div class="btnrow"><button class="btn warm" id="sb-go">Send back</button></div></details>' : '') +
         '</div>' +
-        denialCard(s) + paperCard(s) +
+        removeCard(s) + denialCard(s) + paperCard(s) +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Follow-ups</div>' +
           ((s.followups || []).length ? '<ul class="fu">' + s.followups.slice().reverse().map(function (f) {
             return '<li>' + esc(f.text) + (f.file ? ' <button type="button" class="reveal" data-letter="' + esc(f.file) + '">View letter</button>' : '') + emailLink(f.link) +
@@ -697,7 +724,8 @@ function drawStaff(j) {
           '<div class="btnrow" style="grid-column:1/-1;margin:0"><button class="btn alt" type="submit">Save</button></div></form></div>' +
         '<div class="card"><div style="font-family:Fraunces,serif;font-size:17px;font-weight:600;margin:0 0 8px">Change the stage</div>' +
           '<div class="f2"><label class="fl">Set status<select id="st-to"><option value="">Pick…</option>' +
-            AFTER_CPAO.map(function (k) { return '<option value="' + k + '">' + esc(LABEL[k]) + '</option>'; }).join('') + '</select></label></div>' +
+            AFTER_CPAO.map(function (k) { return '<option value="' + k + '">' + esc(LABEL[k]) + '</option>'; }).join('') + '</select></label>' +
+          '<label class="fl">Date it happened<input type="date" id="st-on"><span class="fh">Leave blank for today. Use it to catch up on steps that happened earlier.</span></label></div>' +
           '<label class="ck" id="st-conf-w" hidden style="margin-top:8px"><input type="checkbox" id="st-conf"> Their HEAplus account is already deactivated</label>' +
           '<p class="sub" style="margin:6px 0 0">Use this to go back a step or record a denial. "CPAO wants a correction", "Certificates turned in" and "Final approval" add a task for you on the Projects page. "Removed" deletes their SSN, birth date, address and signature now.</p>' +
           '<div class="btnrow"><button class="btn alt" id="st-go">Update status</button></div></div>' +
@@ -712,13 +740,33 @@ function emailLink(url) {
   return url && /^https:\/\/(outlook\.office(365)?\.com|outlook\.live\.com)\//.test(url)
     ? ' <a class="reveal" href="' + esc(url) + '" target="_blank" rel="noopener">Open email ↗</a>' : '';
 }
+/* someone leaves: one step to take their HEAplus access away (site admin) */
+var WITH_CPAO = ['sent_to_cpao', 'cpao_correction_requested', 'approved_training_assigned', 'training_complete', 'certs_sent_to_cpao',
+                 'final_approved', 'active', 'remove_requested'];
+function removeCard(s) {
+  if (!SA() || s.status === 'removed') { return ''; }
+  var withCpao = WITH_CPAO.indexOf(s.status) >= 0;
+  return '<div class="card deny"><details' + (s.status === 'remove_requested' ? ' open' : '') + '><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600;color:#a3301a">' +
+      'Leaving Sanctuary? Remove them</summary>' +
+    '<p class="sub" style="margin:8px 0 10px">' + (withCpao
+      ? 'Builds the Add/Remove form with their <b>Remove</b> row (from their records), signs it, and emails it to CPAO now. They\'re marked Removed and their SSN, birth date and address are deleted.'
+      : 'CPAO doesn\'t have their application yet, so no Remove form is needed: this stops their invite, closes their tasks and deletes their personal data.') + '</p>' +
+    '<div class="f2"><label class="fl">Why<select id="rn-why"><option value="">Pick one…</option><option>Let go</option><option>Resigned</option>' +
+        '<option>Changed roles — no longer needs HEAplus</option><option>Other</option></select></label>' +
+      '<label class="fl">Last day<input type="date" id="rn-day"></label>' +
+      '<label class="fl wide">Note (optional)<input id="rn-note" maxlength="200" placeholder="No details about why someone was let go — just enough for the record"></label></div>' +
+    (withCpao ? '<label class="ck" style="margin-top:8px;align-items:flex-start"><input type="checkbox" id="rn-conf" style="margin-top:3px"> <span>I\'ve deactivated their HEAplus account (or I\'m doing it now)</span></label>' +
+      '<label class="ck" style="margin-top:6px"><input type="checkbox" id="rn-send" checked> Email the Remove form to CPAO now</label>' : '') +
+    '<div class="btnrow"><button type="button" class="btn warm" id="rn-go">' + (withCpao ? 'Remove and send to CPAO' : 'Remove') + '</button></div>' +
+    '<div class="note" id="rn-msg" hidden></div></details></div>';
+}
 /* before they've submitted: upload their already filled-out paper CP-101 instead */
 function paperCard(s) {
   if (['invited', 'in_progress', 'needs_fix'].indexOf(s.status) < 0) { return ''; }
   return '<div class="card"><details><summary style="cursor:pointer;font-family:Fraunces,serif;font-size:17px;font-weight:600">Already have their filled-out CP-101? Upload it instead</summary>' +
     '<p class="sub" style="margin:8px 0 10px">Skips the online form: they go to Ready to countersign. Their invite link stops working, and they get an email with a link to follow their progress.</p>' +
     '<div class="f2"><label class="fl wide">Their filled-out, signed CP-101 (one PDF, all 4 pages, up to 8 MB)<input type="file" id="pp-file" accept="application/pdf"></label></div>' +
-    (SA() ? '<label class="ck" style="margin-top:8px"><input type="checkbox" id="pp-signed"> I\'ve already countersigned it (it goes straight to the next Add/Remove form)</label>' : '') +
+    (SA() ? '<div class="f2" style="margin-top:8px">' + paperStageHtml('pp') + '</div>' : '') +
     '<div class="btnrow"><button type="button" class="btn" id="pp-go">Upload their CP-101</button></div></details></div>';
 }
 
@@ -870,16 +918,33 @@ function wireStaff(s) {
     });
   }
   if ($('pdf')) { $('pdf').addEventListener('click', function () { viewPdf(s.id); }); }
+  wirePaperStage('pp');
+  if ($('rn-go')) {
+    $('rn-go').addEventListener('click', function () {
+      var why = $('rn-why').value, extra = $('rn-note').value.trim();
+      if (!why) { return note('rn-msg', 'err', 'Pick why they\'re leaving.'); }
+      if ($('rn-conf') && !$('rn-conf').checked) { return note('rn-msg', 'err', 'Tick the box once their HEAplus account is deactivated.'); }
+      var send = !!($('rn-send') && $('rn-send').checked);
+      if (!confirm('Remove ' + s.first_name + ' ' + s.last_name + ' from HEAplus' + (send ? ' and email the Remove form to CPAO now' : '') + '?')) { return; }
+      var b = $('rn-go'); b.disabled = true; b.textContent = send ? 'Building and sending…' : 'Removing…';
+      api('POST', 'remove_now', { id: s.id, reason: why + (extra ? ': ' + extra : ''), last_day: $('rn-day').value,
+                                  confirm_deactivated: !!($('rn-conf') && $('rn-conf').checked), send: send })
+        .then(function (j) {
+          afterChange(s.id);
+          setTimeout(function () { note('s-note', j.send_error ? 'err' : 'ok', j.message); }, 500);
+        }, function (e) { b.disabled = false; b.textContent = send ? 'Remove and send to CPAO' : 'Remove'; note('rn-msg', 'err', e.message); });
+    });
+  }
   if ($('pp-go')) {
     $('pp-go').addEventListener('click', function () {
       var f = $('pp-file').files[0];
       if (!f) { return note('s-note', 'err', 'Choose their filled-out CP-101 (PDF).'); }
       if (f.size > 8000000) { return note('s-note', 'err', 'That PDF is over 8 MB — scan it at a lower resolution.'); }
       var b = $('pp-go'); b.disabled = true; b.textContent = 'Uploading…';
-      uploadPaper(s.id, f, $('pp-signed') && $('pp-signed').checked).then(function (j) {
+      uploadPaper(s.id, f, paperStage('pp')).then(function (j) {
         afterChange(s.id);
         setTimeout(function () {
-          note('s-note', 'ok', 'Their CP-101 is uploaded — ' + (j.status === 'queued_for_batch' ? 'queued for the next Add/Remove form.' : 'ready for you to countersign.') +
+          note('s-note', 'ok', 'Their CP-101 is uploaded — ' + paperDone(j.status) +
             (j.emailed ? ' They got an email with a link to follow their progress.' : j.watch_link ? ' Send them this link to follow their progress:' : ''));
           if (!j.emailed && j.watch_link) { $('s-link').innerHTML = '<div class="linkbox"><input readonly value="' + esc(j.watch_link) + '" aria-label="Progress link"><button type="button" class="btn alt" data-copy>Copy</button></div>'; wireCopy(); }
         }, 500);
@@ -955,7 +1020,7 @@ function wireStaff(s) {
     var to = $('st-to').value;
     if (!to) { return; }
     if (to === 'removed' && !confirm('Mark as removed? This deletes their SSN, birth date, address and signature now.')) { return; }
-    api('POST', 'status', { id: s.id, status: to, confirm_deactivated: $('st-conf').checked, heaplus_username: $('u-user').value })
+    api('POST', 'status', { id: s.id, status: to, confirm_deactivated: $('st-conf').checked, heaplus_username: $('u-user').value, on: $('st-on').value })
       .then(function () { afterChange(s.id); }, function (e) { note('s-note', 'err', e.message); });
   });
 }
