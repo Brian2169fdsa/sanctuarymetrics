@@ -226,10 +226,10 @@ function drawKpis() {
 
 function recCard(c) {
   var can = SM.me, admin = SM.me && SM.me.role === 'admin';
-  return '<div class="card rec" data-id="' + c.id + '"><div class="top"><div><div class="tag">' + cEsc(c.vendor) +
+  return '<div class="card rec" data-id="' + c.id + '"><div class="top"><div><div class="tag">' + cEsc(c.vendor) + (c.source === 'ai' ? ' · AI cost review' : '') +
     (c.department ? ' · ' + cEsc(c.department) : '') + '</div><h3>' + cEsc(c.title) + '</h3></div>' +
     (c.monthly_saving !== null ? '<div class="amt">' + cMoney(+c.monthly_saving, true) + '<small>per month</small></div>' : '') + '</div>' +
-    (c.detail ? '<p>' + cEsc(c.detail) + '</p>' : '') +
+    (c.detail ? '<p' + (c.source === 'ai' ? ' style="white-space:pre-line"' : '') + '>' + cEsc(c.detail) + '</p>' : '') +
     '<div class="acts">' + (can
       ? '<button class="btn go" data-approve="' + c.id + '">✓ Approve this cut</button><button class="btn lt" data-decline="' + c.id + '">Not now</button>'
       : '<a class="btn" href="' + cEsc(SM.signInUrl('costs.html')) + '">Sign in to approve</a>') +

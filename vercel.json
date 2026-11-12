@@ -6,18 +6,41 @@
     "api/cpao.js": {
       "maxDuration": 60,
       "includeFiles": "cpao/assets/**"
+    },
+    "api/cuts.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cpao",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/m365-sync",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/m365-ai",
+      "schedule": "35 11 * * *"
     }
   ],
   "rewrites": [
     {
       "source": "/pal-email",
       "destination": "/pal-email.html"
+    },
+    {
+      "source": "/api/m365",
+      "destination": "/api/cuts?scope=m365"
+    },
+    {
+      "source": "/api/m365-sync",
+      "destination": "/api/cuts?scope=m365&action=sync"
+    },
+    {
+      "source": "/api/m365-ai",
+      "destination": "/api/cuts?scope=m365&action=ai"
     }
   ]
 }
