@@ -94,6 +94,23 @@
 @media (max-width:600px){
   .so-form{grid-template-columns:1fr}
 }
+.pb{border-top:1px solid var(--line);padding-top:14px;margin-top:4px;display:flex;flex-direction:column;gap:10px}
+.pb h4{margin:0;font-size:15px}
+.pb-off{font-size:13px;color:var(--muted);background:var(--paper);border:1px dashed #cfdbe2;border-radius:10px;padding:10px 12px}
+.pb-plat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.pb-plat[data-on="false"] .pb-body{display:none}
+.pb-plat>label{font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center}
+.pb-plat textarea{font:400 13.5px/1.5 Inter,sans-serif;border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-height:120px;resize:vertical;width:100%;box-sizing:border-box}
+.pb-pics{display:flex;gap:6px;flex-wrap:wrap}
+.pb-pics label{position:relative;width:62px;height:62px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;background:#e6eef3}
+.pb-pics label:has(input:checked){border-color:#1C9AD6}
+.pb-pics img{width:100%;height:100%;object-fit:cover;display:block;opacity:.55}
+.pb-pics label:has(input:checked) img{opacity:1}
+.pb-pics input{position:absolute;top:4px;left:4px;margin:0;accent-color:#1C9AD6}
+.pb-hint{font-size:12px;color:var(--muted)}
+.pb-res{border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5}
+.pb-res.ok{background:#e9f5ee;color:#1f5a37}.pb-res.bad{background:#fbeae6;color:#8f2f1b}.pb-res.wait{background:#eef5f9;color:#14628a}
+.pb-res ul{margin:4px 0 0;padding-left:18px}
 </style>
 </head>
 <body><div class="sheet" id="sheet"></div>
@@ -165,20 +182,31 @@ function addPhotos(list) {
 }
 function sendErr(t) { var el = document.getElementById('so-err'); el.textContent = t || ''; el.hidden = !t; }
 /* one photo → WebP at most w wide (also strips location and camera data) */
-function toWebp(blob, w) {
+function toImage(blob, w, type, q) {
   return createImageBitmap(blob, { imageOrientation: 'from-image' }).then(function (bmp) {
     var scale = Math.min(1, w / Math.max(bmp.width, bmp.height));
     var c = document.createElement('canvas');
     c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
-    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    var g = c.getContext('2d');
+    /* JPEG has no transparency: white behind it, not black */
+    if (type === 'image/jpeg') { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    g.drawImage(bmp, 0, 0, c.width, c.height);
     return new Promise(function (ok, no) {
-      c.toBlob(function (b) { b ? ok(b) : no(new Error('Couldn\'t read one of the photos.')); }, 'image/webp', w > 1000 ? 0.85 : 0.78);
+      c.toBlob(function (b) { b ? ok(b) : no(new Error('Couldn\'t read one of the photos.')); }, type, q);
     });
+  });
+}
+function toWebp(blob, w) { return toImage(blob, w, 'image/webp', w > 1000 ? 0.85 : 0.78); }
+/* the copy Facebook and LinkedIn get: JPEG, up to 2048 px, under the 3 MB upload limit */
+var POST_W = 2048;
+function toJpeg(blob) {
+  return toImage(blob, POST_W, 'image/jpeg', 0.88).then(function (b) {
+    return b.size < 2900000 ? b : toImage(blob, 1600, 'image/jpeg', 0.8);
   });
 }
 function put(id, n, kind, blob) {
   return fetch(API + '?id=' + id + '&n=' + n + '&kind=' + kind, { method: 'PUT', credentials: 'same-origin',
-    headers: { 'Content-Type': 'image/webp' }, body: blob }).then(function (r) {
+    headers: { 'Content-Type': kind === 'j' ? 'image/jpeg' : 'image/webp' }, body: blob }).then(function (r) {
     if (!r.ok) { return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Upload failed (' + r.status + ')'); }); }
   });
 }
@@ -201,18 +229,22 @@ function send() {
       var i = next++, f = PHOTOS[i].file;
       return toWebp(f, FULL_W).then(function (b) { return put(id, i + 1, 'p', b); })
         .then(function () { return toWebp(f, THUMB_W); }).then(function (b) { return put(id, i + 1, 't', b); })
+        .then(function () { return toJpeg(f); }).then(function (b) { return put(id, i + 1, 'j', b); })
         .then(function () { done++; fill.style.width = Math.round(done / total * 90) + '%'; go.textContent = 'Uploading ' + done + ' / ' + total + '…'; })
         .then(worker);
     }
     return Promise.all([worker(), worker(), worker()]);
   }).then(function () {
-    go.textContent = 'Sending to marketing…';
+    go.textContent = ADMIN ? 'Drafting the posts…' : 'Sending to marketing…';
     return SM.api('POST', API + '?id=' + id + '&action=submit');
   }).then(function () {
     fill.style.width = '100%';
+    /* admins go straight to the drafts, to review and publish */
+    if (ADMIN) { PHOTOS = []; POSTS = null; location.hash = 'post=' + id; return 'open'; }
     PHOTOS = [];
     return SM.api('GET', API).then(function (j) { POSTS = j.posts; }, function () { POSTS = []; });
-  }).then(function () {
+  }).then(function (r) {
+    if (r === 'open') { return; }
     render();
     var ok = document.getElementById('so-ok');
     ok.innerHTML = '<b>Thank you!</b> Your photos are with marketing. You\'ll get an alert when the post is live — ' +
@@ -306,6 +338,7 @@ function postHtml() {
       '<div class="sp-row"><input type="text" id="sp-ins" maxlength="500" placeholder="Redraft with a note, e.g. shorter, thank ASU by name, more upbeat">' +
         '<button type="button" class="btn lt" id="sp-redraft">Redraft</button></div>' +
       '<p class="sp-note" id="sp-msg" role="status"></p>' +
+      publishHtml(p, d) +
       (p.status === 'posted'
         ? '<div class="sp-done">Posted' + (p.posted_where ? ' on ' + esc(p.posted_where) : '') + ' by ' + esc(p.posted_by_name || '') + ', ' + esc(when(p.posted_at)) +
           (p.post_url ? ' — <a href="' + esc(p.post_url) + '" target="_blank" rel="noopener">view</a>' : '') + '</div>' +
@@ -328,6 +361,133 @@ function postHtml() {
     '<div class="sp">' + left + right + '</div></section>';
 }
 function msg(t) { var el = document.getElementById('sp-msg'); if (el) { el.textContent = t || ''; } }
+
+/* ── publish to Facebook and LinkedIn (through Make, api/social.js) ──── */
+var READY = false;   /* SOCIAL_PUBLISH_WEBHOOK_URL is set */
+var PUB = null;      /* {id, fb, li, fbText, liText, fbPhotos{n:true}, liPhoto} for the post on screen */
+var POLL = null;
+function withTags(text, d) {
+  var tags = (d.hashtags || []).join(' ');
+  return (text || '') + (tags && (text || '').indexOf((d.hashtags || [])[0]) < 0 ? '\n\n' + tags : '');
+}
+function pubState(p) {
+  if (PUB && PUB.id === p.id) { return PUB; }
+  var d = p.draft || {}, done = (p.publish && p.publish.results) || {}, fb = {};
+  (p.photos || []).forEach(function (x) { if (x.n <= 10) { fb[x.n] = true; } });
+  PUB = { id: p.id, fb: !(done.facebook && done.facebook.ok), li: !(done.linkedin && done.linkedin.ok),
+          fbText: withTags(d.facebook, d), liText: withTags(d.linkedin, d), fbPhotos: fb, liPhoto: 1 };
+  return PUB;
+}
+function resultHtml(p) {
+  var pub = p.publish;
+  if (!pub) { return ''; }
+  var name = { facebook: 'Facebook', linkedin: 'LinkedIn' }, r = pub.results || {};
+  var rows = (pub.platforms || []).map(function (k) {
+    var x = r[k];
+    return '<li><b>' + name[k] + ':</b> ' + (!x ? 'posting…' : x.ok ? 'posted' + (x.url ? ' — <a href="' + esc(x.url) + '" target="_blank" rel="noopener">see it ↗</a>' : '')
+      : 'didn\'t post — ' + esc(x.error || '')) + '</li>';
+  }).join('');
+  var cls = pub.state === 'sending' ? 'wait' : pub.state === 'done' ? 'ok' : 'bad';
+  var head = pub.state === 'sending' ? 'Publishing… this takes up to a minute.' : pub.state === 'done' ? 'Published.'
+    : pub.state === 'partial' ? 'Partly published.' : 'Publishing didn\'t work.';
+  return '<div class="pb-res ' + cls + '" role="status"><b>' + head + '</b>' + (pub.error ? ' ' + esc(pub.error) : '') +
+    (rows ? '<ul>' + rows + '</ul>' : '') + '<div class="pb-hint" style="color:inherit;opacity:.8">' + esc(pub.by || '') + ', ' + esc(when(pub.at)) + '</div></div>';
+}
+function publishHtml(p, d) {
+  if (p.status === 'archived') { return ''; }
+  var head = '<div class="pb"><h4>Publish to Facebook &amp; LinkedIn</h4>';
+  if (!READY) {
+    return head + resultHtml(p) + '<div class="pb-off">Automatic posting isn\'t connected yet. Once the Make scenario is set up ' +
+      '(SOCIAL.md → "Publishing"), this posts straight to the Facebook Page and the LinkedIn company page. Until then, copy the posts above.</div></div>';
+  }
+  if (!p.draft) { return head + resultHtml(p) + '<div class="pb-off">Draft the post first.</div></div>'; }
+  var s = pubState(p), done = (p.publish && p.publish.results) || {}, sending = p.publish && p.publish.state === 'sending';
+  /* on both already: just the result */
+  if (done.facebook && done.facebook.ok && done.linkedin && done.linkedin.ok) { return head + resultHtml(p) + '</div>'; }
+  var pics = function (kind) {
+    return '<div class="pb-pics">' + (p.photos || []).map(function (x) {
+      var on = kind === 'fb' ? !!s.fbPhotos[x.n] : s.liPhoto === x.n;
+      return '<label title="Photo ' + x.n + '"><input type="' + (kind === 'fb' ? 'checkbox' : 'radio') + '" name="pb-' + kind + '" data-pb-' + kind + '="' + x.n + '"' +
+        (on ? ' checked' : '') + '>' + (x.thumb ? '<img src="' + esc(x.thumb) + '" alt="Photo ' + x.n + '">' : '') + '</label>';
+    }).join('') + '</div>';
+  };
+  var plat = function (key, label, on, text, extra) {
+    var already = done[key] && done[key].ok;
+    return '<div class="pb-plat" data-on="' + on + '"><label><input type="checkbox" data-pb-on="' + key + '"' + (on ? ' checked' : '') + '> ' + label +
+      (already ? ' <span class="pb-hint">— already posted' + (done[key].url ? ', <a href="' + esc(done[key].url) + '" target="_blank" rel="noopener">see it</a>' : '') + '</span>' : '') +
+      '</label><div class="pb-body"><textarea data-pb-text="' + key + '" aria-label="' + label + ' post text">' + esc(text) + '</textarea>' + extra + '</div></div>';
+  };
+  return head + resultHtml(p) +
+    plat('facebook', 'Facebook Page', s.fb, s.fbText, '<span class="pb-hint">Photos for Facebook (up to 10 in one post):</span>' + pics('fb')) +
+    plat('linkedin', 'LinkedIn company page', s.li, s.liText, '<span class="pb-hint">The photo for LinkedIn (one per post):</span>' + pics('li')) +
+    (d.privacy_check ? '<div class="sp-priv" style="margin:0"><b>Privacy check:</b> ' + esc(d.privacy_check) + '</div>' : '') +
+    '<label class="sp-chk" style="font-size:13.5px;align-items:flex-start;gap:8px"><input type="checkbox" id="pb-ok" style="margin-top:3px"> ' +
+      '<span>I\'ve looked at every photo going out and the privacy check, and they\'re OK to post publicly.</span></label>' +
+    '<div class="sp-row"><button type="button" class="btn" id="pb-go"' + (sending ? ' disabled' : '') + '>' + (sending ? 'Publishing…' : 'Publish now') + '</button>' +
+      '<span class="pb-hint" id="pb-msg" role="status"></span></div></div>';
+}
+/* photos uploaded before posting copies existed get their JPEG made here */
+function ensureJpegs(p, nums) {
+  var need = (p.photos || []).filter(function (x) { return nums.indexOf(x.n) >= 0 && !x.jpeg; });
+  return need.reduce(function (chain, x) {
+    return chain.then(function () {
+      if (!x.full) { throw new Error('Photo ' + x.n + ' can\'t be opened.'); }
+      return fetch(x.full).then(function (r) { if (!r.ok) { throw new Error('Couldn\'t open photo ' + x.n + '.'); } return r.blob(); })
+        .then(toJpeg).then(function (b) { return put(p.id, x.n, 'j', b); }).then(function () { x.jpeg = true; });
+    });
+  }, Promise.resolve());
+}
+function poll() {
+  clearTimeout(POLL);
+  var p = POST;
+  if (!p || !p.publish || p.publish.state !== 'sending') { return; }
+  var started = new Date(p.publish.at).getTime();
+  if (Date.now() - started > 5 * 60 * 1000) { return; }
+  POLL = setTimeout(function () {
+    if (!POST || POST.id !== p.id || postId() !== p.id) { return; }
+    SM.api('GET', API + '?id=' + p.id).then(function (j) {
+      if (!POST || POST.id !== p.id) { return; }
+      var was = POST.publish && POST.publish.state;
+      POST = j.post; READY = !!j.publish_ready;
+      if (POST.publish && POST.publish.state !== was) { PUB = null; POSTS = null; render(); } else { poll(); }
+    }, function () { poll(); });
+  }, 4000);
+}
+function wirePublish() {
+  var p = POST, s = PUB, go = document.getElementById('pb-go');
+  if (!go || !s) { poll(); return; }
+  var m = function (t) { document.getElementById('pb-msg').textContent = t || ''; };
+  document.querySelectorAll('[data-pb-on]').forEach(function (c) {
+    c.addEventListener('change', function () {
+      var k = c.getAttribute('data-pb-on'); s[k === 'facebook' ? 'fb' : 'li'] = c.checked;
+      c.closest('.pb-plat').setAttribute('data-on', String(c.checked));
+    });
+  });
+  document.querySelectorAll('[data-pb-text]').forEach(function (t) {
+    t.addEventListener('input', function () { s[t.getAttribute('data-pb-text') === 'facebook' ? 'fbText' : 'liText'] = t.value; });
+  });
+  document.querySelectorAll('[data-pb-fb]').forEach(function (c) { c.addEventListener('change', function () { s.fbPhotos[+c.getAttribute('data-pb-fb')] = c.checked; }); });
+  document.querySelectorAll('[data-pb-li]').forEach(function (c) { c.addEventListener('change', function () { s.liPhoto = +c.getAttribute('data-pb-li'); }); });
+  go.addEventListener('click', function () {
+    var fbPhotos = Object.keys(s.fbPhotos).filter(function (k) { return s.fbPhotos[k]; }).map(Number);
+    if (!s.fb && !s.li) { return m('Tick Facebook, LinkedIn or both.'); }
+    if (s.fb && !fbPhotos.length) { return m('Pick at least one photo for Facebook.'); }
+    if (s.fb && fbPhotos.length > 10) { return m('Facebook takes up to 10 photos here — untick some.'); }
+    if (!document.getElementById('pb-ok').checked) { return m('Tick the box to confirm you\'ve checked the photos.'); }
+    var where = [s.fb ? 'Facebook' : null, s.li ? 'LinkedIn' : null].filter(Boolean).join(' and ');
+    if (!confirm('Publish this to ' + where + ' now? It goes live right away.')) { return; }
+    go.disabled = true; go.textContent = 'Preparing photos…'; m('');
+    var nums = (s.fb ? fbPhotos : []).concat(s.li ? [s.liPhoto] : []);
+    ensureJpegs(p, nums).then(function () {
+      go.textContent = 'Sending…';
+      return SM.api('POST', API + '?id=' + p.id + '&action=publish', {
+        facebook: s.fb ? { text: s.fbText, photos: fbPhotos } : null,
+        linkedin: s.li ? { text: s.liText, photo: s.liPhoto } : null, checked: true });
+    }).then(function (j) { POST = j.post; READY = !!j.publish_ready; PUB = null; render(); },
+      function (e) { go.disabled = false; go.textContent = 'Publish now'; m(e.message); });
+  });
+  poll();
+}
 function wirePost() {
   var p = POST, ta = document.getElementById('sp-text');
   document.querySelectorAll('[data-plat]').forEach(function (b) {
@@ -392,7 +552,7 @@ function render() {
   document.getElementById('sheet').innerHTML =
     pageHeader('Social Media', 'Event photos → posts &nbsp;·&nbsp; Internal', ADMIN ? 'Review, post and track' : 'Share what the team is up to', 'social') +
     body + pageFooter('social media');
-  if (id && POST) { wirePost(); return; }
+  if (id && POST) { wirePost(); if (ADMIN) { wirePublish(); } return; }
   document.querySelectorAll('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { TAB = b.getAttribute('data-tab'); render(); }); });
   var form = document.getElementById('so-form');
   if (form) {
@@ -416,7 +576,7 @@ function load() {
   if (id) {
     if (POST && POST.id === id) { render(); return; }
     POST = null; render();
-    SM.api('GET', API + '?id=' + id).then(function (j) { POST = j.post; ADMIN = j.admin; PLAT = 'facebook'; render(); },
+    SM.api('GET', API + '?id=' + id).then(function (j) { POST = j.post; ADMIN = j.admin; READY = !!j.publish_ready; PUB = null; PLAT = 'facebook'; render(); },
       function (e) { ERR = e.message; render(); });
     return;
   }

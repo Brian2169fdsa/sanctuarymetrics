@@ -1,0 +1,105 @@
+{
+  "name": "Sanctuary social — publish to Facebook & LinkedIn",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": { "hook": 3055368, "maxResults": 1 },
+      "mapper": {},
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": { "designer": { "x": 300, "y": 0 } },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "facebook-pages:CreatePostWithPhotos",
+              "version": 6,
+              "parameters": {},
+              "filter": { "name": "Facebook ticked", "conditions": [[{ "a": "{{1.facebook.enabled}}", "o": "boolean:equal", "b": "true" }]] },
+              "mapper": { "page_id": "100063738294812", "photos": "{{1.facebook.photos}}", "message": "{{1.facebook.text}}" },
+              "metadata": { "designer": { "x": 600, "y": -150 } },
+              "onerror": [
+                {
+                  "id": 7,
+                  "module": "http:ActionSendData",
+                  "version": 3,
+                  "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                  "mapper": {
+                    "url": "{{1.callback_url}}", "method": "post", "bodyType": "raw", "contentType": "application/json", "parseResponse": false,
+                    "data": "{\"token\":\"{{1.token}}\",\"platform\":\"facebook\",\"ok\":false,\"error\":\"{{ifempty(replace(3.error.message; \"/[\\\"\\\\\\n\\r]/g\"; \" \"); \"Facebook refused the post — see the scenario's history in Make.\")}}\"}"
+                  },
+                  "metadata": { "designer": { "x": 900, "y": -300 } }
+                },
+                { "id": 8, "module": "builtin:Ignore", "version": 1, "mapper": null, "metadata": { "designer": { "x": 1200, "y": -300 } } }
+              ]
+            },
+            {
+              "id": 4,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": { "handleErrors": true, "useNewZLibDeCompress": true },
+              "mapper": {
+                "url": "{{1.callback_url}}", "method": "post", "bodyType": "raw", "contentType": "application/json", "parseResponse": false,
+                "data": "{\"token\":\"{{1.token}}\",\"platform\":\"facebook\",\"ok\":true,\"id\":\"{{3.id}}\"}"
+              },
+              "metadata": { "designer": { "x": 900, "y": -150 } }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "linkedin:CreateCompanyImagePost",
+              "version": 2,
+              "parameters": {},
+              "filter": { "name": "LinkedIn ticked", "conditions": [[{ "a": "{{1.linkedin.enabled}}", "o": "boolean:equal", "b": "true" }]] },
+              "mapper": { "organization": "urn:li:organization:81690544", "method": "link", "url": "{{1.linkedin.image_url}}",
+                          "content": "{{1.linkedin.text}}", "altText": "{{1.linkedin.alt_text}}", "visibility": "PUBLIC" },
+              "metadata": { "designer": { "x": 600, "y": 150 } },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "http:ActionSendData",
+                  "version": 3,
+                  "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                  "mapper": {
+                    "url": "{{1.callback_url}}", "method": "post", "bodyType": "raw", "contentType": "application/json", "parseResponse": false,
+                    "data": "{\"token\":\"{{1.token}}\",\"platform\":\"linkedin\",\"ok\":false,\"error\":\"{{ifempty(replace(5.error.message; \"/[\\\"\\\\\\n\\r]/g\"; \" \"); \"LinkedIn refused the post — see the scenario's history in Make.\")}}\"}"
+                  },
+                  "metadata": { "designer": { "x": 900, "y": 300 } }
+                },
+                { "id": 10, "module": "builtin:Ignore", "version": 1, "mapper": null, "metadata": { "designer": { "x": 1200, "y": 300 } } }
+              ]
+            },
+            {
+              "id": 6,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": { "handleErrors": true, "useNewZLibDeCompress": true },
+              "mapper": {
+                "url": "{{1.callback_url}}", "method": "post", "bodyType": "raw", "contentType": "application/json", "parseResponse": false,
+                "data": "{\"token\":\"{{1.token}}\",\"platform\":\"linkedin\",\"ok\":true,\"id\":\"{{5.id}}\"}"
+              },
+              "metadata": { "designer": { "x": 900, "y": 150 } }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true, "autoCommitTriggerLast": true, "sequential": false,
+                  "confidential": false, "dataloss": false, "dlq": false, "freshVariables": false },
+    "designer": { "orphans": [] }
+  }
+}
