@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCI Fundraising — Sanctuary CI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+/* view tabs: the same pill as the sanctuaryci.org period chips */
+.fr-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0}
+.fr-tabs button{all:unset;cursor:pointer;font-size:12px;font-weight:700;padding:7px 14px;border-radius:20px;
+  border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.fr-tabs button[aria-selected="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.fr-tabs button:focus-visible,.fr-btn:focus-visible,.fr-chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.fr-tabs small{opacity:.75;font-weight:600;margin-left:5px}
+/* one bold headline under every chart */
+.fr-head{font-size:13.5px;margin:8px 0 0;color:var(--ink)}
+.fr-head b{font-weight:700}
+.fr-k{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+.fr-k .kpi .num{font-size:30px}
+.fr-k .kpi .of{font-family:Inter,sans-serif;font-size:13px;color:var(--muted);font-weight:600;margin-left:4px}
+.fr-k .kpi .meter-track{margin-top:8px;height:7px}
+.tag{white-space:nowrap}
+.tag.held{background:#fbeae6;color:#B23A1B}
+.tag.ph{background:#fdf3e0;color:#B06F14}
+.fr-tags{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 0}
+.fr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px;align-items:start}
+.fr-grid .card{margin:0}
+.fr-meta{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+.fr-meta b{color:var(--ink);font-weight:600}
+.fr-card h3{font-family:Fraunces,serif;font-size:18px;font-weight:600;margin:2px 0 0}
+.fr-eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--coral);font-weight:700}
+details.fr-more{margin:12px 0 0;font-size:13px}
+details.fr-more summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:12.5px}
+details.fr-more dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:10px 0 0}
+details.fr-more dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding-top:2px}
+details.fr-more dd{margin:0}
+.fr-sw{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin:0 4px 4px 0;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.fr-sw.on{background:#e6f4ee;border-color:#cfe8dc;color:#2E8B6F;font-weight:700}
+.fr-attn{list-style:none;padding:0;margin:0}
+.fr-attn li{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.fr-attn li:last-child{border-bottom:0}
+.fr-attn .tag{flex:0 0 auto}
+.fr-live{border-left:4px solid var(--coral)}
+.fr-big{font-family:Fraunces,serif;font-size:28px;line-height:1.1}
+.fr-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fr-field{display:flex;flex-direction:column;gap:4px;flex:1 1 200px;min-width:0}
+.fr-field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.fr-field input,.fr-field textarea,.fr-field select{font-family:inherit;font-size:13px;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%;min-width:0}
+.fr-field textarea{min-height:60px;resize:vertical}
+.fr-field input:focus,.fr-field textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
+.fr-btn{font-family:inherit;font-size:12px;font-weight:700;color:var(--teal);background:#fff;border:1px solid var(--line);
+  border-radius:8px;padding:6px 12px;cursor:pointer}
+.fr-btn:hover{border-color:#cfdbe2;background:var(--paper)}
+.fr-btn.solid{background:var(--teal);border-color:var(--teal);color:#fff}
+.fr-btn.danger{color:#C0492B}
+.fr-list{list-style:none;padding:0;margin:0}
+.fr-list li{display:grid;grid-template-columns:1fr auto auto;gap:10px 14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.fr-list li:last-child{border-bottom:0}
+.fr-list .due{font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.fr-board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.fr-board .col{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.fr-board .col h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.fr-board .item{font-size:13px;padding:8px 0;border-top:1px solid var(--line)}
+.fr-board .item b{display:block;font-weight:600}
+.fr-board .item span{color:var(--muted);font-size:12px}
+.fr-post{background:#fff;border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin:0 0 14px}
+.fr-post.blocked{border-left:4px solid #C0492B}
+.fr-post .copytext{white-space:pre-wrap;font-size:13.5px;line-height:1.55;background:var(--paper);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px;margin:10px 0}
+.fr-post .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.fr-post .when{font-weight:700;font-size:14px}
+.fr-msg{font-size:12px;margin:6px 0 0;color:#C0492B}
+.fr-msg.ok{color:#2E8B6F}
+.fr-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 14px}
+.fr-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.fr-cal .dow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;padding:2px 4px}
+.fr-cal .day{background:#fff;border:1px solid var(--line);border-radius:7px;min-height:86px;padding:5px;font-size:11px}
+.fr-cal .day.out{background:transparent;border-style:dashed;opacity:.5}
+.fr-cal .day.today{border-color:var(--coral);box-shadow:0 0 0 1px var(--coral) inset}
+.fr-cal .day .n{font-weight:700;color:var(--muted);font-size:11px}
+.fr-chip{all:unset;box-sizing:border-box;display:block;width:100%;cursor:pointer;margin:3px 0 0;padding:3px 6px;border-radius:5px;
+  font-size:11px;line-height:1.3;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-st-draft{background:#8796A0}.fr-st-in-review{background:#D98A1F}.fr-st-approved{background:#1C9AD6}
+.fr-st-scheduled{background:#2C5468}.fr-st-posted{background:#2E8B6F}.fr-st-skipped{background:#B9C4CA}
+.fr-st-held{background:#C0492B}
+.fr-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);margin:10px 0 0}
+.fr-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.fr-auto.red{border-color:#f0c7bc;background:#fdf5f3}
+.fr-auto.red h3{color:#B23A1B}
+.fr-auto ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.fr-calc input[type=range]{width:100%;accent-color:var(--teal)}
+.fr-cost{display:grid;grid-template-columns:110px 1fr 90px;gap:8px;align-items:center;font-size:13px;margin:8px 0}
+.fr-cost .bar{height:20px;border-radius:3px}
+.fr-cost .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.fr-ref dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0;font-size:13.5px}
+.fr-ref dt{color:var(--muted);font-weight:600}
+.fr-ref dd{margin:0}
+.fr-tl text{font-family:Inter,sans-serif}
+@media (max-width:900px){.fr-board{grid-template-columns:1fr 1fr}.fr-k{grid-template-columns:1fr 1fr}}
+@media (max-width:720px){
+  .fr-cal{grid-template-columns:1fr}
+  .fr-cal .dow,.fr-cal .day.out,.fr-cal .day.empty{display:none}
+  .fr-cal .day{min-height:0}
+  .fr-grid{grid-template-columns:1fr}
+  .fr-list li{grid-template-columns:1fr}
+  .fr-cost{grid-template-columns:80px 1fr 76px}
+}
+@media (max-width:480px){.fr-board,.fr-k{grid-template-columns:1fr}}
+@media (max-width:720px), (pointer:coarse){
+  .fr-tabs button{min-height:40px;display:inline-flex;align-items:center}
+  .fr-field input,.fr-field select,.fr-field textarea{font-size:15px;min-height:42px}
+  .fr-btn{min-height:40px}
+}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── SCI Fundraising ───────────────────────────────────────────────────────
+   Three sources, none of them holding donor data:
+     data/sci-fundraising-data.json   the plan (source of truth for content)
+     data/fundraising-metrics.json    live aggregates written by the n8n
+                                      metrics sync (f3): totals, counts and
+                                      percentages only
+     /api/fundraising-state           the team's edits (checklist, decisions,
+                                      post statuses) and the automations' run
+                                      reports — Supabase, via lib/fundraising.js
+   All dates and times are shown in America/Phoenix.                          */
+var PLAN_URL = 'data/sci-fundraising-data.json';
+var METRICS_URL = 'data/fundraising-metrics.json';
+var STATE_URL = '/api/fundraising-state';
+var PW_KEY = 'src_projects_pw';    /* same team password as the Projects page */
+var TZ = 'America/Phoenix';
+var TABS = [['overview', 'Overview'], ['campaigns', 'Campaigns'], ['checklist', 'Build checklist'],
+            ['social', 'Social calendar'], ['automations', 'Automations'], ['donorbox', 'Donorbox setup']];
+var POST_STATUS = [['draft', 'Draft'], ['in-review', 'In review'], ['approved', 'Approved'], ['scheduled', 'Scheduled'],
+                   ['posted', 'Posted'], ['skipped', 'Skipped']];
+var APPROVED_UP = { approved: 1, scheduled: 1, posted: 1 };
+var CHECK_STATUS = [['not-started', 'Not started'], ['in-progress', 'In progress'], ['done', 'Done']];
+/* how often each scheduled automation should run, in minutes; red when it hasn't run in twice that */
+var EVERY = { f3: 15, f7: 1440, f8: 1440, f9: 1440, f10: 10080 };
+var KEY_DATES = [['2026-12-01', 'Giving Tuesday'], ['2026-12-31', 'Dec 31: year-end'], ['2027-04-06', 'Arizona Gives Day'],
+                 ['2027-04-15', 'Tax credit deadline'], ['2027-11-30', 'Giving Tuesday 2027']];
+var COLORS = { 'always-on': '#2C5468', seasonal: '#E17F55' };
+
+var PLAN = null, M = null, ITEMS = {}, ADMIN = false;
+var STATE_OK = false, STATE_MSG = '';
+var VIEW = 'overview';
+var SOC = { view: 'list', campaign: '', channel: '', theme: '', status: '', when: 'next30', month: '', open: '' };
+var FEE_VOL = 5000;
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+/* ── dates, in Phoenix ─────────────────────────────────────────────────── */
+function phxDate(d) { return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+var TODAY = phxDate(new Date());
+function dn(iso) { var p = iso.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5; }
+function nd(n) { return new Date(n * 864e5).toISOString().slice(0, 10); }
+function dayLabel(iso, opts) {
+  return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC', month: 'short', day: 'numeric' }, opts || {}));
+}
+function longDay(iso) { return dayLabel(iso, { weekday: 'short', year: 'numeric' }); }
+function stamp(isoTime) {
+  if (!isoTime) { return '—'; }
+  return new Date(isoTime).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' Phoenix';
+}
+function timeLabel(t) { if (!t) { return ''; } var p = t.split(':'); var hh = +p[0]; return (hh % 12 || 12) + ':' + p[1] + (hh < 12 ? ' a.m.' : ' p.m.'); }
+function monday(iso) { var n = dn(iso); var dow = (new Date(n * 864e5).getUTCDay() + 6) % 7; return nd(n - dow); }
+
+/* ── formatting ────────────────────────────────────────────────────────── */
+function money(n) { return n == null ? '—' : '$' + fmt(Math.round(n)); }
+function pctOf(a, b) { return b ? Math.round(a / b * 100) : 0; }
+function tag(t, cls) { return '<span class="tag ' + (cls || 'eq') + '">' + h(t) + '</span>'; }
+var HELD = 'Held: awaiting qualifying charity confirmation';
+function isPlaceholder(s) { return /placeholder/i.test(String(s || '')); }
+function headline(t) { return '<p class="fr-head"><b>' + t + '</b></p>'; }
+function meter(label, val, of, color, note) {
+  var p = of ? Math.min(100, val / of * 100) : 0;
+  return '<div><div class="meter-top"><span class="meter-lab">' + label + '</span><span class="meter-val"><b>' + h(money(val)) +
+    '</b> <span class="meter-of">of ' + h(money(of)) + ' · ' + pctOf(val, of) + '%</span></span></div>' +
+    '<div class="meter-track"><div class="meter-fill" style="width:' + p.toFixed(1) + '%;background:' + (color || 'var(--teal)') + '"></div></div>' +
+    (note ? '<p class="meter-note">' + note + '</p>' : '') + '</div>';
+}
+
+/* ── state ─────────────────────────────────────────────────────────────── */
+function item(id) { return (ITEMS[id] && ITEMS[id].data) || {}; }
+function checkStatus(id) { return item('check:' + id).status || 'not-started'; }
+function decisionStatus(d) { return item('decision:' + d.id).status || d.status || 'open'; }
+function postState(id) { return item('post:' + id); }
+function postStatus(id) { return postState(id).status || 'draft'; }
+function qco() { return item('setting:qco'); }
+function qcoReady() { var q = qco(); return !!(q.confirmed && /^\d{5}$/.test(String(q.code || ''))); }
+function autopostOn() { return item('setting:autopost').on === true; }
+
+/* the plan posts plus the team's dated copies of template posts */
+function allPosts() {
+  var list = PLAN.socialPosts.map(function (p) { return p; });
+  Object.keys(ITEMS).forEach(function (k) {
+    if (ITEMS[k].kind !== 'copy') { return; }
+    var c = ITEMS[k].data, tpl = PLAN.socialPosts.filter(function (p) { return p.id === c.template; })[0];
+    if (!tpl) { return; }
+    var copy = Object.assign({}, tpl, { id: k.replace(/^copy:/, ''), date: c.date, copyOf: tpl.id });
+    delete copy.schedule;
+    list.push(copy);
+  });
+  return list;
+}
+function blocker(p, data) {
+  if (p.held && !qcoReady()) { return HELD + '. An admin records the confirmation and code below first.'; }
+  if (p.needsRelease && !String(data.release || '').trim()) { return 'Record the signed release on this post before approving it.'; }
+  if (p.needsApprovalFrom && !String(data.approvedBy || '').trim()) { return 'Record ' + p.needsApprovalFrom + '\'s approval before approving it.'; }
+  return '';
+}
+
+function api(method, url, body) {
+  var headers = body ? { 'Content-Type': 'application/json' } : {};
+  if (lsGet(PW_KEY) !== null && !SM.me) { headers['X-Projects-Password'] = lsGet(PW_KEY); }
+  return fetch(url, { method: method, headers: headers, credentials: 'same-origin', cache: 'no-store',
+                      body: body ? JSON.stringify(body) : undefined })
+    .then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+}
+function loadState() {
+  return api('GET', STATE_URL).then(function (j) {
+    ITEMS = j.items || {}; ADMIN = !!j.admin; STATE_OK = true; STATE_MSG = '';
+  }, function (e) {
+    STATE_OK = false;
+    STATE_MSG = e.status === 401 ? 'Sign in to change statuses — you are seeing the plan read-only.' : e.message;
+  });
+}
+function save(id, data) {
+  return api('PUT', STATE_URL, { id: id, data: data }).then(function (j) {
+    ITEMS[id] = j.row || { data: data };
+    return j;
+  });
+}
+
+/* ── metrics, merged with the automations' own run reports ─────────────── */
+function T() { return (M && M.totals) || {}; }
+function raisedFor(planId) {
+  var out = { raised: 0, donors: 0, donations: 0, plans: 0 };
+  ((M && M.campaigns) || []).forEach(function (c) {
+    if (c.planId !== planId) { return; }
+    out.raised += +c.raisedUsd || 0; out.donors += +c.donors || 0; out.donations += +c.donations || 0; out.plans += +c.recurringPlans || 0;
+  });
+  return out;
+}
+function runInfo(id) {
+  var m = ((M && M.automations) || []).filter(function (a) { return a.id === id; })[0] || {};
+  var r = item('run:' + id);
+  var out = { lastRun: m.lastRun || null, lastStatus: m.lastStatus || 'never', runs7d: +m.runs7d || 0, errors7d: +m.errors7d || 0, message: '' };
+  if (r.lastRun && (!out.lastRun || Date.parse(r.lastRun) >= Date.parse(out.lastRun))) {
+    out.lastRun = r.lastRun; out.lastStatus = r.lastStatus; out.message = r.message || '';
+  }
+  if (r.recent) {
+    var cut = Date.now() - 7 * 864e5;
+    var recent = r.recent.filter(function (x) { return Date.parse(x.at) >= cut; });
+    out.runs7d = Math.max(out.runs7d, recent.length);
+    out.errors7d = Math.max(out.errors7d, recent.filter(function (x) { return !x.ok; }).length);
+  }
+  var every = EVERY[id];
+  out.stale = !!(every && out.lastRun && Date.now() - Date.parse(out.lastRun) > every * 2 * 60000);
+  out.red = out.lastStatus === 'error' || out.stale;
+  return out;
+}
+
+/* ── charts (same geometry and classes as ui.js) ───────────────────────── */
+function line(points, color, W, isMoney) {
+  var n = points.length; if (n < 2) { return ''; }
+  var padX = isCompact(W) ? 22 : 40, base = 176, H = 140;
+  var max = 0; points.forEach(function (p) { if (p.value > max) { max = p.value; } }); if (!max) { max = 1; }
+  var xs = function (i) { return padX + i * ((W - padX * 2) / (n - 1)); };
+  var ys = function (v) { return base - v / max * H; };
+  var every = Math.ceil(n / (isCompact(W) ? 5 : 10));
+  var s = '<svg viewBox="0 0 ' + W + ' 200" class="chart" role="img" aria-label="trend chart"><line x1="0" y1="176" x2="' + W + '" y2="176" stroke="#E4EBEF"/>';
+  var d = '';
+  points.forEach(function (p, i) { d += (i ? ' L' : 'M') + r1(xs(i)) + ' ' + r1(ys(p.value)); });
+  s += '<path d="' + d + ' L' + r1(xs(n - 1)) + ' 176 L' + r1(xs(0)) + ' 176 Z" fill="' + color + '" opacity=".10"/>' +
+       '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+  var peak = 0; points.forEach(function (p, i) { if (p.value > points[peak].value) { peak = i; } });
+  points.forEach(function (p, i) {
+    var x = xs(i), y = ys(p.value), last = i === n - 1;
+    if (n <= 14 || last || (i === peak && p.value > 0)) {
+      s += '<circle cx="' + r1(x) + '" cy="' + r1(y) + '" r="4" fill="#fff" stroke="' + color + '" stroke-width="2.5"/>' +
+           '<text x="' + r1(x) + '" y="' + r1(Math.max(14, y - 11)) + '" text-anchor="' + (last && n > 14 ? 'end' : 'middle') + '" class="bval">' +
+           (isMoney ? money(p.value) : fmt(p.value)) + '</text>';
+    }
+    if ((i % every === 0 && n - 1 - i >= every / 2) || last) {
+      s += '<text x="' + r1(x) + '" y="192" text-anchor="' + (last ? 'end' : 'middle') + '" class="blab">' + h(p.label) + '</text>';
+    }
+  });
+  return s + '</svg>';
+}
+/* two series side by side per group (planned vs posted) */
+function vbar2(groups, colors, W) {
+  var n = groups.length; if (!n) { return ''; }
+  var gap = n > 20 ? 3 : (isCompact(W) ? 6 : 12), gw = (W - gap * (n - 1)) / n, bw = gw / 2, base = 176, H = 140;
+  var max = 1; groups.forEach(function (g) { max = Math.max(max, g.a, g.b); });
+  var every = Math.ceil(n / (isCompact(W) ? 5 : 12));
+  var s = '<svg viewBox="0 0 ' + W + ' 200" class="chart" role="img" aria-label="grouped bar chart"><line x1="0" y1="176" x2="' + W + '" y2="176" stroke="#E4EBEF"/>';
+  groups.forEach(function (g, i) {
+    var x = i * (gw + gap);
+    [[g.a, colors[0]], [g.b, colors[1]]].forEach(function (v, k) {
+      var bh = v[0] / max * H;
+      s += '<rect x="' + r1(x + k * bw) + '" y="' + r1(base - bh) + '" width="' + r1(Math.max(1, bw - 1)) + '" height="' + r1(bh) + '" rx="2" fill="' + v[1] + '"/>';
+    });
+    if (n <= 16) { s += '<text x="' + r1(x + gw / 2) + '" y="' + r1(base - Math.max(g.a, g.b) / max * H - 6) + '" text-anchor="middle" class="bval">' + g.a + '</text>'; }
+    if (i % every === 0) { s += '<text x="' + r1(i === 0 ? x : x + gw / 2) + '" y="192" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" class="blab">' + h(g.label) + '</text>'; }
+  });
+  return s + '</svg>';
+}
+
+/* ── page chrome ───────────────────────────────────────────────────────── */
+function syncLine() {
+  return M && M.generatedAt ? 'Live numbers synced ' + stamp(M.generatedAt) : 'Live numbers: awaiting first sync';
+}
+function render() {
+  var y = scrollY;
+  var sheet = document.getElementById('sheet');
+  if (!PLAN) {
+    sheet.innerHTML = pageHeader('SCI Fundraising', 'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', 'Loading…', 'fundraising') +
+      '<section><p class="lead">' + (STATE_MSG || 'Loading the fundraising plan…') + '</p></section>';
+    return;
+  }
+  var attn = attention().length;
+  sheet.innerHTML =
+    pageHeader('SCI Fundraising', 'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', h(syncLine()), 'fundraising') +
+    '<section>' +
+      '<div class="eyebrow">Sanctuary Community Initiative · EIN ' + h(PLAN.meta.ein) + '</div>' +
+      '<h2 style="font-size:26px;margin:6px 0 0">Fundraising plan and live results</h2>' +
+      '<p class="lead" style="margin-bottom:0">The plan from November 2026 to November 2027, tracked against live Donorbox totals. ' +
+      'Aggregates only: no donor names, emails or individual gifts appear on this page. ' +
+      (PLAN.targets.status === 'placeholder' ? tag('Placeholder', 'ph') + ' Every dollar target is a placeholder until approved.' : '') + '</p>' +
+      (M && !M.generatedAt ? '<div class="warn" style="margin-top:14px"><b>Awaiting first sync.</b> Live figures read zero until the n8n metrics sync (f3) writes its first file. See automations/README.md.</div>' : '') +
+      (!STATE_OK && STATE_MSG ? '<div class="warn" style="margin-top:14px">' + h(STATE_MSG) +
+        (/Sign in/.test(STATE_MSG) ? ' <a href="login.html?next=fundraising.html">Sign in</a>' : '') + '</div>' : '') +
+      '<div class="fr-tabs" role="tablist">' + TABS.map(function (t) {
+        return '<button type="button" role="tab" data-tab="' + t[0] + '" aria-selected="' + (VIEW === t[0]) + '">' + t[1] +
+          (t[0] === 'overview' && attn ? '<small>' + attn + ' to look at</small>' : '') + '</button>';
+      }).join('') + '</div>' +
+    '</section>' +
+    ({ overview: overview, campaigns: campaigns, checklist: checklist, social: social, automations: automations, donorbox: donorbox }[VIEW])() +
+    pageFooter('plan as of ' + PLAN.meta.planAsOf + '; ' + syncLine().toLowerCase() + '; all times America/Phoenix');
+  applyDataLabels();
+  wire();
+  scrollTo(0, y);
+}
+
+/* ── 1. Overview ───────────────────────────────────────────────────────── */
+function kpiCard(lab, num, of, note, extra) {
+  return '<div class="kpi"><div class="lab">' + h(lab) + '</div><div class="num">' + h(num) +
+    (of ? '<span class="of">/ ' + h(of) + '</span>' : '') + '</div>' + (extra || '') +
+    (note ? '<div class="note">' + note + '</div>' : '') + '</div>';
+}
+function miniMeter(v, of, color) {
+  return '<div class="meter-track"><div class="meter-fill" style="width:' + Math.min(100, of ? v / of * 100 : 0).toFixed(1) + '%;background:' + color + '"></div></div>';
+}
+function liveCampaigns() {
+  return PLAN.campaigns.filter(function (c) { return c.start && c.end && c.start <= TODAY && TODAY <= c.end; });
+}
+function campaignLink(c) {
+  var set = item('campaign:' + c.id).link;
+  if (set) { return { url: set, set: true }; }
+  var member = c.id === 'the-sanctuary' || /campaign 2/i.test(c.donorboxType);
+  return { url: member ? PLAN.meta.membershipPage : PLAN.meta.donatePage, set: false };
+}
+function liveCard() {
+  var live = liveCampaigns();
+  if (!live.length) {
+    var next = PLAN.campaigns.filter(function (c) { return c.start && c.start > TODAY; }).sort(function (a, b) { return a.start < b.start ? -1 : 1; })[0];
+    return card('Live now', '<p class="fr-meta">No seasonal campaign is running today.' +
+      (next ? ' Next: <b>' + h(next.name) + '</b>, starting ' + h(longDay(next.start)) + ' (in ' + (dn(next.start) - dn(TODAY)) + ' days).' : '') + '</p>');
+  }
+  return live.map(function (c) {
+    var r = raisedFor(c.id), left = dn(c.end) - dn(TODAY) + 1, link = campaignLink(c);
+    return '<div class="card fr-live"><div class="fr-eyebrow">Live now · ' + left + ' day' + (left === 1 ? '' : 's') + ' left</div>' +
+      '<div class="fr-big" style="margin:4px 0 2px">' + h(c.name) + '</div>' +
+      '<p class="fr-meta">' + h(dayLabel(c.start)) + ' – ' + h(longDay(c.end)) + ' · ' + h(c.donorboxType) + '</p>' +
+      '<div class="fr-tags">' + statusTags(c) + '</div>' +
+      '<div style="margin:14px 0 6px">' + (c.goalUsd ? meter('Raised vs goal', r.raised, c.goalUsd, COLORS.seasonal) :
+        '<p class="fr-meta"><b>' + money(r.raised) + '</b> raised</p>') + '</div>' +
+      '<p class="fr-meta"><b>' + fmt(r.donors) + '</b> donors' + (c.donorTarget ? ' of a ' + c.donorTarget + '-donor target' : '') +
+      ' · <b>' + fmt(r.donations) + '</b> gifts</p>' +
+      '<p class="fr-meta" style="margin-top:8px"><a href="' + h(link.url) + '" target="_blank" rel="noopener">' + h(link.url) + '</a>' +
+      (link.set ? '' : ' <span class="tag ph">site page — set the Donorbox link on the Campaigns tab</span>') + '</p>' +
+      headline(liveHeadline(c, r, left)) + '</div>';
+  }).join('');
+}
+function liveHeadline(c, r, left) {
+  if (!c.goalUsd) { return h(c.name) + ' has ' + left + ' days left.'; }
+  if (!r.raised) { return 'Nothing raised yet; ' + money(c.goalUsd) + ' to go in ' + left + ' days (' + money(c.goalUsd / left) + ' a day).'; }
+  var gap = Math.max(0, c.goalUsd - r.raised);
+  return gap ? pctOf(r.raised, c.goalUsd) + '% of goal; ' + money(gap) + ' to go in ' + left + ' days (' + money(gap / left) + ' a day).'
+             : 'Goal reached: ' + money(r.raised) + ' raised, ' + pctOf(r.raised, c.goalUsd) + '% of goal.';
+}
+function attention() {
+  var out = [];
+  PLAN.decisions.forEach(function (d) {
+    if (decisionStatus(d) === 'open') { out.push([tag('Decision', 'med'), h(d.text) + ' <span class="fr-meta">· ' + h(d.owner) + '</span>', 'checklist']); }
+  });
+  PLAN.checklist.forEach(function (c) {
+    if (c.due < TODAY && checkStatus(c.id) !== 'done') {
+      out.push([tag('Overdue', 'lo'), h(c.text) + ' <span class="fr-meta">· due ' + h(dayLabel(c.due)) + '</span>', 'checklist']);
+    }
+  });
+  PLAN.planCheck.forEach(function (p) {
+    if (p.status === 'error-on-site') { out.push([tag('Error on site', 'lo'), h(p.item) + ': ' + h(p.detail), 'checklist']); }
+  });
+  PLAN.campaigns.forEach(function (c) { if (c.blockedBy) { out.push([tag('Held', 'held'), h(c.name) + ': ' + h(c.blockedBy), 'campaigns']); } });
+  var held = PLAN.socialPosts.filter(function (p) { return p.held; }).length;
+  if (held && !qcoReady()) { out.push([tag('Held', 'held'), held + ' tax credit posts are held until qualifying charity status is confirmed.', 'social']); }
+  PLAN.automations.forEach(function (a) {
+    var r = runInfo(a.id);
+    if (r.red || r.errors7d) {
+      out.push([tag(r.lastStatus === 'error' || r.errors7d ? 'Automation error' : 'Automation late', 'lo'),
+        h(a.name) + (r.message ? ': ' + h(r.message) : '') + ' <span class="fr-meta">· last run ' + h(stamp(r.lastRun)) + '</span>', 'automations']);
+    }
+  });
+  return out;
+}
+function overview() {
+  var t = T(), W = chartW(false), W2 = chartW(true), ph = PLAN.targets.status === 'placeholder';
+  var phTag = ph ? ' ' + tag('Placeholder', 'ph') : '';
+  var memberT = PLAN.targets.monthlyMembers, mrrT = PLAN.targets.monthlyRecurringUsd;
+
+  /* daily raised: the last 30 Phoenix days, zero-filled */
+  var by = {}; ((M && M.dailyRaised) || []).forEach(function (d) { by[d.date] = d; });
+  var days = [], total30 = 0, gifts30 = 0, best = null;
+  for (var i = 29; i >= 0; i--) {
+    var iso = nd(dn(TODAY) - i), d = by[iso] || { raisedUsd: 0, donations: 0 };
+    days.push({ label: dayLabel(iso), value: Math.round(+d.raisedUsd || 0) });
+    total30 += +d.raisedUsd || 0; gifts30 += +d.donations || 0;
+    if ((+d.raisedUsd || 0) > 0 && (!best || +d.raisedUsd > best.v)) { best = { v: +d.raisedUsd, iso: iso }; }
+  }
+  var dayHead = total30 ? money(total30) + ' raised in the last 30 days from ' + fmt(gifts30) + ' gifts; the best day was ' +
+    dayLabel(best.iso) + ' at ' + money(best.v) + '.' : 'No gifts recorded in the last 30 days yet.';
+
+  var mrr = ((M && M.monthlyMrr) || []).map(function (m) { return { label: dayLabel(m.month + '-15', { day: undefined, month: 'short', year: '2-digit' }), value: Math.round(+m.mrrUsd || 0), members: m.activeMembers }; });
+  var mrrHead = 'Monthly recurring revenue is ' + money(t.mrrUsd || 0) + ' from ' + fmt(t.activeMembers || 0) + ' members: ' +
+    pctOf(t.mrrUsd || 0, mrrT) + '% of the ' + money(mrrT) + ' target' + (ph ? ' (placeholder)' : '') + '.';
+
+  var goalCamps = PLAN.campaigns.filter(function (c) { return c.goalUsd; });
+  var leader = null, goalSum = 0;
+  goalCamps.forEach(function (c) { var r = raisedFor(c.id).raised; goalSum += c.goalUsd; if (r && (!leader || r > leader.r)) { leader = { c: c, r: r }; } });
+  var campHead = leader ? h(leader.c.name) + ' leads with ' + money(leader.r) + ', ' + pctOf(leader.r, leader.c.goalUsd) + '% of its ' + money(leader.c.goalUsd) + ' goal.'
+    : 'No campaign has raised money yet. ' + goalCamps.length + ' campaigns carry goals totaling ' + money(goalSum) + ', all placeholders.';
+  var alwaysOn = PLAN.campaigns.filter(function (c) { return c.kind === 'always-on'; }).map(function (c) {
+    return h(c.name) + ': <b>' + money(raisedFor(c.id).raised) + '</b>';
+  }).join(' · ');
+
+  var attn = attention();
+  var feeNote = t.feeCoverRatePct == null ? 'Not reported by the Donorbox API; filled in once the sync can read it' : 'share of gifts where the donor covered fees';
+
+  return '<section>' + sechead('Overview', 'var(--coral)', 'Live Donorbox aggregates against the year-one plan', M && M.generatedAt ? 'synced ' + stamp(M.generatedAt) : 'awaiting first sync') +
+    '<div class="fr-k">' +
+      kpiCard('Total raised', money(t.raisedUsd || 0), '', fmt(t.donations || 0) + ' gifts · campaign target ' + money(PLAN.targets.campaignGiftsTotalUsd) + (ph ? ' (placeholder)' : '')) +
+      kpiCard('Donors', fmt(t.donors || 0), '', 'everyone who has given') +
+      kpiCard('New donors, last 30 days', fmt(t.newDonors30d || 0), '', 'first gift in the last 30 days') +
+      kpiCard('Active monthly members', fmt(t.activeMembers || 0), String(memberT), pctOf(t.activeMembers || 0, memberT) + '% of target' + phTag + ' · ' +
+        fmt(t.membersLost30d || 0) + ' lost in 30 days', miniMeter(t.activeMembers || 0, memberT, '#2E8B6F')) +
+      kpiCard('Monthly recurring revenue', money(t.mrrUsd || 0), money(mrrT), pctOf(t.mrrUsd || 0, mrrT) + '% of target' + phTag, miniMeter(t.mrrUsd || 0, mrrT, '#2E8B6F')) +
+      kpiCard('Donors covering fees', t.feeCoverRatePct == null ? '—' : t.feeCoverRatePct + '%', '', h(feeNote)) +
+    '</div>' +
+    grid2('<div>' + liveCard() + '</div>',
+      card('Needs attention (' + attn.length + ')', attn.length ? '<ul class="fr-attn">' + attn.map(function (a) {
+        return '<li>' + a[0] + '<span>' + a[1] + ' <a href="#' + a[2] + '" class="fr-meta">open</a></span></li>';
+      }).join('') + '</ul>' : '<p class="fr-meta">Nothing needs attention.</p>')) +
+    grid2(
+      card('Raised per day · last 30 days', line(days, COLORS.seasonal, W2, true) + headline(h(dayHead))),
+      card('Monthly recurring revenue by month', mrr.length >= 2 ? line(mrr, '#2E8B6F', W2, true) + headline(mrrHead)
+        : '<div class="empty">' + (M && M.generatedAt ? 'The trend appears once two months of membership data exist.' : 'Awaiting first sync.') + '</div>' + headline(mrrHead))
+    ) +
+    card('Raised vs goal, every campaign with a goal', '<div class="meters">' + goalCamps.map(function (c) {
+      var r = raisedFor(c.id);
+      return meter(h(c.name) + ' ' + (isPlaceholder(c.goalStatus) ? tag('Placeholder', 'ph') : '') + (c.blockedBy ? ' ' + tag('Held', 'held') : ''),
+        r.raised, c.goalUsd, c.kind === 'always-on' ? COLORS['always-on'] : COLORS.seasonal,
+        h(dayLabel(c.start)) + ' – ' + h(longDay(c.end)) + ' · ' + fmt(r.donors) + ' donors');
+    }).join('') + '</div>' + (alwaysOn ? '<p class="fr-meta" style="margin-top:14px">Always-on (no goal): ' + alwaysOn + '</p>' : '') + headline(campHead)) +
+    '</section>';
+}
+
+/* ── 2. Campaigns ──────────────────────────────────────────────────────── */
+var STATUS_TEXT = { 'edit-existing': 'Edit existing form', 'to-build': 'To build', 'build-as-draft': 'Build as draft', scheduled: 'Scheduled' };
+function statusTags(c) {
+  var s = STATUS_TEXT[c.status] || c.status.replace(/^build-/, 'Build ').replace(/-/g, ' ');
+  var live = c.start && c.start <= TODAY && TODAY <= c.end, done = c.end && c.end < TODAY;
+  return tag(live ? 'Live' : (done ? 'Ended' : s), live ? 'hi' : (done ? 'eq' : 'cold')) + ' ' + tag(c.kind, 'eq') +
+    (isPlaceholder(c.goalStatus) ? ' ' + tag('Placeholder goal', 'ph') : '') + (c.blockedBy ? ' ' + tag(HELD, 'held') : '');
+}
+function list(a) { return (a || []).map(function (x) { return h(String(x)); }).join(', '); }
+function campaignDetail(c) {
+  var rows = [];
+  var add = function (k, v) { if (v) { rows.push('<dt>' + h(k) + '</dt><dd>' + v + '</dd>'); } };
+  add('Call to action', c.cta || c.headline ? h(c.cta || c.headline) : '');
+  add('Intervals', list(c.intervals));
+  add('Amounts', c.amounts ? c.amounts.map(function (a) { return a === c.defaultAmount ? '<b>$' + a + ' (default)</b>' : '$' + a; }).join(', ') : '');
+  add('Monthly amounts', c.monthlyAmounts ? c.monthlyAmounts.map(function (a) { return '$' + a; }).join(', ') : '');
+  add('Amount text', c.amountDescriptions ? Object.keys(c.amountDescriptions).map(function (k) { return '<b>$' + h(k) + '</b> ' + h(c.amountDescriptions[k]); }).join('<br>') : '');
+  add('Tiers', c.tiers ? c.tiers.map(function (t) { return '<b>' + h(t.name) + '</b> $' + t.monthlyUsd + '/mo · ' + h(t.theme); }).join('<br>') : '');
+  add('Switches', c.switches ? Object.keys(c.switches).map(function (k) {
+    return '<span class="fr-sw' + (c.switches[k] ? ' on' : '') + '">' + h(k.replace(/([A-Z])/g, ' $1').toLowerCase()) + (c.switches[k] ? ' on' : ' off') + '</span>';
+  }).join('') : '');
+  add('Placement', list(c.placement));
+  add('Target', c.target ? Object.keys(c.target).map(function (k) { return h(k.replace(/([A-Z])/g, ' $1').toLowerCase()) + ': ' + h(/usd/i.test(k) ? money(c.target[k]) : c.target[k]); }).join(', ') : '');
+  add('Donor target', c.donorTarget ? String(c.donorTarget) : '');
+  add('2026 limits', c.limits2026 ? 'Single $' + c.limits2026.singleUsd + ', married filing jointly $' + c.limits2026.marriedJointUsd + ', claim by ' + h(longDay(c.limits2026.claimDeadline)) : '');
+  add('Key dates', c.keyDates ? c.keyDates.map(function (k) { return h(longDay(k.date)) + ': ' + h(k.label); }).join('<br>') : '');
+  add('Based on', c.basedOn ? h(c.basedOn) : '');
+  add('Blocked by', c.blockedBy ? h(c.blockedBy) : '');
+  return rows.length ? '<details class="fr-more"><summary>Donorbox settings</summary><dl>' + rows.join('') + '</dl></details>' : '';
+}
+function campaignCard(c) {
+  var r = raisedFor(c.id), link = item('campaign:' + c.id).link || '';
+  return '<div class="card fr-card"><div class="fr-eyebrow">Campaign ' + c.number + ' · ' + h(c.kind) + '</div><h3>' + h(c.name) + '</h3>' +
+    '<p class="fr-meta">' + h(c.donorboxType) + '<br>' + (c.start ? h(dayLabel(c.start)) + ' – ' + h(longDay(c.end)) : 'Always on') +
+    ' · <b>' + c.feePct + '%</b> platform fee</p>' +
+    '<div class="fr-tags">' + statusTags(c) + '</div>' +
+    '<div style="margin:14px 0 6px">' + (c.goalUsd ? meter('Raised vs goal', r.raised, c.goalUsd, c.kind === 'always-on' ? COLORS['always-on'] : COLORS.seasonal)
+      : '<p class="fr-meta"><b>' + money(r.raised) + '</b> raised · no goal set</p>') + '</div>' +
+    '<p class="fr-meta"><b>' + fmt(r.donors) + '</b> donors · <b>' + fmt(r.donations) + '</b> gifts' + (r.plans ? ' · <b>' + fmt(r.plans) + '</b> monthly plans' : '') + '</p>' +
+    '<div class="fr-row" style="margin-top:10px"><div class="fr-field"><label for="cl-' + c.id + '">Donorbox page link</label>' +
+    '<input id="cl-' + c.id + '" type="url" inputmode="url" placeholder="https://donorbox.org/…" value="' + h(link) + '" data-save="campaign:' + c.id + '" data-key="link"' + (STATE_OK ? '' : ' disabled') + '></div></div>' +
+    '<div class="fr-msg" data-msg="campaign:' + c.id + '"></div>' +
+    campaignDetail(c) + '</div>';
+}
+function timeline(W) {
+  var from = dn('2026-11-01'), to = dn('2027-11-30'), span = to - from;
+  var rows = PLAN.campaigns.slice().sort(function (a, b) { return (a.start || '0') < (b.start || '0') ? -1 : 1; });
+  var top = 46, rowH = 40, padR = 6;
+  var x = function (iso) { return Math.max(0, Math.min(W - padR, (dn(iso) - from) / span * (W - padR))); };
+  var Hh = top + rows.length * rowH + 10;
+  var s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" class="chart fr-tl" role="img" aria-label="Campaign timeline, November 2026 to November 2027">';
+  /* month grid */
+  for (var m = 0; m < 13; m++) {
+    var d = new Date(Date.UTC(2026, 10 + m, 1)), iso = d.toISOString().slice(0, 10), xx = x(iso);
+    s += '<line x1="' + r1(xx) + '" y1="' + (top - 8) + '" x2="' + r1(xx) + '" y2="' + (Hh - 6) + '" stroke="#E4EBEF"/>';
+    if (!isCompact(W) || m % 2 === 0) {
+      s += '<text x="' + r1(xx + 3) + '" y="' + (top - 12) + '" class="blab">' + d.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short' }) +
+        (m === 0 || d.getUTCMonth() === 0 ? ' ’' + String(d.getUTCFullYear()).slice(2) : '') + '</text>';
+    }
+  }
+  /* key dates, numbered so the labels never collide */
+  var prevX = -99, lift = false;
+  KEY_DATES.forEach(function (k, i) {
+    var xx = x(k[0]);
+    lift = xx - prevX < 18 ? !lift : false;   /* stagger markers that would touch */
+    var cx = lift ? xx + 9 : xx;
+    prevX = xx;
+    s += '<line x1="' + r1(xx) + '" y1="16" x2="' + r1(xx) + '" y2="' + (Hh - 6) + '" stroke="#B23A1B" stroke-dasharray="3 3" opacity=".7"/>' +
+         '<circle cx="' + r1(cx) + '" cy="10" r="8" fill="#B23A1B"/><text x="' + r1(cx) + '" y="14" text-anchor="middle" style="font:700 10px Inter;fill:#fff">' + (i + 1) + '</text>';
+  });
+  if (TODAY >= '2026-11-01' && TODAY <= '2027-11-30') {
+    var tx = x(TODAY);
+    s += '<line x1="' + r1(tx) + '" y1="' + (top - 8) + '" x2="' + r1(tx) + '" y2="' + (Hh - 6) + '" stroke="var(--blue)" stroke-width="2"/>';
+  }
+  rows.forEach(function (c, i) {
+    var y = top + i * rowH, color = COLORS[c.kind] || '#2C5468';
+    var x1 = c.start ? x(c.start) : 0, x2 = c.end ? x(nd(dn(c.end) + 1)) : W - padR;
+    var lx = Math.min(x1, Math.max(0, W - 230));
+    s += '<text x="' + r1(lx) + '" y="' + (y + 11) + '" class="hlab">' + h(c.name) + (c.blockedBy ? ' (held)' : '') + '</text>' +
+         '<rect x="' + r1(x1) + '" y="' + (y + 17) + '" width="' + r1(Math.max(4, x2 - x1)) + '" height="14" rx="3" fill="' + color + '"' +
+         (c.kind === 'always-on' ? ' opacity=".35"' : '') + (c.blockedBy ? ' fill-opacity=".55" stroke="#B23A1B" stroke-dasharray="4 2"' : '') + '/>';
+  });
+  return s + '</svg><div class="fr-legend">' + KEY_DATES.map(function (k, i) {
+    return '<span><b style="color:#B23A1B">' + (i + 1) + '</b> ' + h(longDay(k[0])) + ': ' + h(k[1]) + '</span>';
+  }).join('') + '<span><i style="background:var(--blue)"></i>Today</span><span><i style="background:' + COLORS.seasonal + '"></i>Seasonal</span>' +
+    '<span><i style="background:' + COLORS['always-on'] + ';opacity:.35"></i>Always on</span></div>';
+}
+function campaigns() {
+  var seasonal = PLAN.campaigns.filter(function (c) { return c.kind === 'seasonal'; });
+  var next = seasonal.filter(function (c) { return c.start > TODAY; })[0];
+  var live = liveCampaigns();
+  var head = (live.length ? h(live.map(function (c) { return c.name; }).join(' and ')) + ' is running now' : 'No seasonal campaign is running now') +
+    (next ? '; next up is ' + h(next.name) + ' on ' + h(longDay(next.start)) + '.' : '.') + ' ' + seasonal.length + ' seasonal pushes in all.';
+  return '<section>' + sechead('Campaigns', 'var(--coral)', 'Every campaign in the plan, with its Donorbox settings', '') +
+    card('November 2026 – November 2027', timeline(chartW(false)) + headline(head)) +
+    '<div class="fr-grid">' + PLAN.campaigns.map(campaignCard).join('') + '</div></section>';
+}
+
+/* ── 3. Build checklist ────────────────────────────────────────────────── */
+function statusSelect(id, val, options, attrs) {
+  return '<select class="statsel" data-status="' + h(id) + '"' + (STATE_OK ? '' : ' disabled') + (attrs || '') + ' aria-label="Status">' +
+    options.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === val ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+}
+function checklist() {
+  var phases = [];
+  PLAN.checklist.forEach(function (c) { if (phases.indexOf(c.phase) < 0) { phases.push(c.phase); } });
+  var done = PLAN.checklist.filter(function (c) { return checkStatus(c.id) === 'done'; }).length;
+  var overdue = PLAN.checklist.filter(function (c) { return c.due < TODAY && checkStatus(c.id) !== 'done'; }).length;
+  var phaseBars = phases.map(function (p) {
+    var items = PLAN.checklist.filter(function (c) { return c.phase === p; });
+    var d = items.filter(function (c) { return checkStatus(c.id) === 'done'; }).length;
+    return { label: p, value: pctOf(d, items.length), d: d, n: items.length };
+  });
+  var colors = { confirmed: ['#2E8B6F', 'Confirmed'], corrected: ['#1C9AD6', 'Corrected'], 'error-on-site': ['#C0492B', 'Error on site'], 'not-verified': ['#D98A1F', 'Not verified'] };
+  var openD = PLAN.decisions.filter(function (d) { return decisionStatus(d) === 'open'; }).length;
+  return '<section>' + sechead('Build checklist', 'var(--coral)', 'What has to happen before Giving Tuesday, and after', '') +
+    card('Progress by phase', '<div class="meters">' + phaseBars.map(function (b) {
+      return '<div><div class="meter-top"><span class="meter-lab">' + h(b.label) + '</span><span class="meter-val"><b>' + b.d + '</b> <span class="meter-of">of ' + b.n + ' done</span></span></div>' +
+        '<div class="meter-track"><div class="meter-fill" style="width:' + b.value + '%;background:' + (b.value === 100 ? '#2E8B6F' : 'var(--teal)') + '"></div></div></div>';
+    }).join('') + '</div>' + headline(done + ' of ' + PLAN.checklist.length + ' items done' + (overdue ? '; ' + overdue + ' overdue.' : '; nothing overdue.'))) +
+    '<div class="fr-grid">' + phases.map(function (p) {
+      var items = PLAN.checklist.filter(function (c) { return c.phase === p; });
+      return '<div class="card"><h3>' + h(p) + '</h3><ul class="fr-list">' + items.map(function (c) {
+        var st = checkStatus(c.id), late = c.due < TODAY && st !== 'done';
+        return '<li><span>' + h(c.text) + (late ? ' ' + tag('Overdue', 'lo') : '') + '</span><span class="due">due ' + h(dayLabel(c.due)) + '</span>' +
+          statusSelect('check:' + c.id, st, CHECK_STATUS) + '</li>';
+      }).join('') + '</ul></div>';
+    }).join('') + '</div>' +
+    card('Fact check', '<div class="fr-board">' + Object.keys(colors).map(function (k) {
+      var items = PLAN.planCheck.filter(function (p) { return p.status === k; });
+      return '<div class="col"><h4 style="color:' + colors[k][0] + '">' + colors[k][1] + ' · ' + items.length + '</h4>' +
+        items.map(function (p) { return '<div class="item"><b>' + h(p.item) + '</b><span>' + h(p.detail) + '</span></div>'; }).join('') + '</div>';
+    }).join('') + '</div>' + headline(PLAN.planCheck.filter(function (p) { return p.status === 'not-verified'; }).length + ' facts still need verifying; ' +
+      PLAN.planCheck.filter(function (p) { return p.status === 'error-on-site'; }).length + ' error is live on the website.')) +
+    card('Decisions', PLAN.decisions.map(function (d) {
+      var st = decisionStatus(d), data = item('decision:' + d.id);
+      return '<div style="padding:12px 0;border-bottom:1px solid var(--line)"><div class="fr-row" style="justify-content:space-between">' +
+        '<span><b>' + h(d.text) + '</b><br><span class="fr-meta">Owner: ' + h(d.owner) + '</span></span>' +
+        statusSelect('decision:' + d.id, st, [['open', 'Open'], ['decided', 'Decided']]) + '</div>' +
+        '<div class="fr-field" style="margin-top:8px"><label for="dn-' + d.id + '">Notes</label><textarea id="dn-' + d.id + '" data-save="decision:' + d.id + '" data-key="notes"' +
+        (STATE_OK ? '' : ' disabled') + '>' + h(data.notes || '') + '</textarea></div><div class="fr-msg" data-msg="decision:' + d.id + '"></div></div>';
+    }).join('') + headline(openD ? openD + ' of ' + PLAN.decisions.length + ' decisions are still open.' : 'Every decision is made.')) +
+    '</section>';
+}
+
+/* ── 4. Social calendar ────────────────────────────────────────────────── */
+function themeName(id) { var t = PLAN.socialThemes.filter(function (x) { return x.id === id; })[0]; return t ? t.name : 'Theme ' + id; }
+function campaignName(id) { var c = PLAN.campaigns.filter(function (x) { return x.id === id; })[0]; return c ? c.name : id; }
+function finalCopy(p, data) {
+  var t = p.copy;
+  if (data.finalLink) { t = t.replace(/\[(link|donate link|membership link)\]/g, data.finalLink); }
+  if (qcoReady()) { t = t.replace(/\[QCO code\]/g, qco().code); }
+  return t;
+}
+function postBadges(p, data) {
+  var b = [];
+  if (p.held) { b.push(tag(qcoReady() ? 'Held item: QCO confirmed' : HELD, qcoReady() ? 'hi' : 'held')); }
+  if (p.needsRelease) { b.push(tag(data.release ? 'Release recorded' : 'Needs signed release', data.release ? 'hi' : 'lo')); }
+  if (p.needsApprovalFrom) { b.push(tag(data.approvedBy ? 'Approved by ' + data.approvedBy : 'Needs ' + p.needsApprovalFrom + '\'s approval', data.approvedBy ? 'hi' : 'med')); }
+  if (p.noAsk) { b.push(tag('No ask', 'cold')); }
+  if (p.copyOf) { b.push(tag('Dated copy of ' + p.copyOf, 'eq')); }
+  var left = (finalCopy(p, data).match(/\[[^\]]+\]/g) || []).length;
+  if (left) { b.push(tag(left + ' placeholder' + (left === 1 ? '' : 's') + ' to fill', 'ph')); }
+  return b.join(' ');
+}
+function postCard(p, isTemplate) {
+  var data = postState(p.id), st = postStatus(p.id), block = blocker(p, data);
+  var when = p.date ? longDay(p.date) + (p.time ? ' · ' + timeLabel(p.time) : '') : p.schedule;
+  var f = function (key, label, ph, type) {
+    return '<div class="fr-field"><label for="pf-' + p.id + '-' + key + '">' + label + '</label><input id="pf-' + p.id + '-' + key + '" type="' + (type || 'text') + '" placeholder="' + h(ph) +
+      '" value="' + h(data[key] || '') + '" data-save="post:' + p.id + '" data-key="' + key + '"' + (STATE_OK ? '' : ' disabled') + '></div>';
+  };
+  return '<article class="fr-post' + (block && !isTemplate ? ' blocked' : '') + '" id="post-' + h(p.id) + '">' +
+    '<div class="top"><span class="when">' + h(when) + '</span><span class="fr-meta">' + h(p.id) + ' · ' + h(campaignName(p.campaign)) + '</span></div>' +
+    '<p class="fr-meta"><b>' + h(p.channels.join(', ')) + '</b> · ' + h(p.format) + ' · Theme: ' + h(themeName(p.theme)) + '</p>' +
+    '<div class="fr-tags">' + postBadges(p, data) + '</div>' +
+    '<div class="copytext">' + h(finalCopy(p, data)) + '</div>' +
+    (p.variant ? '<p class="fr-meta"><b>Variant:</b> ' + h(p.variant) + '</p>' : '') +
+    '<div class="fr-row"><button type="button" class="fr-btn" data-copy="' + h(p.id) + '">Copy text</button>' +
+    (isTemplate ? '<div class="fr-field" style="flex:0 1 180px"><label for="cd-' + p.id + '">Date for a copy</label><input type="date" id="cd-' + p.id + '" min="' + TODAY + '"' + (STATE_OK ? '' : ' disabled') + '></div>' +
+      '<button type="button" class="fr-btn solid" data-mkcopy="' + h(p.id) + '"' + (STATE_OK ? '' : ' disabled') + '>Create dated copy</button>'
+      : '<span class="fr-meta">Status</span> ' + statusSelect('post:' + p.id, st, POST_STATUS) +
+        (p.copyOf ? ' <button type="button" class="fr-btn danger" data-rmcopy="' + h(p.id) + '"' + (STATE_OK ? '' : ' disabled') + '>Remove copy</button>' : '')) + '</div>' +
+    (isTemplate ? '' : '<div class="fr-row" style="margin-top:10px">' + f('finalLink', 'Final link used', 'https://… (tagged link)', 'url') +
+      f('publishedUrl', 'Published URL', 'https://…', 'url') +
+      (p.needsRelease ? f('release', 'Release recorded', 'e.g. signed release on file, Nov 20') : '') +
+      (p.needsApprovalFrom ? f('approvedBy', p.needsApprovalFrom + '\'s approval', 'e.g. Joey, Nov 28, by email') : '') + '</div>') +
+    '<div class="fr-msg" data-msg="post:' + h(p.id) + '">' + (block && !isTemplate && !APPROVED_UP[st] ? h(block) : '') + '</div></article>';
+}
+function filtered(posts) {
+  return posts.filter(function (p) {
+    if (SOC.campaign && p.campaign !== SOC.campaign) { return false; }
+    if (SOC.channel && !p.channels.some(function (c) { return c.indexOf(SOC.channel) === 0; })) { return false; }
+    if (SOC.theme && String(p.theme) !== SOC.theme) { return false; }
+    if (SOC.status && (p.schedule ? true : postStatus(p.id) !== SOC.status)) { return false; }
+    return true;
+  });
+}
+function sortKey(p) { return (p.date || '9') + ' ' + (p.time || '00:00'); }
+function calendar(posts) {
+  var months = [];
+  posts.forEach(function (p) { var m = p.date.slice(0, 7); if (months.indexOf(m) < 0) { months.push(m); } });
+  months.sort();
+  if (!months.length) { return '<div class="empty">No dated posts match these filters.</div>'; }
+  var cur = SOC.month && months.indexOf(SOC.month) >= 0 ? SOC.month : (months.filter(function (m) { return m >= TODAY.slice(0, 7); })[0] || months[months.length - 1]);
+  var first = cur + '-01', start = dn(monday(first));
+  var y = +cur.slice(0, 4), mo = +cur.slice(5, 7), last = nd(Date.UTC(y, mo, 0) / 864e5);
+  var end = dn(monday(last)) + 6;
+  var byDay = {};
+  posts.forEach(function (p) { (byDay[p.date] = byDay[p.date] || []).push(p); });
+  var s = '<div class="fr-row" style="margin:0 0 10px"><div class="fr-field" style="flex:0 1 220px"><label for="calm">Month</label><select id="calm">' +
+    months.map(function (m) { return '<option value="' + m + '"' + (m === cur ? ' selected' : '') + '>' + dayLabel(m + '-15', { day: undefined, month: 'long', year: 'numeric' }) + '</option>'; }).join('') +
+    '</select></div></div><div class="fr-cal">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (d) { return '<div class="dow">' + d + '</div>'; }).join('');
+  for (var n = start; n <= end; n++) {
+    var iso = nd(n), inMonth = iso.slice(0, 7) === cur, ps = (byDay[iso] || []).sort(function (a, b) { return sortKey(a) < sortKey(b) ? -1 : 1; });
+    s += '<div class="day' + (inMonth ? '' : ' out') + (ps.length ? '' : ' empty') + (iso === TODAY ? ' today' : '') + '"><div class="n">' + (inMonth ? dayLabel(iso, { weekday: 'short' }) : dayLabel(iso)) + '</div>' +
+      (inMonth ? ps.map(function (p) {
+        var st = p.held && !qcoReady() ? 'held' : postStatus(p.id);
+        return '<button type="button" class="fr-chip fr-st-' + st + '" data-open="' + h(p.id) + '" title="' + h(p.id + ' · ' + p.channels.join(', ') + ' · ' + p.copy.slice(0, 120)) + '">' +
+          (p.time ? timeLabel(p.time) + ' ' : '') + h(p.id + ' · ' + p.format) + '</button>';
+      }).join('') : '') + '</div>';
+  }
+  s += '</div><div class="fr-legend">' + POST_STATUS.map(function (o) { return '<span><i class="fr-st-' + o[0] + '"></i>' + o[1] + '</span>'; }).join('') +
+    '<span><i class="fr-st-held"></i>Held</span></div>';
+  var open = posts.filter(function (p) { return p.id === SOC.open; })[0];
+  return s + (open ? '<div style="margin-top:16px">' + postCard(open, false) + '</div>' : '<p class="fr-meta" style="margin-top:10px">Pick a post on the calendar to see its copy and status.</p>');
+}
+/* list view: by default what's overdue (not posted or skipped) plus the next 30 days */
+function listView(fd) {
+  var horizon = nd(dn(TODAY) + 30);
+  var rows = fd.filter(function (p) {
+    if (SOC.when === 'all') { return true; }
+    if (SOC.when === 'past') { return p.date < TODAY; }
+    var st = postStatus(p.id);
+    return p.date <= horizon && (p.date >= TODAY || (st !== 'posted' && st !== 'skipped'));
+  });
+  var hidden = fd.length - rows.length;
+  return (rows.length ? rows.map(function (p) { return postCard(p, false); }).join('') : '<div class="empty">No posts in this window.</div>') +
+    (hidden ? '<p class="fr-meta">' + hidden + ' more dated posts are outside this window. Change "When" to see them.</p>' : '');
+}
+function social() {
+  var all = allPosts(), dated = all.filter(function (p) { return p.date; }), templates = all.filter(function (p) { return !p.date; });
+  var fd = filtered(dated).sort(function (a, b) { return sortKey(a) < sortKey(b) ? -1 : 1; }), ft = filtered(templates);
+  var channels = [];
+  all.forEach(function (p) { p.channels.forEach(function (c) { var base = c.replace(/ stories$/, ''); if (/^(Facebook|Instagram|LinkedIn)$/.test(base) && channels.indexOf(base) < 0) { channels.push(base); } }); });
+  if (all.some(function (p) { return p.channels.some(function (c) { return /personal/.test(c); }); })) { channels.push('Joey personal LinkedIn'); }
+  var sel = function (id, label, val, opts) {
+    return '<div class="fr-field"><label for="' + id + '">' + label + '</label><select id="' + id + '" data-filter="' + id.replace('sf-', '') + '"><option value="">All</option>' +
+      opts.map(function (o) { return '<option value="' + h(o[0]) + '"' + (String(o[0]) === val ? ' selected' : '') + '>' + h(o[1]) + '</option>'; }).join('') + '</select></div>';
+  };
+  /* charts: planned vs posted per week, and posts by theme */
+  var weeks = {}, order = [];
+  fd.forEach(function (p) { var w = monday(p.date); if (!weeks[w]) { weeks[w] = { a: 0, b: 0 }; order.push(w); } weeks[w].a++; if (postStatus(p.id) === 'posted') { weeks[w].b++; } });
+  order.sort();
+  var groups = order.map(function (w) { return { label: dayLabel(w), a: weeks[w].a, b: weeks[w].b }; });
+  var dueSoFar = fd.filter(function (p) { return p.date <= TODAY; }), postedSoFar = dueSoFar.filter(function (p) { return postStatus(p.id) === 'posted'; });
+  var posted = fd.filter(function (p) { return postStatus(p.id) === 'posted'; }).length;
+  var weekHead = fd.length ? posted + ' of ' + fd.length + ' dated posts are posted; ' + (dueSoFar.length ? postedSoFar.length + ' of the ' + dueSoFar.length + ' due by today went out.' : 'none was due before today.')
+    : 'No dated posts match these filters.';
+  var themes = PLAN.socialThemes.map(function (t) { return { label: t.name, value: fd.concat(ft).filter(function (p) { return p.theme === t.id; }).length }; });
+  var top = themes.slice().sort(function (a, b) { return b.value - a.value; })[0];
+  var themeHead = top && top.value ? '"' + top.label + '" carries the most posts (' + top.value + ' of ' + (fd.length + ft.length) + ').' : 'No posts match these filters.';
+  var W2 = chartW(true);
+  var held = PLAN.socialPosts.filter(function (p) { return p.held; }).length;
+
+  var settings = '<div class="card"><h3>Publishing switches</h3>' +
+    '<p class="fr-meta">Auto-posting is <b>' + (autopostOn() ? 'on' : 'off') + '</b>. ' + (autopostOn()
+      ? 'The daily queue (f9) sends <b>approved</b> posts to the connected scheduler. Nothing else is sent.'
+      : 'The daily queue (f9) only posts Teams reminders with the copy; a person publishes by hand.') + '</p>' +
+    (ADMIN ? '<p><button type="button" class="fr-btn' + (autopostOn() ? ' danger' : ' solid') + '" data-autopost="' + (autopostOn() ? 'off' : 'on') + '">' +
+      (autopostOn() ? 'Turn auto-posting off' : 'Turn auto-posting on') + '</button></p>' : '<p class="fr-meta">Only an admin can change this.</p>') +
+    '<p class="fr-meta" style="margin-top:12px">Tax credit posts: <b>' + (qcoReady() ? 'qualifying charity status confirmed, code ' + h(qco().code) : held + ' held') + '</b>. ' +
+    (qcoReady() ? 'They can now be approved one by one.' : 'They stay out of the queue and can\'t be approved until SCI finance confirms the status in writing (decision d2).') + '</p>' +
+    (ADMIN ? '<div class="fr-row"><div class="fr-field" style="flex:0 1 140px"><label for="qco-code">QCO code</label><input id="qco-code" inputmode="numeric" maxlength="5" value="' + h(qco().code || '') + '"></div>' +
+      '<div class="fr-field"><label for="qco-src">Written confirmation (where it is filed)</label><input id="qco-src" value="' + h(qco().source || '') + '"></div>' +
+      '<label class="fr-meta" style="display:flex;gap:6px;align-items:center;margin-top:16px"><input type="checkbox" id="qco-ok"' + (qco().confirmed ? ' checked' : '') + '> Confirmed in writing</label>' +
+      '<button type="button" class="fr-btn solid" id="qco-save" style="margin-top:16px">Save</button></div><div class="fr-msg" data-msg="setting:qco"></div>' : '') + '</div>';
+
+  return '<section>' + sechead('Social calendar', 'var(--coral)', PLAN.socialPosts.length + ' planned posts and templates · statuses are shared with the team', '') +
+    '<details class="fr-more card" style="margin-top:0"><summary>Social rules (read before posting)</summary><ol style="margin:10px 0 0;padding-left:20px;font-size:13.5px">' +
+      PLAN.socialRules.map(function (r) { return '<li style="margin:0 0 6px">' + h(r) + '</li>'; }).join('') + '</ol></details>' +
+    settings +
+    grid2(card('Posts planned vs posted, per week', vbar2(groups, ['#CBD8DF', '#2E8B6F'], W2) +
+        '<div class="fr-legend"><span><i style="background:#CBD8DF"></i>Planned</span><span><i style="background:#2E8B6F"></i>Posted</span></div>' + headline(h(weekHead))),
+      card('Posts by theme', hbar(themes, { W: W2, color: '#E17F55' }) + headline(h(themeHead)))) +
+    '<div class="fr-filters">' +
+      sel('sf-campaign', 'Campaign', SOC.campaign, PLAN.campaigns.filter(function (c) { return all.some(function (p) { return p.campaign === c.id; }); }).map(function (c) { return [c.id, c.name]; })) +
+      sel('sf-channel', 'Channel', SOC.channel, channels.map(function (c) { return [c, c]; })) +
+      sel('sf-theme', 'Theme', SOC.theme, PLAN.socialThemes.map(function (t) { return [t.id, t.name]; })) +
+      sel('sf-status', 'Status', SOC.status, POST_STATUS) +
+      (SOC.view === 'list' ? '<div class="fr-field"><label for="sf-when">When</label><select id="sf-when" data-filter="when">' +
+        [['next30', 'Overdue and next 30 days'], ['all', 'All dates'], ['past', 'Past']].map(function (o) {
+          return '<option value="' + o[0] + '"' + (o[0] === SOC.when ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' : '') +
+      '<div class="fr-field"><label>View</label><div class="fr-tabs" style="margin:0">' +
+        '<button type="button" data-socview="list" aria-selected="' + (SOC.view === 'list') + '">List</button>' +
+        '<button type="button" data-socview="calendar" aria-selected="' + (SOC.view === 'calendar') + '">Calendar</button></div></div>' +
+    '</div>' +
+    (SOC.view === 'calendar' ? calendar(fd) : listView(fd)) +
+    '<h3 style="margin:28px 0 4px;font-size:19px">Unscheduled templates (' + ft.length + ')</h3>' +
+    '<p class="fr-meta" style="margin:0 0 14px">Rotations and weekly spotlights. Make a dated copy for each time one runs; the copy gets its own status and shows on the calendar.' + (SOC.status ? ' (Templates have no status, so the status filter hides them.)' : '') + '</p>' +
+    ft.map(function (p) { return postCard(p, true); }).join('') +
+    '</section>';
+}
+
+/* ── 5. Automations ────────────────────────────────────────────────────── */
+function automations() {
+  var infos = PLAN.automations.map(function (a) { return { a: a, r: runInfo(a.id) }; });
+  var ran = infos.filter(function (x) { return x.r.lastRun; }).length, red = infos.filter(function (x) { return x.r.red; }).length;
+  var errs = infos.reduce(function (s, x) { return s + x.r.errors7d; }, 0), runs = infos.reduce(function (s, x) { return s + x.r.runs7d; }, 0);
+  return '<section>' + sechead('Automations', 'var(--coral)', 'n8n workflows in automations/ · run reports come from the metrics file and from each workflow', '') +
+    card('', hbar(infos.map(function (x) { return { label: x.a.id + ' ' + x.a.name, value: x.r.runs7d, color: x.r.red ? '#C0492B' : (x.r.errors7d ? '#D98A1F' : '#2C5468') }; }), { W: chartW(false) }) +
+      headline(ran ? ran + ' of ' + infos.length + ' automations have run; ' + fmt(runs) + ' runs and ' + errs + ' errors in the last 7 days' + (red ? '; ' + red + ' need attention.' : '.')
+        : 'No automation has run yet. Import the workflows in automations/ and start with the metrics sync (f3).'), 'Runs in the last 7 days. Red: last run failed, or a scheduled flow is more than twice its interval late.') +
+    '<div class="fr-grid">' + infos.map(function (x) {
+      var a = x.a, r = x.r;
+      var st = r.lastStatus === 'never' ? tag('Not yet run', 'eq') : (r.red ? tag(r.stale ? 'Late' : 'Error', 'lo') : tag(r.lastStatus === 'running' ? 'Running' : 'OK', 'hi'));
+      return '<div class="card fr-auto' + (r.red ? ' red' : '') + '"><div class="fr-eyebrow">' + h(a.id) + ' · priority ' + a.priority + '</div><h3 style="font-family:Fraunces,serif;font-size:18px;margin:2px 0 6px">' + h(a.name) + '</h3>' +
+        '<div class="fr-tags">' + st + (EVERY[a.id] ? ' ' + tag('every ' + (EVERY[a.id] < 60 ? EVERY[a.id] + ' min' : (EVERY[a.id] < 10080 ? 'day' : 'week')), 'eq') : ' ' + tag('event-driven', 'eq')) + '</div>' +
+        '<p class="fr-meta"><b>Trigger:</b> ' + h(a.trigger) + '</p><ul>' + a.actions.map(function (s) { return '<li>' + h(s) + '</li>'; }).join('') + '</ul>' +
+        '<p class="fr-meta" style="margin-top:10px"><b>Last run:</b> ' + h(stamp(r.lastRun)) + '<br><b>Last 7 days:</b> ' + fmt(r.runs7d) + ' runs, ' + r.errors7d + ' errors' +
+        (r.message ? '<br><b>Message:</b> ' + h(r.message) : '') + '</p></div>';
+    }).join('') + '</div></section>';
+}
+
+/* ── 6. Donorbox setup ─────────────────────────────────────────────────── */
+function feeCalc() {
+  var v = FEE_VOL, std = v * 0.0295, pro = 150 + v * 0.0175, max = Math.max(std, pro, 1);
+  var W = chartW(true);
+  var cheaper = std < pro ? 'Standard' : (pro < std ? 'Pro' : 'Neither');
+  var head = 'At ' + money(v) + ' a month, Standard costs ' + money(std) + ' and Pro costs ' + money(pro) + ': ' +
+    (cheaper === 'Neither' ? 'the two are equal at the break-even.' : cheaper + ' is cheaper by ' + money(Math.abs(std - pro)) + '.');
+  /* the two cost lines across volumes, with the break-even and the slider point */
+  var top = 30000, Hh = 170, base = 150, pad = 8;
+  var xs = function (x) { return pad + x / top * (W - pad * 2); }, ys = function (c) { return base - c / (top * 0.0295) * 130; };
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" class="chart" role="img" aria-label="Fee cost by monthly volume">' +
+    '<line x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '" stroke="#E4EBEF"/>' +
+    '<line x1="' + r1(xs(0)) + '" y1="' + r1(ys(0)) + '" x2="' + r1(xs(top)) + '" y2="' + r1(ys(top * 0.0295)) + '" stroke="#2C5468" stroke-width="2.5"/>' +
+    '<line x1="' + r1(xs(0)) + '" y1="' + r1(ys(150)) + '" x2="' + r1(xs(top)) + '" y2="' + r1(ys(150 + top * 0.0175)) + '" stroke="#E17F55" stroke-width="2.5"/>' +
+    '<line x1="' + r1(xs(12500)) + '" y1="10" x2="' + r1(xs(12500)) + '" y2="' + base + '" stroke="#B23A1B" stroke-dasharray="3 3"/>' +
+    '<text x="' + r1(xs(12500) + 5) + '" y="20" class="blab">break-even $12,500</text>' +
+    '<circle cx="' + r1(xs(Math.min(v, top))) + '" cy="' + r1(ys(Math.min(std, top * 0.0295))) + '" r="4.5" fill="#fff" stroke="#2C5468" stroke-width="2.5"/>' +
+    '<circle cx="' + r1(xs(Math.min(v, top))) + '" cy="' + r1(ys(Math.min(pro, top * 0.0295))) + '" r="4.5" fill="#fff" stroke="#E17F55" stroke-width="2.5"/>' +
+    '<text x="' + pad + '" y="' + (base + 16) + '" class="blab">$0</text><text x="' + (W - pad) + '" y="' + (base + 16) + '" text-anchor="end" class="blab">$30,000 a month</text></svg>';
+  return '<div class="fr-calc"><div class="fr-field"><label for="fee-vol">Monthly donation volume: <b style="color:var(--ink)">' + money(v) + '</b></label>' +
+    '<input type="range" id="fee-vol" min="0" max="30000" step="250" value="' + v + '" aria-valuetext="' + money(v) + ' a month"></div>' +
+    '<div class="fr-cost"><span>Standard 2.95%</span><div class="bar" style="width:' + (std / max * 100).toFixed(1) + '%;background:#2C5468"></div><span class="v">' + money(std) + '</span></div>' +
+    '<div class="fr-cost"><span>Pro $150 + 1.75%</span><div class="bar" style="width:' + (pro / max * 100).toFixed(1) + '%;background:#E17F55"></div><span class="v">' + money(pro) + '</span></div>' +
+    svg + '<div class="fr-legend"><span><i style="background:#2C5468"></i>Standard</span><span><i style="background:#E17F55"></i>Pro</span></div>' +
+    headline(h(head)) + '<p class="fr-meta">Platform fees only. Card processing (Stripe, PayPal) is the same on both plans, and the $17 Zapier and API add-on is needed either way. ' +
+    'Peer-to-peer, ticketing and the Membership Form are ' + PLAN.donorbox.higherFeePct + '% on Standard.</p></div>';
+}
+function donorbox() {
+  var d = PLAN.donorbox;
+  var ref = function (rows) { return '<div class="fr-ref"><dl>' + rows.map(function (r) { return '<dt>' + h(r[0]) + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl></div>'; };
+  return '<section>' + sechead('Donorbox setup', 'var(--coral)', 'Plan, fees and API reference · campaigns are built by hand in Donorbox', '') +
+    grid2(
+      card('Plan and fees', ref([
+        ['Plan', h(d.plan)], ['Platform fee', d.platformFeePct + '%'],
+        ['Higher fee (' + d.higherFeePct + '%)', h(d.higherFeeAppliesTo.join(', '))],
+        ['Add-ons', d.addOns.map(function (a) { return h(a.name) + ': $' + a.monthlyUsd + '/month' + (a.required ? ' (required)' : ''); }).join('<br>')],
+        ['Pro break-even', money(d.proBreakEvenMonthlyUsd) + ' a month']
+      ]) + '<h3 style="margin:16px 0 8px">Processing</h3>' + ref([
+        ['Stripe card', h(d.processing.stripeCard)], ['Stripe ACH', h(d.processing.stripeAch)], ['PayPal', h(d.processing.paypal)]
+      ])) +
+      card('API', ref([
+        ['Base URL', '<code>' + h(d.api.baseUrl) + '</code>'], ['Auth', h(d.api.auth)], ['Access', tag(d.api.access, 'cold') + ' never write'],
+        ['Endpoints', d.api.endpoints.map(function (e) { return '<code>' + h(e) + '</code>'; }).join(' ')],
+        ['Webhooks', h(d.api.webhooks)], ['Docs', '<a href="' + h(d.api.docs) + '" target="_blank" rel="noopener">' + h(d.api.docs) + '</a>']
+      ]) + '<p class="fr-meta" style="margin-top:12px">Keys live in n8n credentials only. See automations/README.md.</p>'),
+      card('Standard or Pro? Fee calculator', feeCalc())
+    ) + '</section>';
+}
+
+/* ── events ────────────────────────────────────────────────────────────── */
+function flash(id, text, ok) {
+  var el = document.querySelector('[data-msg="' + id + '"]');
+  if (el) { el.textContent = text; el.className = 'fr-msg' + (ok ? ' ok' : ''); }
+}
+function copyText(t) {
+  if (navigator.clipboard && navigator.clipboard.writeText) { return navigator.clipboard.writeText(t); }
+  var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+  return Promise.resolve();
+}
+function wire() {
+  document.querySelectorAll('[data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { location.hash = b.getAttribute('data-tab'); });
+  });
+  document.querySelectorAll('select[data-status]').forEach(function (s) {
+    s.addEventListener('change', function () {
+      var id = s.getAttribute('data-status'), v = s.value;
+      if (id.indexOf('post:') === 0 && APPROVED_UP[v]) {
+        var pid = id.slice(5), p = allPosts().filter(function (x) { return x.id === pid; })[0];
+        var why = p && blocker(p, postState(pid));
+        if (why) { s.value = postStatus(pid); flash(id, why); return; }
+      }
+      s.disabled = true;
+      save(id, { status: v }).then(render, function (e) { s.disabled = false; flash(id, e.message); loadState().then(render); });
+    });
+  });
+  document.querySelectorAll('[data-save]').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var id = inp.getAttribute('data-save'), body = {};
+      body[inp.getAttribute('data-key')] = inp.value;
+      flash(id, 'Saving…', true);
+      save(id, body).then(function () {
+        flash(id, 'Saved', true);
+        /* a release or approval can unblock a post: refresh its badges */
+        if (/^post:/.test(id) && /release|approvedBy|finalLink/.test(inp.getAttribute('data-key'))) { render(); }
+      }, function (e) { flash(id, e.message); });
+    });
+  });
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var id = b.getAttribute('data-copy'), p = allPosts().filter(function (x) { return x.id === id; })[0];
+      copyText(finalCopy(p, postState(id))).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy text'; }, 1500); });
+    });
+  });
+  document.querySelectorAll('[data-mkcopy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var id = b.getAttribute('data-mkcopy'), date = (document.getElementById('cd-' + id) || {}).value;
+      if (!date) { flash('post:' + id, 'Pick a date first.'); return; }
+      b.disabled = true;
+      api('POST', STATE_URL + '?action=copy', { template: id, date: date }).then(function () { return loadState(); }).then(function () {
+        flash('post:' + id, 'Copy added for ' + longDay(date) + '.', true); render();
+      }, function (e) { b.disabled = false; flash('post:' + id, e.message); });
+    });
+  });
+  document.querySelectorAll('[data-rmcopy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!confirm('Remove this dated copy and its status?')) { return; }
+      api('DELETE', STATE_URL + '?id=copy:' + encodeURIComponent(b.getAttribute('data-rmcopy'))).then(loadState).then(render, function (e) { alert(e.message); });
+    });
+  });
+  document.querySelectorAll('[data-filter]').forEach(function (s) {
+    s.addEventListener('change', function () { SOC[s.getAttribute('data-filter')] = s.value; render(); });
+  });
+  document.querySelectorAll('[data-socview]').forEach(function (b) {
+    b.addEventListener('click', function () { SOC.view = b.getAttribute('data-socview'); render(); });
+  });
+  document.querySelectorAll('[data-open]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      SOC.open = b.getAttribute('data-open'); render();
+      var el = document.getElementById('post-' + SOC.open); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+  });
+  var calm = document.getElementById('calm');
+  if (calm) { calm.addEventListener('change', function () { SOC.month = calm.value; SOC.open = ''; render(); }); }
+  var ap = document.querySelector('[data-autopost]');
+  if (ap) {
+    ap.addEventListener('click', function () {
+      var on = ap.getAttribute('data-autopost') === 'on';
+      if (on && !confirm('Turn auto-posting on? The daily queue will send APPROVED posts to the connected scheduler.')) { return; }
+      save('setting:autopost', { on: on }).then(render, function (e) { alert(e.message); });
+    });
+  }
+  var qs = document.getElementById('qco-save');
+  if (qs) {
+    qs.addEventListener('click', function () {
+      save('setting:qco', { code: document.getElementById('qco-code').value.trim(), source: document.getElementById('qco-src').value,
+                            confirmed: document.getElementById('qco-ok').checked }).then(render, function (e) { flash('setting:qco', e.message); });
+    });
+  }
+  if (document.getElementById('fee-vol')) { wire.fee(); }
+}
+/* the slider re-wires itself after each redraw of the calculator */
+wire.fee = function () {
+  var fv = document.getElementById('fee-vol');
+  fv.addEventListener('input', function () {
+    FEE_VOL = +fv.value;
+    fv.closest('.fr-calc').outerHTML = feeCalc();
+    var again = document.getElementById('fee-vol'); again.focus(); wire.fee();
+  });
+};
+
+function route() {
+  var t = location.hash.replace('#', '');
+  VIEW = TABS.some(function (x) { return x[0] === t; }) ? t : 'overview';
+  render();
+}
+addEventListener('hashchange', function () { scrollTo(0, 0); route(); });
+var resizeT, lastW = innerWidth;
+addEventListener('resize', function () {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(function () { if (innerWidth !== lastW) { lastW = innerWidth; render(); } }, 200);
+});
+/* pick up a teammate's changes when the tab comes back into view */
+var lastLoad = Date.now();
+document.addEventListener('visibilitychange', function () {
+  var typing = document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (document.visibilityState === 'visible' && Date.now() - lastLoad > 15000 && !typing) { lastLoad = Date.now(); loadState().then(render); }
+});
+
+render();
+var getJSON = function (u) { return fetch(u, { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { if (!r.ok) { throw new Error(u + ': ' + r.status); } return r.json(); }); };
+Promise.all([
+  getJSON(PLAN_URL),
+  getJSON(METRICS_URL).catch(function () { return { generatedAt: null, totals: {}, campaigns: [], automations: [] }; }),
+  SM.ready.then(loadState)
+]).then(function (r) { PLAN = r[0]; M = r[1]; route(); }, function (e) { STATE_MSG = 'Could not load the plan: ' + h(e.message); render(); });
+</script>
+</body></html>

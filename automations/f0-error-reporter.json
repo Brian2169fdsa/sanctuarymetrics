@@ -1,0 +1,185 @@
+{
+  "name": "SCI f0 · Error reporter",
+  "nodes": [
+    {
+      "id": "n0068-sci",
+      "name": "When an SCI workflow fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {},
+      "notes": "Set this workflow as the Error Workflow in every SCI workflow's settings.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0069-sci",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// ── SCI fundraising: settings for this workflow ─────────────────────────────\n// Non-secret settings only. Keys, tokens and passwords live in n8n\n// credentials (see automations/README.md), never here.\n// Fill in the Microsoft IDs once; the README says where each one comes from.\nreturn [{ json: {\n  siteUrl: 'https://sanctuarymetrics.vercel.app',           // the dashboard; /api/fundraising-state lives here\n  githubRepo: 'Brian2169fdsa/sanctuarymetrics',             // owner/name\n  githubBranch: 'main',                                      // the branch Vercel deploys\n  tz: 'America/Phoenix',\n  donorboxApi: 'https://donorbox.org/api/v1',\n  majorGiftUsd: 250,\n  // Microsoft 365 (SCI's own tenant)\n  sharepointSiteId: '',         // Graph site id of SCI's SharePoint site\n  donorListId: '',              // the private \"SCI Donors\" list (the only place donor details land)\n  teamId: '',                   // Teams team for the fundraising channel\n  channelId: '',                // the fundraising channel\n  plannerPlanId: '',            // Planner plan for follow-up tasks\n  plannerBucketId: '',          // bucket in that plan\n  joeyUserId: '',               // Joey's Entra user id (major-gift call tasks)\n  senderMailbox: '',            // the monitored SCI address that sends donor email\n  digestRecipients: [],         // weekly digest email addresses\n  orgName: 'Sanctuary Community Initiative',\n  orgAddress: '11645 N Cave Creek Rd, Phoenix, AZ 85020',\n  donorPortalUrl: 'https://donorbox.org/user/sign_in',      // VERIFY: Donorbox donor login page\n  wallOfSupportUrl: 'https://www.sanctuaryci.org/The-Sanctuary.html',\n  // Safety switch: until the email templates are reviewed and approved, every\n  // donor email goes to senderMailbox instead of the donor, marked [REVIEW].\n  emailsApproved: false,\n  // Social queue (f9): a scheduling tool, if one is connected. Leave false to\n  // get Teams reminders only. Auto-posting also needs the switch on the page.\n  schedulerConnected: false\n} }];\n"
+      },
+      "notes": "Non-secret settings. Fill in the Microsoft IDs.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0070-sci",
+      "name": "Which automation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// A workflow failed: report an error run for the automation ids in its name\n// (\"SCI f4-f6 · ...\" → f4, f5, f6) so the page turns that card red.\nconst e = $input.first().json;\nconst name = (e.workflow && e.workflow.name) || '';\nconst m = /\\bf(\\d+)(?:-f(\\d+))?\\b/.exec(name);\nconst ids = [];\nif (m) { for (let i = +m[1]; i <= +(m[2] || m[1]); i++) { ids.push('f' + i); } }\nconst msg = String(((e.execution || {}).error || {}).message || 'Workflow failed').slice(0, 280);\nreturn ids.map(function (id) { return { json: { runId: id, runStatus: 'error', runMessage: (((e.execution || {}).lastNodeExecuted) ? e.execution.lastNodeExecuted + ': ' : '') + msg,\n  workflow: name, url: (e.execution || {}).url || '' } }; });\n"
+      }
+    },
+    {
+      "id": "n0071-sci",
+      "name": "Report error run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.siteUrl + '/api/fundraising-state?action=run' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $json.runId, status: $json.runStatus || 'success', message: String($json.runMessage || $json.summary || '').slice(0, 280) }) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "set-on-import",
+          "name": "SCI Fundraising sync secret"
+        }
+      },
+      "notes": "Tells the Fundraising page this automation ran.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0072-sci",
+      "name": "Alert text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const CFG = $('Config').first().json;\nconst e = $('Which automation').first().json;\nreturn [{ json: { url: 'https://graph.microsoft.com/v1.0/teams/' + CFG.teamId + '/channels/' + CFG.channelId + '/messages',\n  body: { body: { contentType: 'html', content: '<b>SCI automation failed:</b> ' + String(e.workflow).replace(/</g, '&lt;') + '<br>' + String(e.runMessage).replace(/</g, '&lt;') + (e.url ? '<br><a href=\"' + e.url + '\">Open the execution</a>' : '') } } } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "n0073-sci",
+      "name": "Teams alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "set-on-import",
+          "name": "SCI Microsoft Graph"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When an SCI workflow fails": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Which automation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which automation": {
+      "main": [
+        [
+          {
+            "node": "Report error run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report error run": {
+      "main": [
+        [
+          {
+            "node": "Alert text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert text": {
+      "main": [
+        [
+          {
+            "node": "Teams alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Phoenix",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "SCI fundraising"
+    }
+  ]
+}

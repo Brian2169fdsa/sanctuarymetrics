@@ -35,7 +35,7 @@ const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', 
 function emailList(name, dflt) {
   return (process.env[name] || dflt).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 }
-const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/pal-email.html', '/pal-email']);
+const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/fundraising.html', '/pal-email.html', '/pal-email']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
 

@@ -13,6 +13,7 @@
   },
   "scripts": {
     "test": "node --test tests/cpao.test.js",
-    "cpao:golden": "node tools/cpao-golden.js"
+    "cpao:golden": "node tools/cpao-golden.js",
+    "n8n:build": "node tools/build-n8n-workflows.js"
   }
 }

@@ -30,7 +30,7 @@
    enforced by middleware.js). ?denied=page.html says why they were sent
    here instead.                                                         */
 var DENIED = { 'index.html': 'the performance report', 'compare.html': 'Compare', 'twoweeks.html': 'Two weeks at a glance',
-               'sanctuaryci.html': 'the sanctuaryci.org metrics', 'costs.html': 'cost cutting' };
+               'sanctuaryci.html': 'the sanctuaryci.org metrics', 'fundraising.html': 'SCI Fundraising', 'costs.html': 'cost cutting' };
 function tile(href, icon, title, text, badge) {
   return '<a class="hm" href="' + href + '"><span class="hm-ic" aria-hidden="true">' + icon + '</span>' +
     '<div><b>' + esc(title) + '</b><span>' + esc(text) + '</span>' + (badge ? '<em>' + esc(badge) + '</em>' : '') + '</div></a>';
@@ -58,6 +58,7 @@ function render(socialNew) {
       tile('twoweeks.html', '🗓️', 'Two weeks at a glance', 'The latest fortnight on one page.') +
       tile('pal-email.html', '✉️', 'PAL Email Send', 'PAL Forward 2026 invitations: groups sent, what\'s left, replies and RSVPs.') +
       tile('sanctuaryci.html', '📊', 'sanctuaryci.org metrics', 'Visitors, scroll depth and clicks on the CI site.') +
+      tile('fundraising.html', '🤝', 'SCI Fundraising', 'The fundraising plan, live Donorbox totals, social calendar and automations.') +
     '</div>' : '';
   var costs = can('costs') ?
     '<p class="hm-h">Cost management</p><div class="hm-grid">' +

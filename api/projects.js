@@ -60,6 +60,10 @@
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
 const { authorize, access } = require('../lib/auth');
+/* the SCI Fundraising page's shared state rides in this function
+   (?store=fundraising, or /api/fundraising-state via vercel.json) because
+   the site is at Vercel's 12-function limit — see lib/fundraising.js */
+const fundraising = require('../lib/fundraising');
 
 /* the only columns the page may write, with their maximum lengths */
 const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, prev_status: 120, source: 200,
@@ -107,6 +111,7 @@ function clean(input) {
 }
 
 async function handler(req, res) {
+  if (new URL(req.url, 'http://x').searchParams.get('store') === 'fundraising') { return fundraising.handle(req, res); }
   const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {

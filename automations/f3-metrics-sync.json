@@ -1,0 +1,577 @@
+{
+  "name": "SCI f3 · Metrics sync",
+  "nodes": [
+    {
+      "id": "n0001-sci",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n0002-sci",
+      "name": "Called by New gift",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        440,
+        400
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "n0003-sci",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// ── SCI fundraising: settings for this workflow ─────────────────────────────\n// Non-secret settings only. Keys, tokens and passwords live in n8n\n// credentials (see automations/README.md), never here.\n// Fill in the Microsoft IDs once; the README says where each one comes from.\nreturn [{ json: {\n  siteUrl: 'https://sanctuarymetrics.vercel.app',           // the dashboard; /api/fundraising-state lives here\n  githubRepo: 'Brian2169fdsa/sanctuarymetrics',             // owner/name\n  githubBranch: 'main',                                      // the branch Vercel deploys\n  tz: 'America/Phoenix',\n  donorboxApi: 'https://donorbox.org/api/v1',\n  majorGiftUsd: 250,\n  // Microsoft 365 (SCI's own tenant)\n  sharepointSiteId: '',         // Graph site id of SCI's SharePoint site\n  donorListId: '',              // the private \"SCI Donors\" list (the only place donor details land)\n  teamId: '',                   // Teams team for the fundraising channel\n  channelId: '',                // the fundraising channel\n  plannerPlanId: '',            // Planner plan for follow-up tasks\n  plannerBucketId: '',          // bucket in that plan\n  joeyUserId: '',               // Joey's Entra user id (major-gift call tasks)\n  senderMailbox: '',            // the monitored SCI address that sends donor email\n  digestRecipients: [],         // weekly digest email addresses\n  orgName: 'Sanctuary Community Initiative',\n  orgAddress: '11645 N Cave Creek Rd, Phoenix, AZ 85020',\n  donorPortalUrl: 'https://donorbox.org/user/sign_in',      // VERIFY: Donorbox donor login page\n  wallOfSupportUrl: 'https://www.sanctuaryci.org/The-Sanctuary.html',\n  // Safety switch: until the email templates are reviewed and approved, every\n  // donor email goes to senderMailbox instead of the donor, marked [REVIEW].\n  emailsApproved: false,\n  // Social queue (f9): a scheduling tool, if one is connected. Leave false to\n  // get Teams reminders only. Auto-posting also needs the switch on the page.\n  schedulerConnected: false\n} }];\n"
+      },
+      "notes": "Non-secret settings. Fill in the Microsoft IDs.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0004-sci",
+      "name": "Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Decide how much to pull. First run (or once a week): every donation, so\n// refunds and edits to old gifts are picked up. Otherwise: from two days\n// before the last pull, de-duplicated on donation id in the compute step.\nconst CFG = $('Config').first().json;\nconst S = $getWorkflowStaticData('global');\nconst now = DateTime.now().setZone(CFG.tz);\nconst lastFull = S.lastFullPull ? DateTime.fromISO(S.lastFullPull) : null;\nconst full = !S.donations || !lastFull || now.diff(lastFull, 'days').days >= 7;\nconst from = full ? '' : DateTime.fromISO(S.lastPull).minus({ days: 2 }).toISODate();\nreturn [{ json: {\n  full: full,\n  donationsUrl: CFG.donorboxApi + '/donations?per_page=100&order=asc' + (from ? '&date_from=' + from : ''),\n  stateUrl: CFG.siteUrl + '/api/fundraising-state',\n  contentsBase: 'https://api.github.com/repos/' + CFG.githubRepo + '/contents/'\n} }];\n"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "n0005-sci",
+      "name": "GET campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.donorboxApi + '/campaigns?per_page=100' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "responseIsEmpty",
+              "limitPagesFetched": true,
+              "maxRequests": 500,
+              "requestInterval": 300
+            }
+          }
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "set-on-import",
+          "name": "Donorbox API"
+        }
+      }
+    },
+    {
+      "id": "n0006-sci",
+      "name": "GET plans",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.donorboxApi + '/plans?per_page=100' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "responseIsEmpty",
+              "limitPagesFetched": true,
+              "maxRequests": 500,
+              "requestInterval": 300
+            }
+          }
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "set-on-import",
+          "name": "Donorbox API"
+        }
+      }
+    },
+    {
+      "id": "n0007-sci",
+      "name": "GET donations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Window').first().json.donationsUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "responseIsEmpty",
+              "limitPagesFetched": true,
+              "maxRequests": 500,
+              "requestInterval": 300
+            }
+          }
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "set-on-import",
+          "name": "Donorbox API"
+        }
+      },
+      "notes": "Read-only. Full pull weekly, incremental otherwise.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0008-sci",
+      "name": "GET state",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.siteUrl + '/api/fundraising-state' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "set-on-import",
+          "name": "SCI Fundraising sync secret"
+        }
+      },
+      "notes": "Post statuses, settings and run reports (no donor data).",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0009-sci",
+      "name": "GET campaign map",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.github.com/repos/' + $('Config').first().json.githubRepo + '/contents/automations/campaign-map.json?ref=' + $('Config').first().json.githubBranch }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "githubApi": {
+          "id": "set-on-import",
+          "name": "SCI GitHub (contents write)"
+        }
+      },
+      "notes": "Donorbox campaign id → plan campaign id",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0010-sci",
+      "name": "GET current file",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.github.com/repos/' + $('Config').first().json.githubRepo + '/contents/data/fundraising-metrics.json?ref=' + $('Config').first().json.githubBranch }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "githubApi": {
+          "id": "set-on-import",
+          "name": "SCI GitHub (contents write)"
+        }
+      }
+    },
+    {
+      "id": "n0011-sci",
+      "name": "Compute",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Compute every field of data/fundraising-metrics.json from the Donorbox\n// pull. Only aggregates leave this node: no names, emails, addresses or\n// single gifts. A compact cache of past donations (ids, dates, amounts,\n// donor id numbers) stays in this workflow's private static data so later\n// runs can pull incrementally.\n// shared helpers, pasted at the top of Code nodes that need them\nconst CFG = $('Config').first().json;\nfunction phxDate(d) {\n  return DateTime.fromJSDate(d instanceof Date ? d : new Date(d)).setZone(CFG.tz).toISODate();\n}\nfunction phxNow() { return DateTime.now().setZone(CFG.tz); }\nfunction money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('en-US'); }\nfunction initial(s) { s = String(s || '').trim(); return s ? s[0].toUpperCase() + '.' : ''; }\nfunction shortName(first, last) { return (String(first || '').trim() || 'A donor') + (last ? ' ' + initial(last) : ''); }\nfunction esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\nfunction rows(nodeName) {\n  // items from an HTTP node; tolerates the empty {} that alwaysOutputData adds\n  return $(nodeName).all().map(function (i) { return i.json; }).filter(function (x) { return x && x.id !== undefined; });\n}\nfunction graphRows(nodeName) {\n  // SharePoint list items across pages (each page is one item with .value)\n  const out = [];\n  $(nodeName).all().forEach(function (i) { (i.json.value || []).forEach(function (r) { out.push(r); }); });\n  return out;\n}\nfunction emailHtml(bodyHtml) {\n  // every donor email: the body, a way to unsubscribe, and SCI's street address\n  const unsub = 'mailto:' + CFG.senderMailbox + '?subject=Unsubscribe';\n  return '<div style=\"font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#22323B\">' + bodyHtml +\n    '<hr style=\"border:0;border-top:1px solid #ddd;margin:24px 0 12px\">' +\n    '<p style=\"font-size:12px;color:#6C7C86\">' + esc(CFG.orgName) + ' · ' + esc(CFG.orgAddress) + ' · EIN 39-2503445<br>' +\n    'You are receiving this because you gave to ' + esc(CFG.orgName) + '. ' +\n    '<a href=\"' + unsub + '\">Unsubscribe</a> (or reply with the word unsubscribe) and we will stop all fundraising email to you.</p></div>';\n}\nfunction mail(to, subject, bodyHtml) {\n  // a Graph sendMail request; while emailsApproved is false it goes to the review mailbox\n  const review = !CFG.emailsApproved;\n  return {\n    url: 'https://graph.microsoft.com/v1.0/users/' + encodeURIComponent(CFG.senderMailbox) + '/sendMail',\n    body: { message: {\n      subject: (review ? '[REVIEW, would go to a donor] ' : '') + subject,\n      body: { contentType: 'HTML', content: emailHtml(bodyHtml) },\n      toRecipients: [{ emailAddress: { address: review ? CFG.senderMailbox : to } }]\n    }, saveToSentItems: true }\n  };\n}\nfunction teams(html) {\n  return { url: 'https://graph.microsoft.com/v1.0/teams/' + CFG.teamId + '/channels/' + CFG.channelId + '/messages',\n           body: { body: { contentType: 'html', content: html } } };\n}\n\nconst S = $getWorkflowStaticData('global');\nconst W = $('Window').first().json;\nconst now = phxNow();\nconst today = now.toISODate();\n\n/* ── campaign map: automations/campaign-map.json in the repo ── */\nlet MAP = {};\ntry {\n  const f = $('GET campaign map').first().json;\n  MAP = JSON.parse(Buffer.from(String(f.content || ''), 'base64').toString('utf8')).map || {};\n} catch (e) { MAP = {}; }\nconst PLAN_NAMES = {   /* most specific first; the map file wins over these */\n  'giving-tuesday-2026': /giving tuesday 2026|fill the safety net/i, 'year-end-2026': /bed before the new year/i,\n  'az-tax-credit': /tax credit/i, 'second-chances-2027': /second chances/i, 'rides-and-relief-2027': /rides and relief/i,\n  'recovery-month-2027': /recovery month/i, 'the-sanctuary': /the sanctuary|monthly membership/i, 'safety-net': /safety net/i\n};\nfunction planIdFor(c) {\n  if (MAP[String(c.id)]) { return MAP[String(c.id)]; }\n  for (const k in PLAN_NAMES) { if (PLAN_NAMES[k].test(c.name || '')) { return k; } }\n  return null;\n}\n\n/* ── donations: merge this pull into the cache ── */\nconst pulled = rows('GET donations');\nconst pii = new Set();           // used only for the leak check at the end\nconst cache = W.full ? {} : (S.donations || {});\npulled.forEach(function (d) {\n  const donor = d.donor || {};\n  if (donor.email) { pii.add(String(donor.email).toLowerCase()); }\n  if (donor.first_name && donor.last_name) { pii.add((donor.first_name + ' ' + donor.last_name).toLowerCase()); }\n  if (String(d.currency || 'usd').toLowerCase() !== 'usd') { return; }\n  const net = (Number(d.amount) || 0) - (Number(d.amount_refunded) || 0);\n  let feeCovered = null;\n  ['fee_covered', 'cover_fee', 'processing_fee_covered', 'donor_covered_fee'].forEach(function (k) { if (k in d) { feeCovered = !!d[k]; } });\n  cache[d.id] = [phxDate(d.donation_date), Math.round(net * 100) / 100, donor.id || null, (d.campaign || {}).id || null,\n                 d.recurring ? 1 : 0, String(d.utm_source || '').toLowerCase().trim() || null, d.status === 'paid' ? 1 : 0, feeCovered];\n});\nS.donations = cache;\nS.lastPull = now.toISO();\nif (W.full) { S.lastFullPull = now.toISO(); }\n\nconst gifts = Object.keys(cache).map(function (id) {\n  const r = cache[id];\n  return { id: id, date: r[0], amount: r[1], donor: r[2], campaign: r[3], recurring: !!r[4], source: r[5], paid: !!r[6], fee: r[7] };\n}).filter(function (g) { return g.paid && g.amount > 0; });\n\n/* ── plans ── */\nconst plans = rows('GET plans');\nplans.forEach(function (p) {\n  const donor = p.donor || {};\n  if (donor.email) { pii.add(String(donor.email).toLowerCase()); }\n  if (donor.first_name && donor.last_name) { pii.add((donor.first_name + ' ' + donor.last_name).toLowerCase()); }\n});\nconst monthly = plans.filter(function (p) { return String(p.type).toLowerCase() === 'monthly'; });\nconst active = monthly.filter(function (p) { return String(p.status).toLowerCase() === 'active'; });\n/* status changes since the last run: lost members and recovered failed payments */\nS.planStatus = S.planStatus || {};\nS.lost = (S.lost || []).filter(function (x) { return x >= now.minus({ days: 30 }).toISODate(); });\nS.recovered = (S.recovered || []).filter(function (x) { return x >= now.minus({ days: 30 }).toISODate(); });\nmonthly.forEach(function (p) {\n  const was = S.planStatus[p.id], is = String(p.status).toLowerCase();\n  if (was === 'active' && is !== 'active' && is !== 'failed') { S.lost.push(today); }\n  if (was === 'failed' && is === 'active') { S.recovered.push(today); }\n  S.planStatus[p.id] = is;\n});\nconst tiers = { '10': 0, '25': 0, '50': 0, '100': 0, other: 0 };\nlet mrr = 0;\nactive.forEach(function (p) {\n  const a = Number(p.amount) || 0;\n  mrr += a;\n  const k = String(Math.round(a));\n  if (Math.abs(a - Math.round(a)) < 0.001 && tiers[k] !== undefined) { tiers[k]++; } else { tiers.other++; }\n});\nmrr = Math.round(mrr * 100) / 100;\nS.mrr = S.mrr || {};\nS.mrr[today.slice(0, 7)] = { mrrUsd: mrr, activeMembers: active.length };\nconst months = Object.keys(S.mrr).sort().slice(-24);\n\n/* ── donors ── */\nconst firstGift = {}, firstIsOneTime = {};\ngifts.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (g) {\n  if (!g.donor) { return; }\n  if (!firstGift[g.donor]) { firstGift[g.donor] = g.date; firstIsOneTime[g.donor] = !g.recurring; }\n});\nconst d30 = now.minus({ days: 30 }).toISODate();\nconst newDonors30d = Object.keys(firstGift).filter(function (k) { return firstGift[k] > d30; }).length;\n/* one-time donors whose first gift is at least 90 days old: how many started a monthly gift within 90 days */\nconst planStart = {};\nmonthly.forEach(function (p) {\n  const id = (p.donor || {}).id;\n  if (id && p.started_at && (!planStart[id] || p.started_at < planStart[id])) { planStart[id] = String(p.started_at).slice(0, 10); }\n});\nconst d90 = now.minus({ days: 90 }).toISODate();\nconst cohort = Object.keys(firstGift).filter(function (k) { return firstIsOneTime[k] && firstGift[k] <= d90; });\nconst upgraded = cohort.filter(function (k) {\n  return planStart[k] && planStart[k] >= firstGift[k] && planStart[k] <= DateTime.fromISO(firstGift[k]).plus({ days: 90 }).toISODate();\n});\nconst withFee = gifts.filter(function (g) { return g.fee !== null; });\n\n/* ── campaigns ── */\nconst camps = rows('GET campaigns').filter(function (c) { return String(c.currency || 'usd').toLowerCase() === 'usd'; });\nconst byCamp = {};\ngifts.forEach(function (g) { (byCamp[g.campaign] = byCamp[g.campaign] || new Set()).add(g.donor); });\nconst campaigns = camps.map(function (c) {\n  return { donorboxId: c.id, planId: planIdFor(c), name: c.name, raisedUsd: Number(c.total_raised) || 0,\n           goalUsd: Number(c.goal_amt) || 0, donations: Number(c.donations_count) || 0,\n           donors: byCamp[c.id] ? byCamp[c.id].size : 0,\n           recurringPlans: active.filter(function (p) { return (p.campaign || {}).id === c.id; }).length };\n});\n\n/* ── daily, last 30 days; sources ── */\nconst daily = [];\nfor (let i = 29; i >= 0; i--) {\n  const day = now.minus({ days: i }).toISODate();\n  const g = gifts.filter(function (x) { return x.date === day; });\n  daily.push({ date: day, raisedUsd: Math.round(g.reduce(function (s, x) { return s + x.amount; }, 0) * 100) / 100, donations: g.length });\n}\nconst src = {};\ngifts.forEach(function (g) { if (!g.source) { return; } src[g.source] = src[g.source] || { source: g.source, donations: 0, raisedUsd: 0 }; src[g.source].donations++; src[g.source].raisedUsd += g.amount; });\nconst bySource = Object.keys(src).map(function (k) { src[k].raisedUsd = Math.round(src[k].raisedUsd * 100) / 100; return src[k]; })\n  .sort(function (a, b) { return b.raisedUsd - a.raisedUsd; });\n\n/* ── automations: the run reports the workflows sent to the site ── */\nconst state = ($('GET state').first().json || {}).items || {};\nconst cut = Date.now() - 7 * 864e5;\nconst automations = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10'].map(function (id) {\n  const r = (state['run:' + id] || {}).data || {};\n  const recent = (r.recent || []).filter(function (x) { return Date.parse(x.at) >= cut; });\n  if (id === 'f3') { return { id: id, lastRun: now.toISO(), lastStatus: 'success', runs7d: recent.length + 1, errors7d: recent.filter(function (x) { return !x.ok; }).length }; }\n  return { id: id, lastRun: r.lastRun || null, lastStatus: r.lastStatus || 'never', runs7d: recent.length, errors7d: recent.filter(function (x) { return !x.ok; }).length };\n});\n\nconst out = {\n  generatedAt: now.toISO({ suppressMilliseconds: true }),\n  totals: {\n    raisedUsd: Math.round(campaigns.reduce(function (s, c) { return s + c.raisedUsd; }, 0) * 100) / 100,\n    donations: campaigns.reduce(function (s, c) { return s + c.donations; }, 0),\n    donors: Object.keys(firstGift).length,\n    newDonors30d: newDonors30d,\n    activeMembers: active.length,\n    mrrUsd: mrr,\n    membersLost30d: S.lost.length,\n    failedRecovered30d: S.recovered.length,\n    feeCoverRatePct: withFee.length ? Math.round(withFee.filter(function (g) { return g.fee; }).length / withFee.length * 100) : null,\n    upgradeRate90dPct: cohort.length ? Math.round(upgraded.length / cohort.length * 100) : 0\n  },\n  membersByTier: tiers,\n  campaigns: campaigns,\n  dailyRaised: daily,\n  monthlyMrr: months.map(function (m) { return { month: m, mrrUsd: S.mrr[m].mrrUsd, activeMembers: S.mrr[m].activeMembers }; }),\n  bySource: bySource,\n  automations: automations\n};\n\n/* ── leak check: no email address or donor full name may appear ── */\nconst text = JSON.stringify(out).toLowerCase();\nif (/[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}/.test(text)) { throw new Error('Refusing to publish: the metrics contain an email address.'); }\npii.forEach(function (p) { if (p.length > 4 && text.indexOf(p) >= 0) { throw new Error('Refusing to publish: the metrics contain a donor name.'); } });\n\n/* ── commit only when something other than the timestamps changed ── */\nlet current = null, sha = null;\ntry {\n  const f = $('GET current file').first().json;\n  sha = f.sha || null;\n  current = f.content ? JSON.parse(Buffer.from(String(f.content), 'base64').toString('utf8')) : null;\n} catch (e) { current = null; }\nfunction key(m) {\n  if (!m) { return ''; }\n  return JSON.stringify(Object.assign({}, m, { generatedAt: null,\n    automations: (m.automations || []).map(function (a) { return [a.id, a.lastStatus, a.errors7d]; }) }));\n}\nconst changed = !current || !current.generatedAt || key(current) !== key(out);\nreturn [{ json: {\n  changed: changed,\n  sha: sha,\n  content: Buffer.from(JSON.stringify(out, null, 2) + '\\n', 'utf8').toString('base64'),\n  message: 'Fundraising metrics: ' + money(out.totals.raisedUsd) + ' raised, ' + out.totals.activeMembers + ' members',\n  summary: money(out.totals.raisedUsd) + ' raised · ' + out.totals.donors + ' donors · ' + out.totals.activeMembers + ' members' + (changed ? '' : ' (no change)')\n} }];\n"
+      },
+      "executeOnce": true,
+      "notes": "Aggregates only. Throws if an email or donor name would be published.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0012-sci",
+      "name": "Report run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.siteUrl + '/api/fundraising-state?action=run' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: 'f3', status: $json.runStatus || 'success', message: String($json.runMessage || $json.summary || '').slice(0, 280) }) }}",
+        "options": {}
+      },
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "set-on-import",
+          "name": "SCI Fundraising sync secret"
+        }
+      },
+      "notes": "Tells the Fundraising page this automation ran.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0013-sci",
+      "name": "Changed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "changed",
+              "leftValue": "={{ $('Compute').first().json.changed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n0014-sci",
+      "name": "Commit metrics file",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        240
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.github.com/repos/' + $('Config').first().json.githubRepo + '/contents/data/fundraising-metrics.json' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ message: $('Compute').first().json.message, content: $('Compute').first().json.content, branch: $('Config').first().json.githubBranch, committer: { name: 'sci-metrics-bot', email: 'sci-metrics-bot@users.noreply.github.com' } }, $('Compute').first().json.sha ? { sha: $('Compute').first().json.sha } : {})) }}",
+        "options": {}
+      },
+      "executeOnce": true,
+      "credentials": {
+        "githubApi": {
+          "id": "set-on-import",
+          "name": "SCI GitHub (contents write)"
+        }
+      },
+      "notes": "Only when values changed. Vercel redeploys on the commit.",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Called by New gift": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window": {
+      "main": [
+        [
+          {
+            "node": "GET campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET campaigns": {
+      "main": [
+        [
+          {
+            "node": "GET plans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET plans": {
+      "main": [
+        [
+          {
+            "node": "GET donations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET donations": {
+      "main": [
+        [
+          {
+            "node": "GET state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET state": {
+      "main": [
+        [
+          {
+            "node": "GET campaign map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET campaign map": {
+      "main": [
+        [
+          {
+            "node": "GET current file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET current file": {
+      "main": [
+        [
+          {
+            "node": "Compute",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute": {
+      "main": [
+        [
+          {
+            "node": "Report run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report run": {
+      "main": [
+        [
+          {
+            "node": "Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changed?": {
+      "main": [
+        [
+          {
+            "node": "Commit metrics file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Phoenix",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "SCI fundraising"
+    }
+  ]
+}

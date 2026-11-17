@@ -18,6 +18,10 @@
     {
       "source": "/pal-email",
       "destination": "/pal-email.html"
+    },
+    {
+      "source": "/api/fundraising-state",
+      "destination": "/api/projects?store=fundraising"
     }
   ]
 }
