@@ -54,6 +54,13 @@
 .sf-btn.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
 .sf-msg{font-size:13.5px;margin:10px 0 0}
 .sf-msg.err{color:#C0492B}
+.sf-range{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;align-items:center;margin:14px 0}
+.sf-range .lab{font-size:13px;font-weight:600}
+.sf-range .track{position:relative;height:26px;background:var(--line);border-radius:4px}
+.sf-range .have{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:4px 0 0 4px}
+.sf-range .est{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,#E17F55 0 6px,#F1B597 6px 12px);opacity:.85}
+.sf-range .val{grid-column:2;font-size:12px;color:var(--muted);margin-top:-2px}
+.sf-src{font-size:12px;color:var(--muted);margin:10px 0 0}
 .sf-cta{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:14px 18px;margin:22px 0 0}
 .sf-cta p{margin:0;font-size:14px}
 @media (max-width:720px){.sf-form{grid-template-columns:1fr}.sf-roles{grid-template-columns:1fr 1fr}.sf-time{grid-template-columns:1fr 1fr}.sf-flow .sf-step::after{display:none}}
@@ -73,7 +80,7 @@
    task with a message thread, like print and website requests.            */
 var AS_OF = 'November 17, 2026';
 var TABS = [
-  ['overview', 'Overview'], ['journey', 'Participant journey'], ['data', 'How the data gets there'], ['cohort', 'Release window'],
+  ['overview', 'Overview'], ['journey', 'Participant journey'], ['data', 'How the data gets there'], ['cohort', 'Release window'], ['pipeline', 'Pipeline numbers'],
   ['refresh', 'Refresh from ADCRR'], ['model', 'Data model'], ['tracks', 'Program tracks'], ['automation', 'Automation'],
   ['security', 'Integration & security'], ['reporting', 'Reporting'], ['roadmap', 'Go-live & roadmap'], ['request', 'Request a build']
 ];
@@ -146,7 +153,60 @@ V.cohort = function () {
         '<p style="margin:0">Time to start correspondence, intake, and planning before the 90-day mark arrives.</p>')) +
     steps([{ n: '✓', t: 'Detainers stay visible', d: 'Included in the feed, flagged as potentially disqualifying.' },
            { n: '✓', t: 'Leaving the cohort is not a delete', d: 'The record stays as history. Staff notes and decisions are untouched.' },
-           { n: '✓', t: 'Engaged people stay refreshable', d: 'Anyone already in Salesforce can be live-checked on demand.' }]) + cta();
+           { n: '✓', t: 'Engaged people stay refreshable', d: 'Anyone already in Salesforce can be live-checked on demand.' }]) +
+    '<p><button type="button" class="sf-btn ghost" data-go="pipeline">See the pipeline numbers: 2,655 qualified today, 7,000–7,500 estimated statewide</button></p>' + cta();
+};
+V.pipeline = function () {
+  var levels = [
+    ['Estimated statewide ADCRR population', 40269, '34,825 inside prison, 443 temporarily out, and 5,444 on community supervision', '#6C7C86'],
+    ['Likely incarcerated addressable population', 35268, 'Inside prison plus out-to-court/medical/work', '#6C7C86'],
+    ['Valid people known to our scraper', 39134, 'Includes current, released, community-supervision, and historical people', '#2C5468'],
+    ['Currently identified as incarcerated in our data', 13438, 'Active, out to court, out to hospital, or en route', '#2C5468'],
+    ['Release date within 90 days, any status', 2026, 'Includes some people no longer qualifying for routine delivery', '#2C5468'],
+    ['Release date within six months, any status', 3407, 'Includes the 2,026 above', '#2C5468'],
+    ['Qualified 0–90-day Salesforce cohort', 1596, 'Currently incarcerated and meeting the delivery rules', '#E17F55'],
+    ['Qualified 91-day-to-six-month cohort', 1059, 'Additional people after the first 90 days', '#E17F55'],
+    ['Qualified six-month pipeline total', 2655, '1,596 + 1,059', '#E17F55'],
+    ['Phoenix Oasis Population Records', 8225, 'Includes historical and out-of-window records', '#1C9AD6'],
+    ['Sanctuary Population Records', 905, '904 delivered by our integration plus one pre-existing record', '#1C9AD6']
+  ];
+  var windows = [
+    ['Next 90 days', 1596, 3700, 4200, 'Approximately 2,100–2,600'],
+    ['Next six months, total', 2655, 7000, 7500, 'Approximately 4,350–4,850'],
+    ['Months 4–6 only', 1059, 3300, 3800, 'Approximately 2,250–2,750']
+  ];
+  var W = chartW(false), max = 7500;
+  var ranges = windows.map(function (w) {
+    return '<span class="lab">' + h(w[0]) + '</span><div class="track" role="img" aria-label="' + h(w[0] + ': ' + fmt(w[1]) + ' identified of an estimated ' + fmt(w[2]) + ' to ' + fmt(w[3])) + '">' +
+      '<div class="have" style="width:' + (w[1] / max * 100).toFixed(1) + '%"></div>' +
+      '<div class="est" style="left:' + (w[2] / max * 100).toFixed(1) + '%;width:' + ((w[3] - w[2]) / max * 100).toFixed(1) + '%"></div></div>' +
+      '<span class="val"><b style="color:var(--ink)">' + fmt(w[1]) + '</b> identified and qualified · estimated ' + fmt(w[2]) + '–' + fmt(w[3]) + ' statewide · ' + h(w[4]) + ' still to discover</span>';
+  }).join('');
+  return sechead('Pipeline numbers', 'var(--coral)', 'As of November 17, 2026', '') +
+    '<div class="sf-callout ok" style="font-size:15px">The platform currently knows <b>39,134</b> valid ADCRR individuals and has identified <b>2,655</b> currently incarcerated people in the rolling six-month release pipeline, ' +
+      'including <b>1,596</b> projected for release within 90 days. At complete statewide coverage, we estimate the active pipeline will normally contain approximately <b>3,700–4,200</b> people within 90 days and <b>7,000–7,500</b> within six months.</div>' +
+    kpis([stat('Qualified six-month pipeline', '2,655', 'the best current number for people we already know about'), stat('Qualified 0–90 days', '1,596', 'currently incarcerated, meeting the delivery rules'),
+          stat('Qualified 91 days to 6 months', '1,059', 'the next wave after the first 90 days'), stat('Sanctuary Population Records', '905', '904 delivered + 1 pre-existing')], 4) +
+    card('Pipeline levels', hbar(levels.map(function (l) { return { label: l[0], value: l[1], color: l[3] }; }), { W: W, barX: Math.min(310, W * 0.42) / W * 560 }) +
+      '<p class="fr-head" style="font-size:13.5px;margin:8px 0 0"><b>Of 39,134 people the scraper knows, 2,655 are currently incarcerated and qualified for the six-month pipeline.</b></p>' +
+      '<div class="legend" style="margin-top:8px"><span><i style="background:#6C7C86"></i>ADCRR statewide</span><span><i style="background:#2C5468"></i>Our data</span>' +
+      '<span><i style="background:#E17F55"></i>Qualified Salesforce cohort</span><span><i style="background:#1C9AD6"></i>Records in Salesforce orgs</span></div>') +
+    card('What each level means', table(['Pipeline level', 'People', 'Meaning'], levels.map(function (l) { return [h(l[0]), fmt(l[1]), h(l[2])]; }), { numeric: function (i) { return i === 1; } })) +
+    card('Estimated full statewide opportunity', '<p style="margin:0 0 4px">ADCRR reported 1,112–1,304 releases per month from January through April 2026, averaging approximately <b>1,234 releases per month</b>, ' +
+        'and approximately <b>34,825</b> people physically incarcerated. Using that release volume and the distribution in our captured data:</p>' +
+      '<div class="sf-range">' + ranges + '</div>' +
+      '<div class="legend"><span><i style="background:var(--teal)"></i>Already identified and qualified</span><span><i style="background:#E17F55"></i>Estimated statewide range</span></div>' +
+      table(['Window', 'Already identified and qualified', 'Estimated statewide total', 'Potential still to discover'],
+        windows.map(function (w) { return [h(w[0]), fmt(w[1]), fmt(w[2]) + '–' + fmt(w[3]), h(w[4])]; })) +
+      '<p class="sf-src">These statewide figures are planning estimates, not exact named-person counts. They include normal admissions, sentence recalculations, supervision returns, and release-date changes.</p>') +
+    card('What that tells us', '<ul class="sf-list">' +
+      '<li>We have likely captured around <b>38%</b> of the currently incarcerated statewide population in a clearly current incarcerated status.</li>' +
+      '<li>We have probably found around <b>38%–43%</b> of the eventual statewide six-month pipeline.</li>' +
+      '<li>The main remaining opportunity is approximately <b>4,500</b> additional six-month candidates.</li>' +
+      '<li>Salesforce should not necessarily hold all 39,134 people. The sensible operating population is the rolling <b>7,000–7,500</b>-person six-month cohort, plus people already being mentored.</li>' +
+      '<li>The pipeline will evolve continuously as people enter the six-month window, receive revised release dates, leave custody, or return to custody.</li></ul>' +
+      '<p class="sf-src">Sources: statewide benchmarks come from ADCRR\'s published monthly reporting (ADCRR Data and Reports; April 2026 Monthly Data Report). ' +
+      'ADCRR\'s reporting page lists reports through September 2026; April 2026 was the most recent report that could be extracted cleanly for these calculations.</p>') + cta();
 };
 V.refresh = function () {
   return sechead('Refresh from ADCRR', 'var(--coral)', 'A live source check, on demand', '') +
