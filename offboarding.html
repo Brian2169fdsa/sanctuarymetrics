@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offboarding — Sanctuary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.ob-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0}
+.ob-tabs button{all:unset;cursor:pointer;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.ob-tabs button[aria-selected="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.ob-tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ob-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ob-form .f{display:flex;flex-direction:column;gap:5px}
+.ob-form .f.wide{grid-column:1/-1}
+.ob-form label.l,.ob-h{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.ob-form input[type=text],.ob-form input[type=email],.ob-form input[type=date],.ob-form select,.ob-form textarea{font-family:inherit;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.ob-form textarea{min-height:70px;resize:vertical}
+.ob-form input:focus,.ob-form select:focus,.ob-form textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
+.ob-acc{border:1px solid var(--line);border-radius:11px;background:#fff;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.ob-acc > label{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:14.5px;cursor:pointer}
+.ob-acc > label input{width:18px;height:18px;margin-top:2px;accent-color:var(--teal)}
+.ob-acc p{margin:0 0 0 28px;font-size:13px;color:var(--muted)}
+.ob-sub{margin:4px 0 0 28px;display:flex;flex-wrap:wrap;gap:8px 16px}
+.ob-sub label{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer}
+.ob-sub input[type=text]{flex:1 1 220px;min-width:0}
+.ob-btn{font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--teal);border:0;border-radius:8px;padding:11px 22px;cursor:pointer}
+.ob-btn:disabled{opacity:.6;cursor:default}
+.ob-btn.warn{background:#C0492B}
+.ob-btn.small{font-size:12.5px;padding:7px 12px}
+.ob-msg{font-size:13.5px;margin:10px 0 0}
+.ob-msg.err{color:#C0492B}
+.ob-done{border-left:4px solid #2E8B6F;background:#eef7f3;border-radius:0 9px 9px 0;padding:12px 16px;margin:12px 0;font-size:14px}
+.ob-done.part{border-left-color:#D98A1F;background:#fdf6ea}
+.ob-done ul{margin:6px 0 0;padding-left:18px}
+.ob-list{list-style:none;padding:0;margin:0}
+.ob-list li{border-top:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:start}
+.ob-list li:first-child{border-top:0}
+.ob-list pre{white-space:pre-wrap;font-family:inherit;font-size:12.5px;color:var(--muted);margin:4px 0 0}
+.ob-note{font-size:12.5px;color:var(--muted)}
+@media (max-width:720px){.ob-form{grid-template-columns:1fr}.ob-list li{grid-template-columns:1fr}}
+@media (max-width:720px), (pointer:coarse){.ob-tabs button{min-height:40px;display:inline-flex;align-items:center}.ob-form input,.ob-form select,.ob-form textarea{font-size:15px;min-height:44px}.ob-btn{min-height:44px}}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── Offboarding ───────────────────────────────────────────────────────────
+   Two ways in:
+   - Offboard an employee: one request that becomes a project with a
+     checklist (HEAplus, social media, Microsoft 365). If HEAplus is ticked it
+     also files the HEAplus removal below.
+   - Remove from HEAplus: just the assistor-portal removal. The person goes on
+     the Remove list and an Add/Remove form with their Remove row is built,
+     signed and staged (an Outlook draft) for Brian to send to CPAO.
+   Admins see open offboarding requests here, with a button that blocks the
+   person's Microsoft 365 sign-in.                                          */
+var VIEW = location.hash === '#heaplus' ? 'heaplus' : 'employee';
+var DONE = null, OPEN = null, OPEN_ERR = '';
+var SOCIAL = ['Facebook', 'Instagram', 'LinkedIn', 'YouTube', 'TikTok', 'Google Business Profile'];
+var REASONS = ['Resigned', 'Let go', 'End of contract', 'Changed roles', 'Other'];
+
+function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function opt(list, ph) { return '<option value="">' + h(ph) + '</option>' + list.map(function (x) { return '<option>' + h(x) + '</option>'; }).join(''); }
+function v(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function ck(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+function isAdmin() { return !!(SM.me && SM.me.role === 'admin'); }
+
+function personFields(pfx, needEmail) {
+  return '<div class="f"><label class="l" for="' + pfx + '-first">First name</label><input type="text" id="' + pfx + '-first" maxlength="40" autocomplete="off"></div>' +
+    '<div class="f"><label class="l" for="' + pfx + '-last">Last name</label><input type="text" id="' + pfx + '-last" maxlength="40" autocomplete="off"></div>' +
+    '<div class="f"><label class="l" for="' + pfx + '-email">Work email' + (needEmail ? '' : ' (if you know it)') + '</label><input type="email" id="' + pfx + '-email" maxlength="200" placeholder="name@sanctuaryrecoverycenters.com"></div>' +
+    '<div class="f"><label class="l" for="' + pfx + '-title">Title or position (optional)</label><input type="text" id="' + pfx + '-title" maxlength="80"></div>' +
+    '<div class="f"><label class="l" for="' + pfx + '-day">Last day</label><input type="date" id="' + pfx + '-day"></div>' +
+    '<div class="f"><label class="l" for="' + pfx + '-why">Why they\'re leaving (optional)</label><select id="' + pfx + '-why">' + opt(REASONS, 'Choose…') + '</select></div>';
+}
+function employeeForm() {
+  return '<form class="card ob-form" id="ob-form" novalidate>' + personFields('ob', true) +
+    '<div class="f wide"><span class="ob-h">Remove their access to</span></div>' +
+    '<div class="f wide ob-acc"><label><input type="checkbox" id="ob-heaplus"> HEAplus (CP-AO assistor portal)</label>' +
+      '<p>Puts them on the Remove list and builds the signed Add/Remove form, staged for ' + h(siteAdmin()) + ' to send to CPAO. Leave unticked if they never had HEAplus access.</p></div>' +
+    '<div class="f wide ob-acc"><label><input type="checkbox" id="ob-social"> Social media accounts</label>' +
+      '<p>Pages or accounts they can post to or manage. Marketing removes them as an admin or editor.</p>' +
+      '<div class="ob-sub" id="ob-social-list">' + SOCIAL.map(function (x, i) {
+        return '<label><input type="checkbox" data-social="' + h(x) + '"> ' + h(x) + '</label>'; }).join('') +
+      '<input type="text" id="ob-social-other" maxlength="200" placeholder="Other accounts (optional)"></div></div>' +
+    '<div class="f wide ob-acc"><label><input type="checkbox" id="ob-ms"> Block Microsoft 365 (email, Teams, SharePoint)</label>' +
+      '<p>Blocks sign-in and signs them out everywhere. An admin confirms it from this page on their last day; the mailbox and license are handled after.</p></div>' +
+    '<div class="f wide"><label class="l" for="ob-notes">Anything else (optional)</label><textarea id="ob-notes" maxlength="1000" placeholder="e.g. forward their email to their manager; keep files for 30 days"></textarea></div>' +
+    '<div class="f wide"><span class="ob-note">Keep it factual: no health, discipline or personal details.</span>' +
+      '<div style="margin-top:8px"><button type="submit" class="ob-btn">Send the offboarding request</button></div><div class="ob-msg" id="ob-msg" role="status"></div></div>' +
+    '</form>';
+}
+function heaplusForm() {
+  return '<form class="card ob-form" id="hp-form" novalidate>' + personFields('hp', false) +
+    '<div class="f"><label class="l" for="hp-type">Employee, contractor or volunteer</label><select id="hp-type"><option>Employee</option><option>Contractor</option><option>Volunteer</option></select></div>' +
+    '<div class="f"><label class="l" for="hp-notes">Anything else (optional)</label><input type="text" id="hp-notes" maxlength="1000"></div>' +
+    '<div class="f wide"><span class="ob-note">What happens: they go on the HEAplus Remove list and an Add/Remove form with their Remove row is built and signed. ' +
+      'It waits for ' + h(siteAdmin()) + ' to deactivate their HEAplus account, check the form and send it to CPAO, and he gets a project for it. Nothing goes to CPAO until he sends it.</span>' +
+      '<div style="margin-top:8px"><button type="submit" class="ob-btn">Request their removal</button></div><div class="ob-msg" id="hp-msg" role="status"></div></div>' +
+    '</form>';
+}
+function siteAdmin() { return 'Brian'; }
+function doneBox() {
+  if (!DONE) { return ''; }
+  return '<div class="ob-done' + (DONE.partial ? ' part' : '') + '"><b>' + h(DONE.title) + '</b><ul>' + DONE.lines.map(function (l) { return '<li>' + h(l) + '</li>'; }).join('') + '</ul>' +
+    '<p style="margin:8px 0 0"><a href="projects.html">Follow it on the Projects page</a> · <button type="button" class="ob-btn small" id="ob-again" style="background:#fff;color:var(--teal);border:1px solid var(--line)">Start another</button></p></div>';
+}
+function openList() {
+  if (!isAdmin()) { return ''; }
+  var body = OPEN_ERR ? '<p class="ob-note">' + h(OPEN_ERR) + '</p>' : !OPEN ? '<p class="ob-note">Loading…</p>' : !OPEN.length ? '<p class="ob-note">No open offboarding requests.</p>'
+    : '<ul class="ob-list">' + OPEN.map(function (p) {
+        var em = /Work email: ([^\s]+@[^\s]+)/.exec(p.notes || ''), email = em ? em[1] : '';
+        var wantsMs = /\[ \] Microsoft 365/.test(p.notes || ''), blocked = /Microsoft 365: sign-in blocked/.test(p.notes || '');
+        return '<li><div><b>' + h(p.title) + '</b> <span class="tag eq">' + h(p.status || 'New') + '</span><pre>' + h((p.notes || '').split('\n').slice(0, 12).join('\n')) + '</pre></div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">' +
+          (wantsMs && email && !blocked ? '<button type="button" class="ob-btn small warn" data-block="' + h(email) + '" data-pid="' + h(p.id) + '">Block Microsoft sign-in</button>' : '') +
+          (blocked ? '<span class="tag hi">Microsoft blocked</span>' : '') +
+          '<a class="ob-note" href="projects.html#open=' + encodeURIComponent('row:' + p.id) + '">Open project</a></div></li>';
+      }).join('') + '</ul>';
+  return '<section><div class="eyebrow">Admins</div><h2 style="font-size:22px;margin:6px 0 4px">Open offboarding requests</h2>' +
+    '<p class="ob-note" style="margin:0 0 10px">Blocking Microsoft sign-in takes effect within minutes and signs them out of every device. Do it on their last day.</p>' + body + '<div class="ob-msg" id="blk-msg" role="status"></div></section>';
+}
+function render() {
+  var signed = !!SM.me;
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Offboarding', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'offboarding') +
+    '<section><div class="eyebrow">People</div><h2 style="font-size:26px;margin:6px 0 0">Offboarding</h2>' +
+    '<p class="lead" style="margin-bottom:0">When someone leaves or changes roles, ask here for their access to be removed. Each request becomes a project, so nothing is missed.</p>' +
+    '<div class="ob-tabs" role="tablist"><button type="button" role="tab" data-v="employee" aria-selected="' + (VIEW === 'employee') + '">Offboard an employee</button>' +
+      '<button type="button" role="tab" data-v="heaplus" aria-selected="' + (VIEW === 'heaplus') + '">Remove from HEAplus (assistor portal)</button></div></section>' +
+    '<section>' + (!signed ? '<div class="warn"><b>Sign in first</b> so the request is filed under your name. <a href="login.html?next=offboarding.html">Sign in</a></div>'
+      : DONE ? doneBox() : (VIEW === 'employee' ? employeeForm() : heaplusForm())) + '</section>' +
+    openList() +
+    pageFooter('offboarding requests');
+  wire();
+}
+function err(id, t) { var el = document.getElementById(id); el.textContent = t; el.className = 'ob-msg err'; }
+function busy(id, t) { var el = document.getElementById(id); el.textContent = t; el.className = 'ob-msg'; }
+function person(pfx) {
+  return { first_name: v(pfx + '-first'), last_name: v(pfx + '-last'), email: v(pfx + '-email'), title_position: v(pfx + '-title'),
+           last_day: v(pfx + '-day'), reason: v(pfx + '-why') };
+}
+function wire() {
+  document.querySelectorAll('[data-v]').forEach(function (b) { b.addEventListener('click', function () { VIEW = b.getAttribute('data-v'); DONE = null; location.hash = VIEW; render(); }); });
+  var again = document.getElementById('ob-again');
+  if (again) { again.addEventListener('click', function () { DONE = null; render(); }); }
+  var f = document.getElementById('ob-form');
+  if (f) {
+    f.addEventListener('change', function (e) { if (e.target.hasAttribute('data-social') && e.target.checked) { document.getElementById('ob-social').checked = true; } });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var p = person('ob'), social = ck('ob-social') ? [].map.call(document.querySelectorAll('[data-social]:checked'), function (x) { return x.getAttribute('data-social'); }) : [];
+      var items = { heaplus: ck('ob-heaplus'), social: social, social_other: ck('ob-social') ? v('ob-social-other') : '', microsoft: ck('ob-ms') };
+      if (!p.first_name || !p.last_name) { return err('ob-msg', 'Add their first and last name.'); }
+      if (!p.email) { return err('ob-msg', 'Add their work email.'); }
+      if (!items.heaplus && !ck('ob-social') && !items.microsoft) { return err('ob-msg', 'Tick at least one account to remove.'); }
+      if (ck('ob-social') && !social.length && !items.social_other) { return err('ob-msg', 'Pick which social media accounts, or type them under Other.'); }
+      var btn = f.querySelector('button[type=submit]'); btn.disabled = true; busy('ob-msg', 'Sending…');
+      SM.api('POST', '/api/requests', Object.assign({ kind: 'offboarding', items: items, notes: v('ob-notes') }, p)).then(function (r) {
+        var lines = ['A project with the checklist is on the Projects page: ' + r.title + '.'];
+        if (!items.heaplus) { return { lines: lines, partial: false }; }
+        busy('ob-msg', 'Filing the HEAplus removal…');
+        return SM.api('POST', '/api/cpao?action=removal_request', Object.assign({ offboarding: true, project_id: r.id, notes: v('ob-notes') }, p))
+          .then(function (c) { lines.push('HEAplus: ' + c.message); return { lines: lines, partial: false }; },
+                function (e2) { lines.push('HEAplus: the removal couldn\'t be filed automatically (' + e2.message + '). It\'s on the checklist for ' + siteAdmin() + '.'); return { lines: lines, partial: true }; });
+      }).then(function (res) {
+        DONE = { title: 'Offboarding request sent for ' + p.first_name + ' ' + p.last_name, lines: res.lines, partial: res.partial };
+        render(); scrollTo(0, 0); loadOpen();
+      }, function (e3) { btn.disabled = false; err('ob-msg', e3.message); });
+    });
+  }
+  var hf = document.getElementById('hp-form');
+  if (hf) {
+    hf.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var p = Object.assign(person('hp'), { worker_type: v('hp-type'), notes: v('hp-notes') });
+      if (!p.first_name || !p.last_name) { return err('hp-msg', 'Add their first and last name.'); }
+      var btn = hf.querySelector('button[type=submit]'); btn.disabled = true; busy('hp-msg', 'Filing the removal…');
+      SM.api('POST', '/api/cpao?action=removal_request', p).then(function (c) {
+        DONE = { title: 'HEAplus removal requested for ' + p.first_name + ' ' + p.last_name, lines: [c.message], partial: false };
+        render(); scrollTo(0, 0);
+      }, function (e2) { btn.disabled = false; err('hp-msg', e2.message); });
+    });
+  }
+  document.querySelectorAll('[data-block]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var email = b.getAttribute('data-block');
+      if (!confirm('Block Microsoft 365 sign-in for ' + email + ' now? They\'ll be signed out of email, Teams and SharePoint on every device.')) { return; }
+      b.disabled = true; busy('blk-msg', 'Blocking…');
+      SM.api('POST', '/api/cpao?action=block_microsoft', { email: email, confirm: true, project_id: b.getAttribute('data-pid') })
+        .then(function (r) { busy('blk-msg', r.message); loadOpen(); }, function (e) { b.disabled = false; err('blk-msg', e.message); });
+    });
+  });
+}
+function loadOpen() {
+  if (!isAdmin()) { return; }
+  SM.api('GET', '/api/projects').then(function (j) {
+    OPEN = (j.rows || []).filter(function (r) { return /^Offboarding request/.test(r.source || '') && !/^(complete|done|cancel)/i.test(r.status || ''); })
+      .sort(function (a, b) { return (b.created_at || '') < (a.created_at || '') ? -1 : 1; });
+    OPEN_ERR = ''; render();
+  }, function (e) { OPEN_ERR = e.message; render(); });
+}
+addEventListener('hashchange', function () { var nv = location.hash === '#heaplus' ? 'heaplus' : 'employee'; if (nv !== VIEW) { VIEW = nv; DONE = null; render(); } });
+render();
+SM.ready.then(function () { render(); loadOpen(); });
+</script>
+</body></html>

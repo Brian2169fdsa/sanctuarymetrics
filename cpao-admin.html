@@ -261,11 +261,13 @@ function shell(inner) {
       '<p class="lead" style="margin:0 0 14px">' + (MGR()
         ? 'Where each person is in getting HEAplus access, and since when. Press <b>+ Invite someone</b> to send a person the application (CP-101), or <b>View details</b> on a row to see their 10 steps. Brian countersigns and sends everything to AHCCCS.'
         : 'When AHCCCS mails Sanctuary a letter about someone, press <b>View details</b> on their row and upload it in their card. Brian is alerted right away.') + '</p>' +
+      '<p class="sub" style="margin:0 0 12px">Someone leaving or changing roles? <a href="offboarding.html#heaplus">Request their removal from HEAplus →</a></p>' +
       inner + '</section>' + pageFooter('CP-AO portal');
     return;
   }
   $('sheet').innerHTML = pageHeader('CP-AO Portal', 'AHCCCS HEAplus access · Site Administrator', 'Admins only', 'cpao') +
     '<section><div class="eyebrow">CP-AO Assistor Portal</div><h2 style="font-size:26px;margin:6px 0 10px">HEAplus access</h2>' +
+    '<p class="sub" style="margin:0 0 12px">Someone leaving or changing roles? <a href="offboarding.html#heaplus">Request their removal from HEAplus →</a></p>' +
     setupWarnings() +
     '<div class="ca-tabs" role="tablist">' +
       tab('roster', 'Roster', n(function (s) { return s.status === 'ready_for_countersign'; }) ? n(function (s) { return s.status === 'ready_for_countersign'; }) + ' to sign' : '') +
@@ -834,7 +836,7 @@ function wireCerts(s) {
 function selfView() {
   var s = DATA.mine;
   $('sheet').innerHTML = pageHeader('HEAplus access', 'AHCCCS HEAplus · CP-AO', 'Your application', 'cpao') +
-    '<section><div class="eyebrow">HEAplus access</div>' +
+    '<section><div class="eyebrow">HEAplus access</div>' + '<p class="sub" style="margin:0 0 12px">Someone leaving or changing roles? <a href="offboarding.html#heaplus">Request their removal from HEAplus →</a></p>' +
     (s ? '<h2 style="font-size:26px;margin:6px 0 6px">Hi ' + esc(s.first_name) + ' — here\'s where you are</h2>' +
         '<p class="lead" style="margin:0">Getting HEAplus access takes 10 steps. The AHCCCS background check (step 5) is the long one — 1 week to 3 months.</p>' +
         '<div class="note" id="me-note" hidden></div>' + tracker(s)

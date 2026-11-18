@@ -32,7 +32,7 @@ const ADMIN_PAGES = new Set([]);
 /* the HEAplus tab (cpao-admin.html) is open to all staff: api/cpao.js decides
    who sees the admin side and who sees only their own progress */
 /* managers (CPAO_MANAGERS, not HEAplus admins) see only these */
-const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', '/social.html', '/photos.html']);
+const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', '/social.html', '/photos.html', '/offboarding.html']);
 /* event photos show people: unlike other images, they need a signed-in account (any staff) */
 const PRIVATE_IMAGES = /^\/photos\//;
 function emailList(name, dflt) {

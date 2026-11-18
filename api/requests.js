@@ -22,6 +22,11 @@
    account get an alert for each new request:
      POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit' | 'presentation_edit' | 'salesforce', …}   file one request
 
+   An offboarding request (offboarding.html) is one project with a checklist
+   for an employee who is leaving: HEAplus (the CP-AO assistor portal; the
+   page also files /api/cpao?action=removal_request, which stages the
+   Remove form), social media accounts, and Microsoft 365 sign-in.
+
    A salesforce request (salesforce.html) asks for a new build-out, feature,
    report or fix in Sanctuary's Salesforce org: request_type, area, summary,
    details, why (who it helps), and an optional needed_by. It is assigned
@@ -52,7 +57,10 @@ const { authorize, admins, sendAlerts, access } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [0, 25, 50, 100, 250, 500, 1000],
                      new_flyer: [0, 25, 50, 100, 250, 500, 1000] };
-const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1, presentation_edit: 1, salesforce: 1 };
+const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1, presentation_edit: 1, salesforce: 1, offboarding: 1 };
+/* offboarding (offboarding.html): the accounts to take away */
+const SOCIAL = ['Facebook', 'Instagram', 'LinkedIn', 'YouTube', 'TikTok', 'Google Business Profile'];
+const OFF_REASONS = ['Resigned', 'Let go', 'End of contract', 'Changed roles', 'Other'];
 /* Salesforce build requests (salesforce.html) */
 const SF_TYPES = ['New feature', 'New report or dashboard', 'Change something that exists', 'New data or integration',
                   'Access or permissions', 'Something is broken', 'Training or how-to', 'Other'];
@@ -127,6 +135,31 @@ function toRow(body, user, deck) {
     lines.push('On the site: presentations.html#deck=' + deck.id);
     slideEdits.forEach(function (e) { lines.push('', 'Slide ' + e.slide + ': ' + e.change); });
     if (edits) { lines.push('', slideEdits.length ? 'Also:' : 'Requested edits:', edits); }
+  } else if (kind === 'offboarding') {
+    const first = str(body.first_name, 40), last = str(body.last_name, 40), email = str(body.email, 200).toLowerCase();
+    const lastDay = str(body.last_day, 10), reason = str(body.reason, 40);
+    const items = body.items && typeof body.items === 'object' ? body.items : {};
+    const social = (Array.isArray(items.social) ? items.social : []).filter(function (x) { return SOCIAL.indexOf(x) >= 0; });
+    const socialOther = str(items.social_other, 200);
+    if (!first || !last) { throw bad('Add their first and last name.'); }
+    if (email && !EMAIL.test(email)) { throw bad('Their work email doesn\'t look right.'); }
+    if (lastDay && !/^\d{4}-\d{2}-\d{2}$/.test(lastDay)) { throw bad('Their last day must be a date.'); }
+    if (reason && OFF_REASONS.indexOf(reason) < 0) { throw bad('Pick why they\'re leaving from the list.'); }
+    if (!items.heaplus && !social.length && !socialOther && !items.microsoft) { throw bad('Tick at least one account to remove.'); }
+    if (items.microsoft && !email) { throw bad('Add their work email so their Microsoft account can be blocked.'); }
+    const nice = lastDay ? new Date(lastDay + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }) : '';
+    title = 'Offboard: ' + first + ' ' + last + (nice ? ' (last day ' + nice + ')' : '');
+    lines.push('OFFBOARDING — ' + first + ' ' + last + (str(body.title_position, 80) ? ', ' + str(body.title_position, 80) : ''),
+      'Work email: ' + (email || '—'), 'Last day: ' + (lastDay || '—'), reason ? 'Why: ' + reason : '', '', 'Remove their access:');
+    if (items.heaplus) { lines.push('[ ] HEAplus (CP-AO assistor portal): deactivate their account and send the Remove form to CPAO'); }
+    social.forEach(function (x) { lines.push('[ ] ' + x + ': remove them as a page admin or editor'); });
+    if (socialOther) { lines.push('[ ] Other social accounts: ' + socialOther); }
+    if (items.microsoft) { lines.push('[ ] Microsoft 365: block sign-in and sign them out everywhere (Offboarding page → Block Microsoft sign-in), then convert the mailbox and reclaim the license'); }
+    lines.push('', 'Offboarding page: offboarding.html');
+    /* drop the empty lines left by optional fields (keep single spacers) */
+    const tidy = lines.filter(function (l, i) { return l !== '' || (i > 0 && lines[i - 1] !== ''); });
+    lines.length = 0; tidy.forEach(function (l) { lines.push(l); });
+    body.priority = lastDay && lastDay <= new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10) ? 'Hot' : body.priority;
   } else if (kind === 'salesforce') {
     const type = str(body.request_type, 60);
     const area = str(body.area, 60);
@@ -174,13 +207,14 @@ function toRow(body, user, deck) {
 
   return {
     title: title.slice(0, 300),
-    owner: (kind === 'salesforce' ? str(process.env.SALESFORCE_OWNER, 120) : '') || str(process.env.PRINT_OWNER, 120) || 'Brian Reinhart',
+    owner: (kind === 'salesforce' ? str(process.env.SALESFORCE_OWNER, 120) : kind === 'offboarding' ? str(process.env.OFFBOARDING_OWNER, 120) : '') ||
+      str(process.env.PRINT_OWNER, 120) || 'Brian Reinhart',
     status: 'New',
     importance: str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
-    due: needed || null,
+    due: needed || (kind === 'offboarding' && /^\d{4}-\d{2}-\d{2}$/.test(str(body.last_day, 10)) ? str(body.last_day, 10) : null),
     notes: lines.join('\n').slice(0, 4000),
     source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · '
-      : kind === 'salesforce' ? 'Salesforce request · '
+      : kind === 'salesforce' ? 'Salesforce request · ' : kind === 'offboarding' ? 'Offboarding request · '
       : kind === 'presentation_edit' ? 'Presentation edit request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
     seed_key: null
   };
@@ -339,7 +373,7 @@ module.exports = async function handler(req, res) {
         from_user_id: who.user ? who.user.id : null, kind: 'request', project_ref: ref,
         title: 'New request: ' + rows[0].title, body: rows[0].notes, link: 'projects.html#open=' + encodeURIComponent(ref) });
     } catch (e) { /* accounts not set up yet — the task is saved either way */ }
-    return sendJSON(res, 201, { ok: true, title: rows[0] && rows[0].title });
+    return sendJSON(res, 201, { ok: true, title: rows[0] && rows[0].title, id: rows[0] && rows[0].id });
   } catch (e) {
     if (NO_TABLES.test(e.message)) {
       return sendJSON(res, 503, { error: 'not_set_up', message: 'Order tracking isn\'t set up in Supabase yet — run supabase/print-orders.sql (or ALL.sql).' });
