@@ -62,10 +62,11 @@
     if (/^Cost cutting/i.test(src)) { return 'Cost cutting'; }
     return 'Added here';
   }
-  /* three buckets for the status split */
+  /* buckets for the status split */
   function stageOf(status) {
     var s = String(status || '').toLowerCase();
     if (/^(done|complete)/.test(s)) { return 'done'; }
+    if (/^cancel/.test(s)) { return 'cancelled'; }
     if (/^(new|on hold)/.test(s) || !s) { return 'todo'; }
     return 'doing';
   }
