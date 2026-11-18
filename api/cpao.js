@@ -1364,6 +1364,97 @@ async function cron(req, res) {
   return sendJSON(res, 200, out);
 }
 
+/* ── a removal request from anyone on staff (offboarding.html) ──────────
+   Someone asks for a person's HEAplus (assistor portal) access to end.
+   - has access (Active or later): onto the Remove list, and an Add/Remove
+     form with just their Remove row is built and signed, with the email to
+     CPAO waiting as a draft in Brian's Outlook. Nothing is sent: Brian
+     deactivates their HEAplus account, checks the form and sends it.
+   - not on the roster: added as having access (pre-portal), then the same.
+     The project says to confirm they really have HEAplus before sending.
+   - still applying (CPAO doesn't have them): no form; a task for Brian to
+     close them out with "Leaving Sanctuary? Remove them".
+   Every request makes (or adds to) a project, so Brian gets an alert.     */
+async function noteOnProject(projectId, line) {
+  if (!projectId) { return; }
+  try {
+    const p = (await projectWrite('GET', '?id=eq.' + projectId + '&select=notes'))[0];
+    if (p) { await projectWrite('PATCH', '?id=eq.' + projectId, { notes: (line + '\n\n' + (p.notes || '')).slice(0, 4000) }); }
+  } catch (e) { /* the request is filed either way */ }
+}
+async function removalRequest(req, me, b) {
+  const first = str(b.first_name, 40), last = str(b.last_name, 40), email = str(b.email, 200).toLowerCase();
+  const reason = str(b.reason, 300), lastDay = str(b.last_day, 10), notes = str(b.notes, 1000);
+  if (!first || !last) { throw bad('Add their first and last name.'); }
+  if (email && !EMAIL.test(email)) { throw bad('Their email doesn\'t look right.'); }
+  if (lastDay && !R.isDate(lastDay)) { throw bad('Their last day isn\'t a date.'); }
+  const by = me.name || me.email, name = first + ' ' + last;
+  const header = ['HEAplus removal requested by ' + by + (b.offboarding ? ' (offboarding)' : '') + '.',
+    'Person: ' + name + (email ? ' <' + email + '>' : ''),
+    reason ? 'Why: ' + reason : '', lastDay ? 'Last day: ' + R.mdy(lastDay) : '', notes ? 'Notes: ' + notes : ''].filter(Boolean).join('\n');
+
+  /* who is it: their email first, then exactly their name */
+  const live = await db('GET', 'cpao_staff', '?status=not.in.(removed)&select=*');
+  let s = (email && live.filter(function (x) { return String(x.email).toLowerCase() === email; })[0]) ||
+    live.filter(function (x) { return x.first_name.toLowerCase() === first.toLowerCase() && x.last_name.toLowerCase() === last.toLowerCase(); })[0] || null;
+  let added = false;
+  if (!s) {
+    if (!email) { throw bad('They aren\'t on the HEAplus roster. Add their work email so they can be put on the Remove form.'); }
+    const row = { first_name: first, last_name: last, email: email, title_position: str(b.title_position, 80) || null,
+      worker_type: ['Employee', 'Contractor', 'Volunteer'].indexOf(b.worker_type) >= 0 ? b.worker_type : 'Employee',
+      is_site_admin: false, work_address: R.C.default_work_address, status: 'active',
+      last_action: 'Added from a removal request — had HEAplus access before the portal', last_action_at: nowIso() };
+    s = (await db('POST', 'cpao_staff', '', row))[0];
+    try { s = await setStaff(s.id, {}, null, 'active'); } catch (e) { /* stage_dates not added yet */ }
+    await audit(me.email, 'add_existing', s.id, { from: 'removal_request' }, req);
+    added = true;
+  }
+  const note = { at: nowIso(), by: by, kind: 'removal', due: null,
+                 text: 'Removal requested' + (reason ? ' — ' + reason : '') + (lastDay ? ' (last day ' + R.mdy(lastDay) + ')' : '') + (notes ? '. ' + notes : '') };
+  const followups = (s.followups || []).concat([note]).slice(-100);
+  await audit(me.email, 'removal_request', s.id, { offboarding: !!b.offboarding, added: added }, req);
+  const link = site(req) + '/cpao-admin.html#staff=' + s.id;
+
+  /* still applying: CPAO doesn't have them, so no Remove form */
+  if (BEFORE_CPAO.indexOf(s.status) >= 0) {
+    await setStaff(s.id, { followups: followups }, 'Removal requested by ' + by);
+    const p = await project('Close out ' + name + ' in HEAplus (removal requested, still applying)',
+      header + '\n\nCPAO doesn\'t have their application yet, so no Remove form is needed. Open their card and use "Leaving Sanctuary? Remove them": ' + link,
+      R.addBusinessDays(R.today(), 1), me, 'Hot');
+    await noteOnProject(b.project_id, 'HEAplus: ' + name + ' is still applying; a task to close them out was created (no Remove form needed).');
+    return { ok: true, outcome: 'closeout', project_id: p.id,
+             message: name + ' hasn\'t been sent to CPAO yet, so no Remove form is needed. ' + R.C.site_admin_name + ' has a task to close them out.' };
+  }
+  /* has (or is getting) access: onto the Remove list */
+  if (s.status !== 'remove_requested') {
+    if (R.CAN_REMOVE.indexOf(s.status) < 0) { throw bad(name + ' can\'t be put on the Remove list from their current stage. Ask ' + R.C.site_admin_name + '.'); }
+    await closeProject(s.project_id);
+    await setStaff(s.id, { status: 'remove_requested', project_id: null, followups: followups }, 'Removal requested by ' + by);
+    await audit(me.email, 'status', s.id, { from: s.status, to: 'remove_requested', reason: 'removal_request' }, req);
+  } else {
+    await setStaff(s.id, { followups: followups }, 'Removal requested again by ' + by);
+  }
+  /* stage it: the signed form, and the email to CPAO as an Outlook draft */
+  let built = null, buildError = null;
+  try { built = await buildBatch(req, me.email, [s.id]); } catch (e) { buildError = e.bad ? e.message : 'the form couldn\'t be built'; }
+  const steps = ['', 'To finish:', '1. Deactivate their HEAplus account.' + (added ? ' They weren\'t on the roster: first confirm they really have HEAplus access.' : ''),
+    '2. Check the Remove form on Weekly batches: ' + site(req) + '/cpao-admin.html#batch' + (built && built.batch_id ? '=' + built.batch_id : 'es'),
+    '3. Send it to CPAO (Send to CPAO, or the draft in your Outlook), then Mark as Sent.'].join('\n');
+  if (built && built.batch_id) {
+    const batch = (await db('GET', 'cpao_batches', '?id=eq.' + built.batch_id + '&select=project_id'))[0];
+    await noteOnProject(batch && batch.project_id, header + steps);
+    await noteOnProject(b.project_id, 'HEAplus: the Remove form for ' + name + ' is built and staged for ' + R.C.site_admin_name + ' to send' +
+      (built.outlook_draft ? ' (draft in Outlook)' : '') + '.');
+    return { ok: true, outcome: 'staged', batch_id: built.batch_id, project_id: batch && batch.project_id, added: added,
+             message: 'Done. ' + name + ' is on the Remove list and their Remove form is built and waiting for ' + R.C.site_admin_name + ' to review and send.' };
+  }
+  const p = await project('Remove ' + name + ' from HEAplus (requested)', header + '\n\nThe Remove form couldn\'t be built automatically: ' + buildError +
+    '. They\'re on the Remove list; build it on Weekly batches.' + steps, R.addBusinessDays(R.today(), 1), me, 'Hot');
+  await noteOnProject(b.project_id, 'HEAplus: ' + name + ' is on the Remove list; the form needs building by hand (' + buildError + ').');
+  return { ok: true, outcome: 'listed', project_id: p.id, added: added,
+           message: name + ' is on the Remove list and ' + R.C.site_admin_name + ' has a task to build and send the form.' };
+}
+
 /* ══════════════════════════════════════════════════════════════════════ */
 const STAFF_ACTIONS = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, paper: 1 };
 const NEEDS_KEY = { apply: 1, save: 1, print: 1, scan: 1, submit: 1, reveal: 1, countersign: 1, rotate: 1, preview_pdf: 1 };
@@ -1390,6 +1481,25 @@ module.exports = async function handler(req, res) {
     /* letters are uploaded raw, before any JSON body is read */
     if (action === 'mail_upload' && req.method === 'POST' && access(me).cpao_mail) { return sendJSON(res, 200, await mailUpload(req, me, q)); }
     const acc = access(me);
+    /* anyone on staff can ask for someone's HEAplus access to end (offboarding.html) */
+    if (action === 'removal_request' && req.method === 'POST') { return sendJSON(res, 200, await removalRequest(req, me, await body(req))); }
+    /* offboarding: block a Microsoft 365 account (site admin only) */
+    if (action === 'block_microsoft' && req.method === 'POST') {
+      if (!acc.admin) { return sendJSON(res, 403, { error: 'forbidden', message: 'Only an admin can block a Microsoft account.' }); }
+      const b = await body(req), email = str(b.email, 200).toLowerCase();
+      if (!EMAIL.test(email)) { throw bad('Their work email doesn\'t look right.'); }
+      if (b.confirm !== true) { throw bad('Confirm the block first.'); }
+      try {
+        const r = await G.blockUser(email);
+        await audit(me.email, 'block_microsoft', null, { email: email, revoked: r.revoked }, req);
+        await noteOnProject(UUID.test(str(b.project_id, 40)) ? b.project_id : null,
+          'Microsoft 365: sign-in blocked by ' + (me.name || me.email) + ' on ' + R.mdy(R.today()) + (r.revoked ? ', and signed out everywhere.' : '.'));
+        return sendJSON(res, 200, { ok: true, revoked: r.revoked, message: email + ' can no longer sign in to Microsoft 365' + (r.revoked ? ' and was signed out everywhere.' : '.') });
+      } catch (e) {
+        if (e.code) { return sendJSON(res, e.code === 'forbidden' ? 403 : 400, { error: e.code, message: e.message }); }
+        throw e;
+      }
+    }
     /* certificates: the person themself, or a HEAplus admin for someone */
     if (action === 'cert_upload' && req.method === 'POST') {
       const s = q.id && acc.cpao_admin ? await staffById(q.id) : await ownRecord(me);

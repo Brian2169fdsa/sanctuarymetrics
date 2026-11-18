@@ -210,6 +210,7 @@ function pageHeader(titleText, line1, line2, current) {
       '<a href="photos.html"' + (current === 'photos' ? ' aria-current="page"' : '') + '>Photos</a>' +
       '<a href="website.html"' + (current === 'website' ? ' aria-current="page"' : '') + '>Website edits</a>' +
       '<a href="salesforce.html"' + (current === 'salesforce' ? ' aria-current="page"' : '') + '>Salesforce</a>' +
+      '<a href="offboarding.html"' + (current === 'offboarding' ? ' aria-current="page"' : '') + '>Offboarding</a>' +
       '<a href="sanctuaryci.html" data-need="reports"' + (current === 'sanctuaryci' ? ' aria-current="page"' : '') + '>sanctuaryci.org Metrics</a>' +
       '<a href="fundraising.html" data-need="reports"' + (current === 'fundraising' ? ' aria-current="page"' : '') + '>SCI Fundraising</a>' +
       '<a href="pal-email.html" data-need="reports"' + (current === 'pal' ? ' aria-current="page"' : '') + '>PAL Email Send</a>' +
