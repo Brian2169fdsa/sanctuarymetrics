@@ -336,7 +336,8 @@ function render() {
     pageHeader('SCI Fundraising', 'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', h(syncLine()), 'fundraising') +
     '<section>' +
       '<div class="eyebrow">Sanctuary Community Initiative · EIN ' + h(PLAN.meta.ein) + '</div>' +
-      '<h2 style="font-size:26px;margin:6px 0 0">Fundraising plan and live results</h2>' +
+      '<div class="fr-row" style="justify-content:space-between;align-items:flex-end"><h2 style="font-size:26px;margin:6px 0 0">Fundraising plan and live results</h2>' +
+      whosGiving() + '</div>' +
       '<p class="lead" style="margin-bottom:0">The plan from November 2026 to November 2027, tracked against live Donorbox totals. ' +
       'Aggregates only: no donor names, emails or individual gifts appear on this page. ' +
       (PLAN.targets.status === 'placeholder' ? tag('Placeholder', 'ph') + ' Every dollar target is a placeholder until approved.' : '') + '</p>' +
@@ -353,6 +354,18 @@ function render() {
   applyDataLabels();
   wire();
   scrollTo(0, y);
+}
+
+/* ── the "Who's giving" button: the count only, never a name ───────────── */
+var TO_SEND = null;
+function whosGiving() {
+  return '<a class="fr-btn solid" href="donors.html" style="text-decoration:none;font-size:13px;padding:9px 16px">Who\'s giving' +
+    (TO_SEND ? ' · ' + TO_SEND + ' to send' : '') + '</a>';
+}
+function loadToSend() {
+  fetch('/api/donors?count=1', { credentials: 'same-origin', cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && typeof j.toSend === 'number') { TO_SEND = j.toSend; if (PLAN) { render(); } } }, function () { /* no access: plain button */ });
 }
 
 /* ── 1. Overview ───────────────────────────────────────────────────────── */
@@ -987,6 +1000,6 @@ Promise.all([
   getJSON(PLAN_URL),
   getJSON(METRICS_URL).catch(function () { return { generatedAt: null, totals: {}, campaigns: [], automations: [] }; }),
   SM.ready.then(loadState)
-]).then(function (r) { PLAN = r[0]; M = r[1]; route(); }, function (e) { STATE_MSG = 'Could not load the plan: ' + h(e.message); render(); });
+]).then(function (r) { PLAN = r[0]; M = r[1]; route(); loadToSend(); }, function (e) { STATE_MSG = 'Could not load the plan: ' + h(e.message); render(); });
 </script>
 </body></html>

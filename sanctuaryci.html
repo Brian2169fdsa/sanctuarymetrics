@@ -252,7 +252,8 @@ function render() {
     pageHeader('sanctuaryci.org Metrics', 'Sanctuary CI &nbsp;·&nbsp; Internal / Confidential', status, 'sanctuaryci') +
     '<section>' +
       '<div class="eyebrow">Sanctuary CI</div>' +
-      '<h2 style="font-size:26px;margin:6px 0 0">sanctuaryci.org at a glance</h2>' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap"><h2 style="font-size:26px;margin:6px 0 0">sanctuaryci.org at a glance</h2>' +
+      '<a class="btn" href="donors.html" style="text-decoration:none">Who\'s giving' + (TO_SEND ? ' · ' + TO_SEND + ' to send' : '') + '</a></div>' +
       '<p class="lead">Website figures are live: every visit, how far people scroll, how long they stay, what they click and ' +
       'where they came from. Visitors are anonymous — no names, form contents or IP addresses are stored. Social channels ' +
       'fill in once their data is piped in. Donations and the fundraising plan are on <a href="fundraising.html">SCI Fundraising</a>.</p>' +
@@ -299,6 +300,12 @@ function wire() {
 }
 
 SM.ready.then(loadStats);
+/* the "Who's giving" button's count: a number only, never a name */
+var TO_SEND = null;
+SM.ready.then(function () {
+  return fetch('/api/donors?count=1', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && typeof j.toSend === 'number') { TO_SEND = j.toSend; render(); } });
+}).catch(function () { /* no access: plain button */ });
 fetch(CI_SOURCE, { cache: 'no-store' })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) { if (d) { SOCIAL = d; render(); } })

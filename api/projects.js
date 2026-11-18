@@ -112,6 +112,8 @@ function clean(input) {
 
 async function handler(req, res) {
   if (new URL(req.url, 'http://x').searchParams.get('store') === 'fundraising') { return fundraising.handle(req, res); }
+  /* SCI donors ("Who's giving"): private, own-account sign-in only — see lib/donors.js */
+  if (new URL(req.url, 'http://x').searchParams.get('store') === 'donors') { return require('../lib/donors').handle(req, res); }
   const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     .filter(function (k) { return !process.env[k]; });
   if (missing.length) {

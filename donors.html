@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Who's giving — SCI donors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.dn-k{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:18px 0 6px}
+.dn-k .kpi .num{font-size:28px}
+.dn-head{font-size:14px;margin:12px 0 4px}
+.dn-tag{white-space:nowrap}
+.tag.staff{background:#e8f4fb;color:#17739E}.tag.anon{background:#efe9f7;color:#6B4C9A}.tag.off{background:#fdf3e0;color:#B06F14}
+.tag.st-owed{background:#fdf3e0;color:#B06F14}.tag.st-address-needed{background:#fbeae6;color:#C0492B}.tag.st-packed{background:#e8f4fb;color:#17739E}
+.tag.st-sent,.tag.st-delivered{background:#e6f4ee;color:#2E8B6F}.tag.st-declined,.tag.st-not-owed{background:#eef3f6;color:var(--muted)}
+.dn-q{list-style:none;padding:0;margin:0}
+.dn-q li{display:grid;grid-template-columns:1fr auto auto;gap:8px 14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.dn-q li:last-child{border-bottom:0}
+.dn-q .who{all:unset;cursor:pointer;font-weight:700;color:var(--teal)}
+.dn-q .who:focus-visible,.dn-name:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.dn-q .meta{font-size:12px;color:var(--muted)}
+.dn-btn{font-family:inherit;font-size:12px;font-weight:700;color:var(--teal);background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.dn-btn:hover{background:var(--paper);border-color:#cfdbe2}
+.dn-btn.solid{background:var(--teal);border-color:var(--teal);color:#fff}
+.dn-btn.solid:hover{background:#234353}
+.dn-btn:disabled{opacity:.5;cursor:default}
+.dn-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.dn-chips button{all:unset;cursor:pointer;font-size:12px;font-weight:700;padding:6px 13px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.dn-chips button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.dn-chips button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.dn-chips small{opacity:.75;margin-left:4px}
+.dn-table th button{all:unset;cursor:pointer}
+.dn-table th button:focus-visible{outline:2px solid var(--blue)}
+.dn-table tr.sel{background:#fbf3ec}
+.dn-name{all:unset;cursor:pointer;font-weight:700;color:var(--teal)}
+.dn-notes{max-width:260px;white-space:normal;font-size:12.5px;color:var(--muted)}
+.dn-panel{border-left:4px solid var(--coral);background:#fff}
+.dn-panel h3.big{font-family:Fraunces,serif;font-size:22px;font-weight:600;margin:0}
+.dn-f{display:flex;flex-direction:column;gap:4px;flex:1 1 180px;min-width:0}
+.dn-f label,.dn-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.dn-f input,.dn-f select,.dn-f textarea{font-family:inherit;font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%;min-width:0}
+.dn-f textarea{min-height:64px;resize:vertical}
+.dn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:10px 0}
+.dn-check{display:inline-flex;gap:6px;align-items:center;font-size:13px;margin-right:14px}
+.dn-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:var(--paper)}
+.dn-item .t{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.dn-msg{font-size:12px;margin:4px 0 0;color:#C0492B;min-height:1em}
+.dn-msg.ok{color:#2E8B6F}
+.dn-private{font-size:11.5px;color:#7a4a24;background:#fbf3ec;border:1px solid #f0d9c6;border-radius:7px;padding:6px 10px;margin:4px 0 0}
+.dn-log{list-style:none;padding:0;margin:0;font-size:12.5px;color:var(--muted)}
+.dn-log li{padding:5px 0;border-bottom:1px dashed var(--line)}
+.dn-log b{color:var(--ink);font-weight:600}
+.dn-btnrow{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:1100px){.dn-k{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:720px){.dn-k{grid-template-columns:1fr 1fr}.dn-q li{grid-template-columns:1fr}}
+@media (max-width:420px){.dn-k{grid-template-columns:1fr}}
+@media (max-width:720px), (pointer:coarse){.dn-btn{min-height:40px}.dn-f input,.dn-f select,.dn-f textarea{font-size:15px;min-height:42px}.dn-chips button{min-height:38px;display:inline-flex;align-items:center}}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── Who's giving: SCI donors and the member-gift tracker ──────────────────
+   PRIVATE. Nothing about any donor is in this file or any other static
+   file: everything comes from /api/donors (lib/donors.js), which answers
+   only to a signed-in account with Reports access. Addresses are fetched
+   only for the open detail panel and never shown anywhere else.            */
+var API = '/api/donors';
+var D = null, STATE = 'loading', ERR = '';
+var FILTER = 'all', SORT = { key: 'total', dir: -1 };
+var OPEN = null, DETAIL = null, PREVIEW = null, CSV = '';
+
+function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function money(n) { var v = Number(n) || 0; return '$' + v.toLocaleString('en-US', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
+function money2(n) { return '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function day(iso) { return iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : '—'; }
+function when(ts) { return ts ? new Date(ts).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'; }
+function statusLabel(s) { var x = (D && D.config.statuses || []).filter(function (p) { return p[0] === s; })[0]; return x ? x[1] : s; }
+function stTag(s) { return '<span class="tag st-' + h(s) + '">' + h(statusLabel(s)) + '</span>'; }
+var TYPE = { monthly: 'Monthly', 'one-time': 'One-time', offline: 'Offline' };
+var OPEN_ST = { owed: 1, 'address-needed': 1, packed: 1 };
+
+function api(method, url, body) {
+  return fetch(url, { method: method, credentials: 'same-origin', cache: 'no-store',
+    headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })
+    .then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.message || ('Request failed (' + r.status + ')')); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+}
+
+/* ── figures ───────────────────────────────────────────────────────────── */
+function openItems(d) { return d.items.filter(function (i) { return OPEN_ST[i.display]; }); }
+function sentItems(d) { return d.items.filter(function (i) { return i.status === 'sent' || i.status === 'delivered'; }); }
+function giftStatus(d) {
+  var open = openItems(d);
+  if (open.length) {
+    var worst = open.some(function (i) { return i.display === 'address-needed'; }) ? 'address-needed' : (open.some(function (i) { return i.display === 'owed'; }) ? 'owed' : 'packed');
+    return stTag(worst) + (open.length > 1 ? ' <span class="note">' + open.length + ' items</span>' : '');
+  }
+  if (sentItems(d).length) { return stTag('sent'); }
+  return '<span class="note">—</span>';
+}
+function stats() {
+  var ds = D.donors, total = 0, gifts = 0, monthly = 0, mrr = 0, owed = 0, monthlyOwed = 0;
+  var byType = { monthly: { total: 0, gifts: 0, donors: 0 }, 'one-time': { total: 0, gifts: 0, donors: 0 }, offline: { total: 0, gifts: 0, donors: 0 } };
+  ds.forEach(function (d) {
+    total += d.total; gifts += d.gifts;
+    byType[d.type].total += d.total; byType[d.type].gifts += d.gifts; byType[d.type].donors++;
+    if (d.type === 'monthly') { monthly++; mrr += d.monthly; if (openItems(d).length) { monthlyOwed++; } }
+    owed += openItems(d).length;
+  });
+  var top = Object.keys(byType).sort(function (a, b) { return byType[b].total - byType[a].total; })[0];
+  return { total: Math.round(total * 100) / 100, gifts: gifts, donors: ds.length, monthly: monthly, mrr: mrr, owed: owed, monthlyOwed: monthlyOwed, byType: byType, top: top };
+}
+function headlineText(s) {
+  if (!s.donors) { return 'No donors yet. An admin loads the list with the import below.'; }
+  var a = s.monthly + ' of ' + s.donors + ' donor' + (s.donors === 1 ? '' : 's') + ' give' + (s.monthly === 1 ? 's' : '') + ' monthly';
+  if (!s.monthly) { return a + '; ' + s.owed + ' thank-you item' + (s.owed === 1 ? ' is' : 's are') + ' still to send.'; }
+  if (s.monthlyOwed === s.monthly) { return a + ', and ' + (s.monthly === 1 ? 'they are' : 'all ' + s.monthly + ' are') + ' owed a member gift.'; }
+  if (!s.monthlyOwed) { return a + ', and every member gift has gone out.'; }
+  return a + ', and ' + s.monthlyOwed + ' of them ' + (s.monthlyOwed === 1 ? 'is' : 'are') + ' still owed a member gift.';
+}
+function shareText(s) {
+  if (!s.total) { return { num: '—', note: 'no gifts yet' }; }
+  var t = s.byType[s.top], p = Math.round(t.total / s.total * 100);
+  var noun = { monthly: 'monthly gift', 'one-time': 'one-time gift', offline: 'offline gift' }[s.top];
+  return { num: p + '%', note: 'from ' + (t.gifts === 2 ? 'two' : t.gifts) + ' ' + noun + (t.gifts === 1 ? '' : 's') };
+}
+
+/* ── render ────────────────────────────────────────────────────────────── */
+function render() {
+  var y = scrollY, sheet = document.getElementById('sheet');
+  var head = pageHeader("Who's giving", 'Sanctuary CI &nbsp;·&nbsp; Private: staff only', 'Donor names stay inside the dashboard', 'fundraising');
+  if (STATE !== 'ready') {
+    var body = STATE === 'loading' ? '<p class="lead">Loading donors…</p>'
+      : STATE === 'signin' ? (SM.microsoft ? SM.signInCard('donors.html', 'Donor records need your own sign-in.') :
+        '<div class="warn"><b>Sign in with your own account.</b> Donor records are private and don\'t open with the shared team password. <a href="login.html?next=donors.html">Sign in</a></div>')
+      : '<div class="warn">' + h(ERR) + '</div>';
+    sheet.innerHTML = head + '<section><div class="eyebrow">Sanctuary Community Initiative</div><h2 style="font-size:26px;margin:6px 0 12px">Who\'s giving</h2>' + body + '</section>';
+    return;
+  }
+  var s = stats(), share = shareText(s);
+  sheet.innerHTML = head +
+    '<section><div class="eyebrow">Sanctuary Community Initiative · <a href="fundraising.html">back to SCI Fundraising</a></div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0">Who\'s giving</h2>' +
+    '<p class="lead" style="margin-bottom:6px">Everyone who has given to SCI, what each person is owed as a thank-you or member gift, and whether it has gone out. ' +
+    'This is a private staff view, not a donor wall: nothing here is published anywhere.</p>' +
+    (D.sync.enabled ? '' : '<p class="note" style="font-size:12.5px;color:var(--muted)">Figures come from the imported list' +
+      (D.lastSync ? '' : ' until the Donorbox sync is switched on') + '. ' + (D.lastSync ? 'Last Donorbox sync ' + h(when(D.lastSync.at)) + '.' : '') + '</p>') +
+    '<div class="dn-k">' +
+      kpi('Total raised', money(s.total), s.gifts + ' gifts') +
+      kpi('Donors', String(s.donors), D.donors.filter(function (d) { return d.staff; }).length + ' staff or board') +
+      kpi('Active monthly donors', String(s.monthly), money(s.mrr) + ' a month') +
+      kpi('Gifts owed, not yet sent', String(s.owed), D.donors.reduce(function (n, d) { return n + d.items.filter(function (i) { return i.display === 'address-needed'; }).length; }, 0) + ' need an address') +
+      kpi('Largest share, one source', share.num, share.note) +
+    '</div><p class="dn-head"><b>' + h(headlineText(s)) + '</b></p></section>' +
+    queue() + charts(s) + list() + (D.admin ? adminTools() : '') +
+    pageFooter('SCI donor records (private), ' + (D.lastSync ? 'Donorbox sync of ' + when(D.lastSync.at) : 'imported list'));
+  applyDataLabels();
+  wire();
+  scrollTo(0, y);
+}
+function kpi(lab, num, note) { return '<div class="kpi"><div class="lab">' + h(lab) + '</div><div class="num">' + h(num) + '</div><div class="note">' + h(note) + '</div></div>'; }
+
+function queue() {
+  var q = [];
+  D.donors.forEach(function (d) { openItems(d).forEach(function (i) { q.push({ d: d, i: i }); }); });
+  q.sort(function (a, b) { return a.i.created_at < b.i.created_at ? -1 : 1; });
+  return '<section>' + sechead('Gifts to send', 'var(--coral)', 'Owed, address needed or packed, oldest first', q.length + ' waiting') +
+    (q.length ? '<ul class="dn-q">' + q.map(function (x) {
+      return '<li><span><button type="button" class="who" data-open="' + x.d.id + '">' + h(x.d.name) + '</button> · ' + h(x.i.item) + (x.i.size ? ' (' + h(x.i.size) + ')' : '') +
+        '<br><span class="meta">' + h(x.i.reason) + ' · owed since ' + h(day(x.i.created_at)) + (x.d.anonymous ? ' · anonymous' : '') + '</span></span>' +
+        stTag(x.i.display) + '<button type="button" class="dn-btn solid" data-sent="' + x.i.id + '">Mark sent</button></li>';
+    }).join('') + '</ul>' : '<div class="empty">Nothing to send. Every gift owed has gone out.</div>') +
+    '<p class="note" style="font-size:12px;color:var(--muted);margin-top:8px">"Address needed" means the item is owed, there is no mailing address on file, and it is set to go by mail. Add the address on the donor\'s panel, or set the method to hand-delivered.</p></section>';
+}
+
+function charts(s) {
+  var W2 = chartW(true), W = chartW(false);
+  var per = D.donors.slice().sort(function (a, b) { return b.total - a.total; }).map(function (d) { return { label: d.name, value: Math.round(d.total) }; });
+  var topD = D.donors.slice().sort(function (a, b) { return b.total - a.total; })[0];
+  var shares = ['monthly', 'one-time', 'offline'].map(function (k) { return { label: TYPE[k], value: s.total ? Math.round(s.byType[k].total / s.total * 100) : 0 }; });
+  var months = D.giftsByMonth || [];
+  var series = [];
+  if (months.length) {
+    var p = months[0].month.split('-'), y = +p[0], m = +p[1], last = months[months.length - 1].month, by = {};
+    months.forEach(function (x) { by[x.month] = x.gifts; });
+    for (var guard = 0; guard < 60; guard++) {
+      var key = y + '-' + (m < 10 ? '0' : '') + m;
+      series.push({ label: new Date(Date.UTC(y, m - 1, 15)).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short' }), value: by[key] || 0 });
+      if (key === last) { break; }
+      m++; if (m > 12) { m = 1; y++; }
+    }
+  }
+  var busiest = series.slice().sort(function (a, b) { return b.value - a.value; })[0];
+  return '<section>' + sechead('Where the money comes from', 'var(--coral)', 'Totals per donor and by type of giving', '') +
+    grid2(
+      card('Total given per donor', hbar(per, { W: W2, color: '#2C5468' }) + '<p class="dn-head"><b>' +
+        (topD ? h(topD.name) + ' has given the most, ' + h(money(topD.total)) + ' (' + Math.round(topD.total / (s.total || 1) * 100) + '% of the total).' : 'No gifts yet.') + '</b></p>'),
+      card('Share of total by type', hbar(shares, { W: W2, color: '#E17F55' }) + '<p class="dn-head"><b>' +
+        h(s.total ? TYPE[s.top] + ' giving is ' + Math.round(s.byType[s.top].total / s.total * 100) + '% of everything raised.' : 'No gifts yet.') + '</b></p>', 'Percent of the total raised.')
+    ) +
+    card('Gifts per month since the first gift', series.length ? vbar(series, '#2C5468', W) + '<p class="dn-head"><b>' +
+      h(busiest.label + ' had the most gifts (' + busiest.value + ').') + '</b></p>'
+      : '<div class="empty">Gift-by-gift history arrives with the Donorbox sync, or as offline gifts are entered on a donor\'s panel. The imported list has totals only, so there is nothing to chart by month yet.</div>') +
+    '</section>';
+}
+
+var FILTERS = [['all', 'All'], ['monthly', 'Monthly'], ['one-time', 'One-time'], ['offline', 'Offline'], ['staff', 'Staff'], ['owed', 'Gift owed'], ['sent', 'Gift sent']];
+function matches(d, f) {
+  if (f === 'all') { return true; }
+  if (f === 'staff') { return d.staff; }
+  if (f === 'owed') { return openItems(d).length > 0; }
+  if (f === 'sent') { return sentItems(d).length > 0; }
+  return d.type === f;
+}
+var COLS = [['name', 'Name'], ['total', 'Total given'], ['gifts', 'Gifts'], ['last', 'Most recent'], ['type', 'Type'], ['tier', 'Tier'], ['status', 'Gift status'], ['notes', 'Notes']];
+function sortVal(d, k) {
+  if (k === 'status') { return openItems(d).length ? 2 : (sentItems(d).length ? 1 : 0); }
+  if (k === 'name' || k === 'type' || k === 'tier' || k === 'notes') { return String(d[k] || '').toLowerCase(); }
+  return k === 'last' ? (d.last || '') : d[k];
+}
+function list() {
+  var rows = D.donors.filter(function (d) { return matches(d, FILTER); }).sort(function (a, b) {
+    var x = sortVal(a, SORT.key), y = sortVal(b, SORT.key);
+    return (x < y ? -1 : x > y ? 1 : 0) * SORT.dir || (a.name < b.name ? -1 : 1);
+  });
+  var panel = OPEN ? detailPanel() : '';
+  return '<section id="list">' + sechead('Donors', 'var(--coral)', 'Select a name for gift history and the gift tracker', '') +
+    '<div class="dn-chips" role="group" aria-label="Filter donors">' + FILTERS.map(function (f) {
+      var n = D.donors.filter(function (d) { return matches(d, f[0]); }).length;
+      return '<button type="button" data-filter="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + '<small>' + n + '</small></button>';
+    }).join('') + '</div>' + panel +
+    '<div class="tw"><table class="dn-table"><thead><tr>' + COLS.map(function (c) {
+      var on = SORT.key === c[0];
+      return '<th' + (/total|gifts/.test(c[0]) ? ' class="n"' : '') + ' aria-sort="' + (on ? (SORT.dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button type="button" data-sort="' + c[0] + '">' +
+        c[1] + (on ? (SORT.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>';
+    }).join('') + '</tr></thead><tbody>' + (rows.length ? rows.map(function (d) {
+      return '<tr' + (OPEN === d.id ? ' class="sel"' : '') + '><td><button type="button" class="dn-name" data-open="' + d.id + '">' + h(d.name) + '</button>' + badges(d) + '</td>' +
+        '<td class="n">' + money2(d.total) + '</td><td class="n">' + d.gifts + '</td><td>' + h(day(d.last)) + '</td><td>' + TYPE[d.type] +
+        (d.type === 'monthly' ? ' <span class="note">' + money(d.monthly) + '/mo</span>' : '') + '</td><td>' + h(d.tier || '—') + '</td>' +
+        '<td>' + giftStatus(d) + '</td><td class="dn-notes">' + h(d.notes || '') + '</td></tr>';
+    }).join('') : '<tr><td colspan="8">No donors match this filter.</td></tr>') + '</tbody></table></div></section>';
+}
+function badges(d) {
+  return (d.staff ? ' <span class="tag staff">Staff</span>' : '') + (d.anonymous ? ' <span class="tag anon">Anonymous</span>' : '') +
+    (d.type === 'offline' || d.offline ? ' <span class="tag off">Offline</span>' : '');
+}
+
+/* ── detail panel ──────────────────────────────────────────────────────── */
+function opt(list, val) { return list.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === val ? ' selected' : '') + '>' + h(o[1]) + '</option>'; }).join(''); }
+function detailPanel() {
+  if (!DETAIL || DETAIL.donor.id !== OPEN) { return '<div class="card dn-panel" id="panel"><p>Loading…</p></div>'; }
+  var d = DETAIL.donor, row = D.donors.filter(function (x) { return x.id === d.id; })[0] || {};
+  var statuses = D.config.statuses.filter(function (s) { return s[0] !== 'address-needed'; });
+  return '<div class="card dn-panel" id="panel" tabindex="-1">' +
+    '<div class="dn-row" style="justify-content:space-between;margin-top:0"><div><h3 class="big">' + h(d.name) + '</h3>' + badges(row) +
+    '<p class="note" style="margin:4px 0 0">' + money2(d.total) + ' over ' + d.gifts + ' gift' + (d.gifts === 1 ? '' : 's') + ' · most recent ' + h(day(d.last)) +
+    ' · ' + TYPE[d.type] + (d.tier ? ' · ' + h(d.tier) : '') + '</p></div><button type="button" class="dn-btn" id="close">Close</button></div>' +
+
+    '<h3 style="margin:16px 0 8px">Gift tracker</h3>' + (DETAIL.items.length ? DETAIL.items.map(function (i) {
+      return '<div class="dn-item" data-item="' + i.id + '"><div class="t"><span><b>' + h(i.item) + '</b> <span class="note">· ' + h(i.reason) + '</span></span>' + stTag(i.display) + '</div>' +
+        '<div class="dn-row">' +
+        '<div class="dn-f" style="flex:0 1 170px"><label>Status</label><select data-k="status">' + opt(statuses, i.status) + '</select></div>' +
+        (i.apparel ? '<div class="dn-f" style="flex:0 1 90px"><label>Size</label><input data-k="size" value="' + h(i.size) + '" placeholder="M"></div>' : '') +
+        '<div class="dn-f" style="flex:0 1 160px"><label>Method</label><select data-k="method">' + opt(D.config.methods, i.method) + '</select></div>' +
+        '<div class="dn-f" style="flex:0 1 160px"><label>Date sent</label><input type="date" data-k="sent_on" value="' + h(i.sent_on || '') + '"></div>' +
+        '<div class="dn-f"><label>Tracking or note</label><input data-k="tracking" value="' + h(i.tracking) + '"></div>' +
+        (OPEN_ST[i.display] ? '<button type="button" class="dn-btn solid" data-sent="' + i.id + '">Mark sent</button>' : '') + '</div>' +
+        '<p class="note" style="margin:0;font-size:11.5px;color:var(--muted)">' + (i.sent_by ? 'Sent by ' + h(i.sent_by) + ' · ' : '') +
+        'Last updated by ' + h(i.updated_by_name || '—') + ', ' + h(when(i.updated_at)) + '</p><div class="dn-msg" data-msg="' + i.id + '"></div></div>';
+    }).join('') : '<p class="note">Nothing owed under the current rules.</p>') +
+
+    '<h3 style="margin:18px 0 8px">Donor details</h3>' +
+    '<div class="dn-row"><label class="dn-check"><input type="checkbox" data-flag="staff"' + (d.staff ? ' checked' : '') + '> Staff</label>' +
+    '<label class="dn-check"><input type="checkbox" data-flag="anonymous"' + (d.anonymous ? ' checked' : '') + '> Anonymous (never on public recognition)</label>' +
+    '<label class="dn-check"><input type="checkbox" data-flag="offline"' + (d.offline ? ' checked' : '') + '> Offline giver</label></div>' +
+    '<div class="dn-row"><div class="dn-f" style="flex:0 1 220px"><label for="mo">Monthly amount (base, before fees)</label><input id="mo" type="number" min="0" step="0.01" value="' + (Number(d.monthly_amount) || '') + '" placeholder="0 = not monthly"></div>' +
+    '<p class="note" style="margin:0 0 8px;font-size:12px;color:var(--muted)">' + ({ donorbox: 'From Donorbox; the sync keeps it current.', team: 'Set by staff.', import: 'From the import; confirm it in Donorbox.', none: 'Not a monthly donor.' }[d.monthly_source] || '') + '</p></div>' +
+    '<div class="dn-row"><div class="dn-f"><label for="nt">Notes</label><textarea id="nt">' + h(d.notes) + '</textarea></div>' +
+    '<div class="dn-f"><label for="ad">Mailing address (optional)</label><textarea id="ad" autocomplete="off">' + h(d.address) + '</textarea>' +
+    '<div class="dn-private">Private. Shown only here, never in the list, charts or anywhere else.</div></div></div>' +
+    '<div class="dn-btnrow"><button type="button" class="dn-btn solid" id="savedonor">Save details</button></div><div class="dn-msg" id="donormsg"></div>' +
+
+    '<h3 style="margin:18px 0 8px">Gift history</h3>' +
+    (DETAIL.gifts.length ? table(['Date', 'Amount', 'Campaign', 'Type', ''], DETAIL.gifts.map(function (g) {
+      return [h(day(g.gift_date)), money2(g.amount), h(g.campaign || '—'), g.kind === 'recurring' ? 'Recurring' : (g.kind === 'offline' ? 'Offline' : 'One-time'),
+              g.source === 'manual' ? '<button type="button" class="dn-btn" data-rmgift="' + g.id + '">Remove</button>' : '<span class="note">Donorbox</span>'];
+    }), { numeric: function (i) { return i === 1; } }) : '') +
+    (!d.synced_at && d.seed_gifts ? '<p class="note" style="font-size:12.5px;color:var(--muted)">From the imported list: ' + money2(d.seed_total) + ' over ' + d.seed_gifts +
+      ' gift' + (d.seed_gifts === 1 ? '' : 's') + ', most recent ' + h(day(d.seed_last)) + '. Gift-by-gift detail arrives with the Donorbox sync.</p>' : '') +
+    '<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:700;color:var(--teal);font-size:13px">Add an offline gift (not in Donorbox)</summary>' +
+    '<div class="dn-row"><div class="dn-f" style="flex:0 1 160px"><label for="gd">Date</label><input id="gd" type="date"></div>' +
+    '<div class="dn-f" style="flex:0 1 120px"><label for="ga">Amount</label><input id="ga" inputmode="decimal" placeholder="100.00"></div>' +
+    '<div class="dn-f"><label for="gc">Campaign</label><input id="gc"></div><div class="dn-f"><label for="gn">Note</label><input id="gn" placeholder="cash, check…"></div>' +
+    '<button type="button" class="dn-btn solid" id="addgift">Add gift</button></div><div class="dn-msg" id="giftmsg"></div></details>' +
+
+    '<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:700;color:var(--teal);font-size:13px">Change history</summary><ul class="dn-log">' +
+    DETAIL.log.map(function (l) {
+      var det = Object.keys(l.detail || {}).map(function (k) { return k + ': ' + l.detail[k]; }).join(', ');
+      return '<li><b>' + h(l.action) + '</b> · ' + h(l.by_name || '—') + ' · ' + h(when(l.at)) + (det ? '<br>' + h(det) : '') + '</li>';
+    }).join('') + '</ul></details></div>';
+}
+
+/* ── admin tools ───────────────────────────────────────────────────────── */
+function adminTools() {
+  var ty = D.thankYou;
+  var imp = '<div class="card"><h3>Import donors (admin)</h3><p class="note" style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Paste or upload a CSV with the columns ' +
+    '<b>Donor Name, Total Given, Number of Gifts, Most Recent Gift, Notes</b>. Optional columns: Staff, Anonymous, Offline (yes/no) and Monthly Amount. ' +
+    'Re-importing updates giving figures only: gift statuses, addresses, notes and flags are never reset. The file is read in your browser and sent only to the private store.</p>' +
+    '<div class="dn-row"><div class="dn-f"><label for="csv">CSV</label><textarea id="csv" style="min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px">' + h(CSV) + '</textarea></div></div>' +
+    '<div class="dn-btnrow"><input type="file" id="csvfile" accept=".csv,.tsv,.txt,text/csv"> <button type="button" class="dn-btn" id="preview">Preview</button>' +
+    (PREVIEW && !PREVIEW.written && !PREVIEW.totals.errors ? '<button type="button" class="dn-btn solid" id="commit">Write ' + PREVIEW.totals.donors + ' donors</button>' : '') + '</div>' +
+    '<div class="dn-msg" id="impmsg"></div>' + (PREVIEW ? previewTable() : '') + '</div>';
+  var rule = '<div class="card"><h3>Thank-you rule for one-time and offline donors</h3><div class="dn-row">' +
+    '<div class="dn-f" style="flex:0 1 260px"><label for="tym">Rule</label><select id="tym">' + opt([['per-donor', 'One note per donor'], ['min-total', 'A note when the donor\'s total is at least…'],
+      ['per-gift', 'A note for every gift'], ['off', 'No thank-you item']], ty.mode) + '</select></div>' +
+    '<div class="dn-f" style="flex:0 1 120px"><label for="tyu">Amount</label><input id="tyu" type="number" min="0" value="' + h(ty.minUsd) + '"></div>' +
+    '<div class="dn-f" style="flex:0 1 200px"><label for="tyi">Item name</label><input id="tyi" value="' + h(ty.item) + '"></div>' +
+    '<button type="button" class="dn-btn solid" id="saverule">Save rule</button></div><p class="note" style="font-size:12px;color:var(--muted)">Changing the rule adds newly owed items. It never removes or changes items already created.</p><div class="dn-msg" id="rulemsg"></div></div>';
+  var sync = '<div class="card"><h3>Donorbox sync</h3><p class="note" style="font-size:13px">' + (D.sync.enabled ? 'On. It runs daily and when you press Sync now.' :
+    'Off. ' + (D.sync.configured ? 'Credentials are set; set DONORBOX_SYNC_ENABLED=true in Vercel to turn it on.' : 'Set DONORBOX_EMAIL, DONORBOX_API_KEY and DONORBOX_SYNC_ENABLED=true in Vercel once the API add-on is active.')) +
+    (D.lastSync ? ' Last run ' + h(when(D.lastSync.at)) + ': ' + D.lastSync.gifts + ' gifts, ' + D.lastSync.linked + ' newly linked, ' + D.lastSync.unmatched + ' unmatched.' : '') + '</p>' +
+    (D.sync.enabled ? '<button type="button" class="dn-btn solid" id="syncnow">Sync now</button>' : '') + '<div class="dn-msg" id="syncmsg"></div>' +
+    ((D.unmatched || []).length ? '<h3 style="margin:14px 0 6px">Unmatched Donorbox records</h3>' + D.unmatched.map(function (u) {
+      return '<div class="dn-row" style="border-top:1px solid var(--line);padding-top:8px"><span style="flex:1 1 200px"><b>' + h(u.name || 'No name') + '</b> <span class="note">Donorbox #' + u.donorbox_id + ' · ' +
+        money2(u.total) + ', ' + u.gifts + ' gifts' + (u.last_gift ? ', last ' + h(day(u.last_gift)) : '') + '</span></span>' +
+        '<div class="dn-f" style="flex:0 1 220px"><select data-resolve="' + u.donorbox_id + '"><option value="">Choose…</option><option value="new">Add as a new donor</option><option value="ignore">Ignore (test or not a donor)</option>' +
+        D.donors.map(function (d) { return '<option value="' + d.id + '">Same person as ' + h(d.name) + '</option>'; }).join('') + '</select></div>' +
+        '<button type="button" class="dn-btn" data-resolvego="' + u.donorbox_id + '">Apply</button></div>';
+    }).join('') : '') + '</div>';
+  var add = '<div class="card"><h3>Add a donor by hand</h3><div class="dn-row"><div class="dn-f"><label for="newname">Name</label><input id="newname"></div>' +
+    '<label class="dn-check"><input type="checkbox" id="newoff"> Offline giver</label><button type="button" class="dn-btn solid" id="adddonor">Add</button></div><div class="dn-msg" id="addmsg"></div></div>';
+  return '<section>' + sechead('Admin', 'var(--muted)', 'Import, rules and the Donorbox sync. Admins only.', '') + imp + grid2(rule, add) + sync + '</section>';
+}
+function previewTable() {
+  var p = PREVIEW, tag = { 'new': 'hi', update: 'cold', unchanged: 'eq', error: 'lo' };
+  return '<p class="dn-head"><b>' + (p.written ? 'Written: ' : 'Preview: ') + p.totals.donors + ' donors, ' + money2(p.totals.total) + ' across ' + p.totals.gifts + ' gifts' +
+    (p.totals.errors ? '; ' + p.totals.errors + ' row(s) need fixing before anything can be written.' : '.') + (p.written ? ' ' + p.itemsAdded + ' owed items created.' : '') + '</b></p>' +
+    table(['Row', 'Name', 'Total', 'Gifts', 'Most recent', 'Flags', 'Result'], p.preview.map(function (l) {
+      return [String(l.row), h(l.name || '—'), l.total !== undefined ? money2(l.total) : '—', l.gifts !== undefined ? String(l.gifts) : '—', h(day(l.last)),
+        [l.staff ? 'Staff' : '', l.anonymous ? 'Anonymous' : '', l.offline ? 'Offline' : '', l.monthly ? 'Monthly ' + money(l.monthly) : ''].filter(Boolean).join(', ') || '—',
+        '<span class="tag ' + tag[l.action] + '">' + h(l.action === 'error' ? 'Error: ' + l.error : l.action) + '</span>'];
+    }));
+}
+
+/* ── events ────────────────────────────────────────────────────────────── */
+function msg(el, t, ok) { if (typeof el === 'string') { el = document.getElementById(el) || document.querySelector('[data-msg="' + el + '"]'); } if (el) { el.textContent = t; el.className = 'dn-msg' + (ok ? ' ok' : ''); } }
+function reload() { return api('GET', API).then(function (j) { D = j; }); }
+function openDonor(id) {
+  OPEN = id; DETAIL = null; render();
+  return api('GET', API + '?id=' + encodeURIComponent(id)).then(function (j) {
+    DETAIL = j; render();
+    var p = document.getElementById('panel'); if (p) { p.scrollIntoView({ behavior: 'smooth', block: 'start' }); p.focus({ preventScroll: true }); }
+  }, function (e) { OPEN = null; alert(e.message); render(); });
+}
+function refresh() {
+  return reload().then(function () { return OPEN ? api('GET', API + '?id=' + OPEN).then(function (j) { DETAIL = j; }) : null; }).then(render);
+}
+function wire() {
+  document.querySelectorAll('[data-open]').forEach(function (b) { b.addEventListener('click', function () { openDonor(b.getAttribute('data-open')); }); });
+  document.querySelectorAll('[data-filter]').forEach(function (b) { b.addEventListener('click', function () { FILTER = b.getAttribute('data-filter'); render(); }); });
+  document.querySelectorAll('[data-sort]').forEach(function (b) {
+    b.addEventListener('click', function () { var k = b.getAttribute('data-sort'); SORT = { key: k, dir: SORT.key === k ? -SORT.dir : (/name|type|tier|notes/.test(k) ? 1 : -1) }; render(); });
+  });
+  document.querySelectorAll('[data-sent]').forEach(function (b) {
+    b.addEventListener('click', function () { b.disabled = true; api('POST', API + '?action=sent&id=' + b.getAttribute('data-sent')).then(refresh, function (e) { b.disabled = false; alert(e.message); }); });
+  });
+  var close = document.getElementById('close');
+  if (close) { close.addEventListener('click', function () { OPEN = null; DETAIL = null; render(); }); }
+  document.querySelectorAll('[data-item]').forEach(function (box) {
+    var id = box.getAttribute('data-item');
+    box.querySelectorAll('[data-k]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var body = {}; body[inp.getAttribute('data-k')] = inp.value;
+        msg(id, 'Saving…', true);
+        api('PUT', API + '?action=item&id=' + id, body).then(refresh, function (e) { msg(id, e.message); });
+      });
+    });
+  });
+  var sd = document.getElementById('savedonor');
+  if (sd) {
+    sd.addEventListener('click', function () {
+      var body = { notes: document.getElementById('nt').value, address: document.getElementById('ad').value, monthly_amount: document.getElementById('mo').value || 0 };
+      document.querySelectorAll('[data-flag]').forEach(function (c) { body[c.getAttribute('data-flag')] = c.checked; });
+      sd.disabled = true; msg('donormsg', 'Saving…', true);
+      api('PATCH', API + '?id=' + OPEN, body).then(refresh, function (e) { sd.disabled = false; msg('donormsg', e.message); });
+    });
+  }
+  var ag = document.getElementById('addgift');
+  if (ag) {
+    ag.addEventListener('click', function () {
+      api('POST', API + '?action=gift&id=' + OPEN, { date: document.getElementById('gd').value, amount: document.getElementById('ga').value,
+        campaign: document.getElementById('gc').value, note: document.getElementById('gn').value }).then(refresh, function (e) { msg('giftmsg', e.message); });
+    });
+  }
+  document.querySelectorAll('[data-rmgift]').forEach(function (b) {
+    b.addEventListener('click', function () { if (confirm('Remove this hand-entered gift?')) { api('DELETE', API + '?action=gift&id=' + b.getAttribute('data-rmgift')).then(refresh, function (e) { alert(e.message); }); } });
+  });
+  var file = document.getElementById('csvfile');
+  if (file) {
+    file.addEventListener('change', function () {
+      var f = file.files[0]; if (!f) { return; }
+      if (f.size > 15000) { msg('impmsg', 'That file is too large for this import (15 KB max).'); return; }
+      f.text().then(function (t) { CSV = t; document.getElementById('csv').value = t; PREVIEW = null; msg('impmsg', 'Loaded ' + f.name + '. Press Preview.', true); });
+    });
+  }
+  var pv = document.getElementById('preview');
+  if (pv) {
+    pv.addEventListener('click', function () {
+      CSV = document.getElementById('csv').value;
+      api('POST', API + '?action=import', { csv: CSV, commit: false }).then(function (j) { PREVIEW = j; render(); }, function (e) { msg('impmsg', e.message); });
+    });
+  }
+  var cm = document.getElementById('commit');
+  if (cm) {
+    cm.addEventListener('click', function () {
+      cm.disabled = true;
+      api('POST', API + '?action=import', { csv: CSV, commit: true }).then(function (j) { PREVIEW = j; CSV = ''; return reload(); }).then(render, function (e) { cm.disabled = false; msg('impmsg', e.message); });
+    });
+  }
+  var sr = document.getElementById('saverule');
+  if (sr) {
+    sr.addEventListener('click', function () {
+      api('PUT', API + '?action=settings', { thankYou: { mode: document.getElementById('tym').value, minUsd: document.getElementById('tyu').value, item: document.getElementById('tyi').value } })
+        .then(function (j) { return reload().then(function () { render(); msg('rulemsg', 'Saved. ' + j.itemsAdded + ' items added.', true); }); }, function (e) { msg('rulemsg', e.message); });
+    });
+  }
+  var sn = document.getElementById('syncnow');
+  if (sn) {
+    sn.addEventListener('click', function () { sn.disabled = true; msg('syncmsg', 'Syncing…', true); api('POST', API + '?action=sync').then(refresh, function (e) { sn.disabled = false; msg('syncmsg', e.message); }); });
+  }
+  document.querySelectorAll('[data-resolvego]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var dbx = b.getAttribute('data-resolvego'), to = document.querySelector('[data-resolve="' + dbx + '"]').value;
+      if (!to) { return; }
+      api('POST', API + '?action=resolve', { donorbox_id: dbx, to: to }).then(refresh, function (e) { alert(e.message); });
+    });
+  });
+  var ad = document.getElementById('adddonor');
+  if (ad) {
+    ad.addEventListener('click', function () {
+      api('POST', API + '?action=donor', { name: document.getElementById('newname').value, offline: document.getElementById('newoff').checked })
+        .then(function (j) { return reload().then(function () { openDonor(j.id); }); }, function (e) { msg('addmsg', e.message); });
+    });
+  }
+}
+
+/* a teammate's changes show up when the tab comes back into view */
+var lastLoad = Date.now();
+document.addEventListener('visibilitychange', function () {
+  var typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (STATE === 'ready' && document.visibilityState === 'visible' && Date.now() - lastLoad > 15000 && !typing) { lastLoad = Date.now(); refresh(); }
+});
+var resizeT, lastW = innerWidth;
+addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { if (innerWidth !== lastW && STATE === 'ready') { lastW = innerWidth; render(); } }, 200); });
+
+render();
+SM.ready.then(function (u) {
+  if (!u) { STATE = 'signin'; render(); return; }
+  reload().then(function () { STATE = 'ready'; render(); }, function (e) {
+    STATE = e.status === 401 || (e.status === 403 && /own sign-in/.test(e.message)) ? 'signin' : 'error'; ERR = e.message; render();
+  });
+});
+</script>
+</body></html>

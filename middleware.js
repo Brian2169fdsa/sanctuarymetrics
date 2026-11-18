@@ -24,6 +24,7 @@
    Someone opening a page they can't use lands on home.html, which shows
    what they can open.                                                       */
 
+const SOURCE_DIRS = /^\/(lib|tools|tests|automations|supabase|pipeline|node_modules)\//i;
 const OPEN_PAGES = new Set(['/login.html', '/account.html', '/cpao-apply.html']);
 const ASSET = /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|css|js|map|txt)$/i;
 
@@ -35,7 +36,7 @@ const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', 
 function emailList(name, dflt) {
   return (process.env[name] || dflt).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 }
-const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/fundraising.html', '/pal-email.html', '/pal-email']);
+const REPORT_PAGES = new Set(['/', '/index.html', '/compare.html', '/twoweeks.html', '/sanctuaryci.html', '/fundraising.html', '/donors.html', '/pal-email.html', '/pal-email']);
 const COST_PAGES = new Set(['/costs.html', '/google.html', '/microsoft.html', '/microsoft-analytics.html',
   '/microsoft-savings.html', '/email.html', '/groups.html', '/teams.html', '/sharepoint.html']);
 
@@ -91,6 +92,8 @@ async function account(request) {
 
 export default async function middleware(request) {
   const path = new URL(request.url).pathname;
+  /* server code, tests, tooling and SQL are never needed by a page: don't serve them */
+  if (SOURCE_DIRS.test(path)) { return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }); }
   if (OPEN_PAGES.has(path) || ASSET.test(path)) { return; }
   /* accounts not set up on this deployment: nobody could sign in, so don't lock the site */
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) { return; }
