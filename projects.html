@@ -20,6 +20,19 @@
 .pevent{font-size:12.5px;margin-top:6px}
 .pevent a{color:var(--blue)}
 .pdone{opacity:.6}
+.pcancel{opacity:.5}
+.pcancel .ptitle{text-decoration:line-through}
+.ptable .pgrip{width:46px;white-space:nowrap;padding-right:0}
+.pgrab{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:5px;cursor:grab;touch-action:none;user-select:none;
+ padding:4px 6px;border-radius:6px;color:var(--muted);font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+.pgrab::before{content:"⋮⋮";letter-spacing:-3px;font-size:14px;color:#9fb0ba}
+.pgrab:hover{background:var(--paper);color:var(--ink)}
+.pgrab:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+tr.pdrag{background:#e8f4fb !important;box-shadow:0 6px 18px rgba(22,38,59,.18);position:relative;z-index:2}
+tr.pdrag .pgrab{cursor:grabbing}
+body.pdragging{cursor:grabbing;user-select:none}
+.porder-msg{font-size:12.5px;color:var(--muted);margin:2px 0 8px}
+#pm-cancelproj{color:#C0492B}
 .pdone .ptitle{text-decoration:line-through}
 .pedit{color:var(--teal)!important}
 .pedit:hover{background:#eef5f8!important}
@@ -162,7 +175,7 @@
 
    The first time a browser connects, anything it saved under the old
    browser-only tracker (localStorage) is copied up once.                  */
-var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete'];
+var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete', 'Cancelled'];
 var IMPORTANCE = ['Hot', 'Med', 'Cold'];
 var API = '/api/projects';
 var PW_KEY = 'src_projects_pw';
@@ -280,14 +293,14 @@ function seedItems() {
     var m = seedRow(r[0]) || {}, cur = r[r.length - 1];
     return Object.assign({ ref: 'seed:' + r[0], title: r[0], owner: 'Brian Reinhart', status: m.status || cur.text,
              statusOverride: m.status || '', importance: m.importance || '', due: m.due || '', prevStatus: m.prev_status || '',
-             source: 'L10 dashboard · ' + L10.asOf, seed: true }, extras(m));
+             source: 'L10 dashboard · ' + L10.asOf, seed: true, rank: m.rank == null ? null : +m.rank }, extras(m));
   });
 }
 function customItems() {
   return ROWS.filter(function (r) { return !r.seed_key; }).map(function (r) {
     return Object.assign({ ref: 'row:' + r.id, id: r.id, title: r.title, owner: r.owner || '', status: r.status || 'On-track',
              importance: r.importance || '', due: r.due || '', prevStatus: r.prev_status || '',
-             source: r.source || 'added here', seed: false }, extras(r));
+             source: r.source || 'added here', seed: false, rank: r.rank == null ? null : +r.rank }, extras(r));
   });
 }
 function itemByRef(ref) {
@@ -300,10 +313,25 @@ function saveFields(ref, fields) {
 }
 
 function isDone(status) { return /^(done|complete)/i.test(status || ''); }
+function isCancelled(status) { return /^cancel/i.test(status || ''); }
+function isClosed(status) { return isDone(status) || isCancelled(status); }
+/* tracker order: open items by priority (rank; unranked after, in list order), then done, then cancelled */
+function byPriority(list) {
+  return list.map(function (it, i) { return { it: it, i: i }; }).sort(function (a, b) {
+    var ca = isCancelled(a.it.status) ? 2 : isDone(a.it.status) ? 1 : 0, cb = isCancelled(b.it.status) ? 2 : isDone(b.it.status) ? 1 : 0;
+    if (ca !== cb) { return ca - cb; }
+    if (!ca) {
+      var ra = a.it.rank == null ? Infinity : +a.it.rank, rb = b.it.rank == null ? Infinity : +b.it.rank;
+      if (ra !== rb) { return ra - rb; }
+    }
+    return a.i - b.i;
+  }).map(function (x) { return x.it; });
+}
 function tagFor(status) {
   var s = status.toLowerCase().split(' (')[0];
   if (s.indexOf('off') === 0) { return 'lo'; }
   if (s === 'on-track' || s === 'complete' || s === 'done') { return 'hi'; }
+  if (s.indexOf('cancel') === 0) { return 'eq'; }
   return 'eq';
 }
 function fmtDate(iso) {
@@ -318,11 +346,12 @@ function mapLink(addr) {
 function chips(items) {
   var counts = {};
   items.forEach(function (i) { var k = i.status.split(' (')[0]; counts[k] = (counts[k] || 0) + 1; });
-  var hot = items.filter(function (i) { return i.importance === 'Hot' && !isDone(i.status); }).length;
+  var hot = items.filter(function (i) { return i.importance === 'Hot' && !isClosed(i.status); }).length;
   var done = items.filter(function (i) { return isDone(i.status); }).length;
-  var events = items.filter(function (i) { return i.isEvent && !isDone(i.status); }).length;
+  var cancelled = items.filter(function (i) { return isCancelled(i.status); }).length;
+  var events = items.filter(function (i) { return i.isEvent && !isClosed(i.status); }).length;
   var s = '<div class="chips"><span class="c">' + items.length + ' items</span>' +
-          '<span class="c">' + (items.length - done) + ' open · ' + done + ' done</span>' +
+          '<span class="c">' + (items.length - done - cancelled) + ' open · ' + done + ' done' + (cancelled ? ' · ' + cancelled + ' cancelled' : '') + '</span>' +
           (hot ? '<span class="c" style="color:#C0492B">' + hot + ' Hot</span>' : '') +
           (events ? '<span class="c">' + events + ' upcoming event' + (events === 1 ? '' : 's') + '</span>' : '');
   STATUSES.concat(['Done']).forEach(function (st) {
@@ -331,10 +360,15 @@ function chips(items) {
   return s + '</div>';
 }
 
-function rowsHtml(items) {
-  var s = '';
+function rowsHtml(items, withGrip) {
+  var s = '', pos = 0;
   items.forEach(function (it) {
-    var ref = esc(it.ref), done = isDone(it.status), dis = BUSY || STAFF ? ' disabled' : '';
+    var ref = esc(it.ref), done = isDone(it.status), cancelled = isCancelled(it.status), dis = BUSY || STAFF ? ' disabled' : '';
+    var open = !isClosed(it.status);
+    if (open) { pos++; }
+    var grip = !withGrip ? '' : '<td class="pgrip">' + (open
+      ? '<button type="button" class="pgrab" data-grip="' + ref + '"' + dis + ' aria-label="Priority ' + pos + ': ' + esc(it.title) +
+        '. Drag to reorder, or press the up and down arrow keys" title="Drag to change priority">' + pos + '</button>' : '') + '</td>';
     var checkCell = '<input type="checkbox" class="donechk" data-ref="' + ref + '"' + (done ? ' checked' : '') + dis +
       ' aria-label="Mark ' + esc(it.title) + ' done">';
     var mc = MSGS[it.ref];
@@ -353,7 +387,7 @@ function rowsHtml(items) {
         (it.eventDate && it.eventTime ? ' · <a href="' + esc(teamsLink(itemMeeting(it))) + '" target="_blank" rel="noopener">Teams invite</a>' : '') +
         '</div>';
     }
-    s += '<tr class="' + (done ? 'pdone' : '') + '">' +
+    s += '<tr class="' + (done ? 'pdone' : cancelled ? 'pcancel' : '') + '" data-row="' + ref + '"' + (open ? ' data-open="1"' : '') + '>' + grip +
       '<td class="pchk">' + checkCell + '</td>' +
       '<td class="pitem">' + item + '</td>' +
       '<td>' + esc(it.owner || '—') + '</td>' +
@@ -496,8 +530,11 @@ function openModal(ref) {
       '</div>' +
       '<div class="pm-err" id="pm-err" role="alert" hidden></div>' +
       '<div class="pm-foot">' +
-        (ref && !seed ? '<button type="button" class="btn ghost" id="pm-del">Remove project</button>' : '<span></span>') +
-        '<div><button type="button" class="btn pm-cancel" id="pm-cancel">Cancel</button> ' +
+        '<div>' + (ref && !seed ? '<button type="button" class="btn ghost" id="pm-del">Remove project</button> ' : '') +
+          (ref ? (isCancelled(it.status)
+            ? '<button type="button" class="btn ghost" id="pm-reopen">Reopen project</button>'
+            : '<button type="button" class="btn ghost" id="pm-cancelproj">Cancel project</button>') : '') + '</div>' +
+        '<div><button type="button" class="btn pm-cancel" id="pm-cancel">Close</button> ' +
         '<button type="submit" class="btn" id="pm-save">' + (ref ? 'Save changes' : 'Add project') + '</button></div>' +
       '</div>' +
     '</form>';
@@ -515,6 +552,20 @@ function openModal(ref) {
   document.getElementById('pm-close').addEventListener('click', closeModal);
   document.getElementById('pm-cancel').addEventListener('click', closeModal);
   document.getElementById('pm-form').addEventListener('submit', function (e) { e.preventDefault(); saveModal(); });
+  var cxl = document.getElementById('pm-cancelproj');
+  if (cxl) {
+    cxl.addEventListener('click', function () {
+      if (!confirm('Cancel "' + it.title + '"? It moves to the bottom of the list marked Cancelled. You can reopen it later.')) { return; }
+      modalWork(saveFields(ref, { prev_status: it.status, status: 'Cancelled' }));
+    });
+  }
+  var reo = document.getElementById('pm-reopen');
+  if (reo) {
+    reo.addEventListener('click', function () {
+      var back = it.prevStatus && !isClosed(it.prevStatus) ? it.prevStatus : 'In Progress';
+      modalWork(saveFields(ref, { status: it.seed && !it.prevStatus ? null : back }));
+    });
+  }
   var del = document.getElementById('pm-del');
   if (del) {
     del.addEventListener('click', function () {
@@ -527,7 +578,7 @@ function openModal(ref) {
   /* staff can read their request and message about it, not change it */
   if (STAFF) {
     document.querySelectorAll('#pm-form input, #pm-form select, #pm-form textarea').forEach(function (el) { el.disabled = true; });
-    ['pm-save', 'pm-del', 'pm-teams', 'pm-outlook'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.hidden = true; } });
+    ['pm-save', 'pm-del', 'pm-cancelproj', 'pm-reopen', 'pm-teams', 'pm-outlook'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.hidden = true; } });
     document.getElementById('pm-title').textContent = 'Your request';
     var note = document.createElement('p');
     note.className = 'pm-sub';
@@ -834,7 +885,7 @@ function render() {
       '<p class="lead"><button class="btn" id="retry">Try again</button></p>');
   } else if (STAFF) {
     /* staff: the requests they filed, to follow along and message about */
-    var mine = customItems().sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
+    var mine = byPriority(customItems());
     body =
       '<section>' +
         '<div class="eyebrow">My requests</div>' +
@@ -851,7 +902,7 @@ function render() {
       '</section>';
   } else {
     /* open items first, ticked-off items sink to the bottom */
-    var items = seedItems().concat(customItems()).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
+    var items = byPriority(seedItems().concat(customItems()));
     var tabs = '<div class="pv-tabs" role="tablist" aria-label="Projects views">' +
       '<button type="button" role="tab" data-pview="tracker" aria-selected="' + (PVIEW === 'tracker') + '">Tracker</button>' +
       '<button type="button" role="tab" data-pview="analytics" aria-selected="' + (PVIEW === 'analytics') + '">Analytics</button></div>';
@@ -865,9 +916,10 @@ function render() {
         (BUSY ? ' <b>Saving…</b>' : '') + '</p>' +
         '<div class="ptools">' + chips(items) +
           '<button type="button" class="btn" id="np-open"' + (BUSY ? ' disabled' : '') + '>+ New project</button></div>' +
-        '<div class="tw"><table class="ptable"><thead><tr><th>Done</th><th>Item</th><th>Owner</th><th>Status</th>' +
+        '<p class="porder-msg" id="porder-msg">Drag the <b>⋮⋮</b> handle to set priority (1 = top). Everyone sees the same order.</p>' +
+        '<div class="tw"><table class="ptable"><thead><tr><th title="Priority">#</th><th>Done</th><th>Item</th><th>Owner</th><th>Status</th>' +
         '<th>Importance</th><th>Due</th><th><span class="vh">Edit</span></th></tr></thead>' +
-        '<tbody>' + rowsHtml(items) + '</tbody></table></div>' +
+        '<tbody id="ptbody">' + rowsHtml(items, true) + '</tbody></table></div>' +
         (lsGet(PW_KEY) !== null ? '<p class="sub" style="margin-top:14px">Using the shared team password — ' +
           '<a href="' + esc(SM.signInUrl('projects.html')) + '">sign in with your account</a> to message and get alerts. ' +
           '<a href="#" id="signout">Forget the team password on this browser</a></p>' : '') +
@@ -884,7 +936,7 @@ function render() {
 }
 
 /* ── Analytics: where the work goes, by theme (project-themes.js) ────────── */
-var STAGES = [['done', 'Done', '#2E8B6F'], ['doing', 'In progress', '#1C9AD6'], ['todo', 'To do', '#CBD8DF']];
+var STAGES = [['done', 'Done', '#2E8B6F'], ['doing', 'In progress', '#1C9AD6'], ['todo', 'To do', '#CBD8DF'], ['cancelled', 'Cancelled', '#E8B4A6']];
 function anItems(items) {
   var cut = AN.period === 'all' ? null : new Date(Date.now() - (+AN.period) * 864e5).toISOString();
   return items.filter(function (i) {
@@ -909,14 +961,15 @@ function analyticsHtml(all, tabs) {
   var by = {};
   items.forEach(function (i) {
     var k = i.theme.key;
-    by[k] = by[k] || { theme: i.theme, total: 0, done: 0, doing: 0, todo: 0, hot: 0, items: [] };
+    by[k] = by[k] || { theme: i.theme, total: 0, done: 0, doing: 0, todo: 0, cancelled: 0, hot: 0, items: [] };
     by[k].total++; by[k][i.stage]++; by[k].items.push(i);
-    if (i.importance === 'Hot' && i.stage !== 'done') { by[k].hot++; }
+    if (i.importance === 'Hot' && i.stage !== 'done' && i.stage !== 'cancelled') { by[k].hot++; }
   });
   var themes = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || b.done - a.done; });
   var done = items.filter(function (i) { return i.stage === 'done'; }).length;
   var doing = items.filter(function (i) { return i.stage === 'doing'; }).length;
-  var todo = n - done - doing;
+  var cancelledN = items.filter(function (i) { return i.stage === 'cancelled'; }).length;
+  var todo = n - done - doing - cancelledN;
   var top = themes[0], top3 = themes.slice(0, 3);
   var top3n = top3.reduce(function (s, t) { return s + t.total; }, 0);
   var headline = !n ? 'No items match these filters.'
@@ -977,7 +1030,7 @@ function analyticsHtml(all, tabs) {
       kpiBox('Items', n, AN.owner ? 'for ' + AN.owner : 'rocks, projects and requests') +
       kpiBox('Done', done, pct(done, n) + '% of all items') +
       kpiBox('In progress', doing, 'on track, off track or under way') +
-      kpiBox('To do', todo, 'new or on hold') +
+      kpiBox('To do', todo, 'new or on hold' + (cancelledN ? ' · ' + cancelledN + ' cancelled' : '')) +
       kpiBox('Biggest theme', top ? pct(top.total, n) + '%' : '—', top ? top.theme.name : '') +
     '</div><p class="an-head"><b>' + esc(headline) + '</b></p></section>' +
     '<section>' + card('Items by theme', (themes.length ? '<div class="an-bars">' + bars + '</div>' : '<div class="empty">No items.</div>') +
@@ -989,9 +1042,9 @@ function analyticsHtml(all, tabs) {
         '<div class="an-legend"><span><i style="background:#2C5468"></i>Added</span><span><i style="background:#2E8B6F"></i>Finished</span></div>' +
         '<p class="an-head" style="font-size:13.5px"><b>' + esc(busiest ? monthLabel(busiest) + ' was the busiest month, with ' + months[busiest].added + ' items added.' : '') + '</b></p>'
         : '<div class="empty">Dates appear once items are added on this page.</div>', 'L10 rocks have no added date, so they count only toward totals, not months. "Finished" uses the date an item was last changed.')) +
-    card('By theme', table(['Theme', 'Items', 'Share', 'Done', 'In progress', 'To do', 'Hot and open'], themes.map(function (t) {
+    card('By theme', table(['Theme', 'Items', 'Share', 'Done', 'In progress', 'To do', 'Cancelled', 'Hot and open'], themes.map(function (t) {
       return ['<span style="display:inline-flex;align-items:center;gap:7px"><i style="width:9px;height:9px;border-radius:2px;display:inline-block;background:' + t.theme.color + '"></i>' + esc(t.theme.name) + '</span>',
-        String(t.total), pct(t.total, n) + '%', String(t.done), String(t.doing), String(t.todo), String(t.hot)];
+        String(t.total), pct(t.total, n) + '%', String(t.done), String(t.doing), String(t.todo), String(t.cancelled), String(t.hot)];
     }), { numeric: function (i) { return i > 0; } }), 'Themes come from project-themes.js. To move an item, add a word to its title; to change a rule, edit that file.') +
     '</section>';
 }
@@ -1033,6 +1086,7 @@ function wire() {
 
   on('#np-open', 'click', function () { openModal(null); });
   on('[data-edit]', 'click', function () { openModal(this.getAttribute('data-edit')); });
+  wireReorder();
   on('.donechk', 'change', function () {
     var ref = this.getAttribute('data-ref'), it = itemByRef(ref);
     if (!it) { return; }
@@ -1045,6 +1099,78 @@ function wire() {
       act(saveFields(ref, { status: (!it.prevStatus || isDone(it.prevStatus)) ? 'In Progress' : it.prevStatus }));
     }
   });
+}
+
+/* ── drag-and-drop priority ─────────────────────────────────────────────
+   Pointer events, so it works with a mouse, a finger or a pen. The row
+   moves as you drag; letting go saves the order of the open rows for
+   everyone. Keyboard: focus a handle and press the up/down arrows.        */
+var DRAGGING = false;
+function openRows() { return [].slice.call(document.querySelectorAll('#ptbody tr[data-open]')); }
+function saveOrder() {
+  var order = openRows().map(function (tr) { return tr.getAttribute('data-row'); });
+  var msg = document.getElementById('porder-msg');
+  if (msg) { msg.textContent = 'Saving the new order…'; }
+  act(api('PUT', '?action=order', { order: order }));
+}
+function renumber() {
+  openRows().forEach(function (tr, i) {
+    var g = tr.querySelector('.pgrab');
+    if (g) { g.textContent = i + 1; }
+  });
+}
+function wireReorder() {
+  document.querySelectorAll('.pgrab').forEach(function (h) {
+    h.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') { return; }
+      e.preventDefault();
+      var tr = h.closest('tr'), rows = openRows(), i = rows.indexOf(tr);
+      var j = e.key === 'ArrowUp' ? i - 1 : i + 1;
+      if (j < 0 || j >= rows.length) { return; }
+      if (e.key === 'ArrowUp') { rows[j].parentNode.insertBefore(tr, rows[j]); } else { rows[j].parentNode.insertBefore(tr, rows[j].nextSibling); }
+      renumber(); h.focus();
+      clearTimeout(wireReorder.t);
+      wireReorder.t = setTimeout(function () { var ref = h.getAttribute('data-grip'); saveOrder(); wireReorder.refocus = ref; }, 700);
+    });
+    h.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || h.disabled) { return; }
+      e.preventDefault();
+      var tr = h.closest('tr'), startOrder = openRows().map(function (r) { return r.getAttribute('data-row'); }).join('|');
+      DRAGGING = true; tr.classList.add('pdrag'); document.body.classList.add('pdragging');
+      /* listen on the window, not the handle: moving the row in the page would
+         drop a pointer capture on the handle and strand the drag */
+      var id = e.pointerId;
+      var move = function (ev) {
+        if (ev.pointerId !== id) { return; }
+        ev.preventDefault();
+        var rows = openRows().filter(function (r) { return r !== tr; });
+        var y = ev.clientY, before = null;
+        for (var k = 0; k < rows.length; k++) {
+          var b = rows[k].getBoundingClientRect();
+          if (y < b.top + b.height / 2) { before = rows[k]; break; }
+        }
+        var tbody = tr.parentNode;
+        if (before) { if (before !== tr.nextSibling) { tbody.insertBefore(tr, before); } }
+        else if (rows.length) { var last = rows[rows.length - 1]; if (last.nextSibling !== tr) { tbody.insertBefore(tr, last.nextSibling); } }
+        renumber();
+        /* keep the row in view near the window edges */
+        if (y < 60) { window.scrollBy(0, -12); } else if (y > innerHeight - 60) { window.scrollBy(0, 12); }
+      };
+      var up = function (ev) {
+        if (ev && ev.pointerId !== id) { return; }
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        tr.classList.remove('pdrag'); document.body.classList.remove('pdragging'); DRAGGING = false;
+        var now = openRows().map(function (r) { return r.getAttribute('data-row'); }).join('|');
+        if (now !== startOrder) { saveOrder(); }
+      };
+      window.addEventListener('pointermove', move, { passive: false }); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    });
+  });
+  if (wireReorder.refocus) {
+    var g = document.querySelector('.pgrab[data-grip="' + wireReorder.refocus.replace(/"/g, '\\"') + '"]');
+    wireReorder.refocus = null;
+    if (g) { g.focus(); }
+  }
 }
 
 function start() {
@@ -1069,7 +1195,7 @@ addEventListener('hashchange', function () {
 /* refresh the row badges when the bell rings for a message */
 setInterval(function () {
   if (STATE === 'ready' && SM.me && document.visibilityState === 'visible' && !(document.getElementById('pmodal') || {}).open) {
-    loadMsgSummary().then(function () { if (!BUSY) { render(); } });
+    loadMsgSummary().then(function () { if (!BUSY && !DRAGGING) { render(); } });
   }
 }, 30000);
 render();

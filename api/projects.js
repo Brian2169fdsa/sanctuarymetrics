@@ -56,6 +56,10 @@
      PATCH  ?id=… {fields}        edit a project
      PUT    {seed_key, fields}    create-or-update the edits to an L10 rock
      DELETE ?id=…         remove a project
+     PUT    ?action=order {order: ['row:<id>' | 'seed:<title>', …]}
+                          drag-and-drop priority: rank 1, 2, 3… in that order
+                          (needs the rank column: supabase/projects-priority.sql)
+   A cancelled project is status 'Cancelled' (prev_status keeps what it was).
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
@@ -100,6 +104,16 @@ function clean(input) {
       const n = Number(d);
       if (!Number.isInteger(n) || n < 5 || n > 1440) { throw new Error('event_duration must be 5–1440 minutes'); }
       out.event_duration = n;
+    }
+  }
+  /* priority position on the tracker (1 = top); null clears it */
+  if ('rank' in (input || {})) {
+    const r = input.rank;
+    if (r === null || r === '') { out.rank = null; }
+    else {
+      const n = Number(r);
+      if (!isFinite(n) || n < 0 || n > 100000) { throw new Error('rank must be a number'); }
+      out.rank = n;
     }
   }
   /* the event flag is the one non-text column */
@@ -162,6 +176,30 @@ async function handler(req, res) {
       return sendJSON(res, 200, { row: rows[0] });
     }
 
+    if (req.method === 'PUT' && new URL(req.url, 'http://x').searchParams.get('action') === 'order') {
+      const body = await readBody(req);
+      const order = Array.isArray(body.order) ? body.order.slice(0, 500) : [];
+      if (!order.length) { return sendJSON(res, 400, { error: 'order', message: 'Nothing to reorder.' }); }
+      const who = me ? { updated_at: now, updated_by_name: me.name } : { updated_at: now };
+      /* a few at a time, so a long list doesn't flood Supabase */
+      for (let i = 0; i < order.length; i += 8) {
+        await Promise.all(order.slice(i, i + 8).map(function (ref, j) {
+          const rank = i + j + 1;
+          const m = /^row:([0-9a-f-]{36})$/i.exec(String(ref));
+          if (m) { return projectWrite('PATCH', '?id=eq.' + m[1] + '&seed_key=is.null', Object.assign({ rank: rank }, who)); }
+          const k = /^seed:(.{1,300})$/.exec(String(ref));
+          if (!k) { return null; }
+          const key = '?seed_key=eq.' + encodeURIComponent(k[1]);
+          return projectWrite('PATCH', key, Object.assign({ rank: rank }, who)).then(function (rows) {
+            if (rows && rows.length) { return rows; }
+            return projectWrite('POST', '', Object.assign({ seed_key: k[1], title: k[1], source: 'L10 edit', status: '', rank: rank }, addedBy(me), who))
+              .catch(function (e) { if (e.status !== 409) { throw e; } return projectWrite('PATCH', key, Object.assign({ rank: rank }, who)); });
+          });
+        }));
+      }
+      return sendJSON(res, 200, { ok: true });
+    }
+
     if (req.method === 'PUT') {
       const body = await readBody(req);
       const seedKey = String(body.seed_key || '').trim().slice(0, 300);
@@ -199,13 +237,13 @@ async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST, PATCH, PUT, DELETE');
     return sendJSON(res, 405, { error: 'method', message: 'Method not allowed.' });
   } catch (e) {
-    const bad = /must be |Not an email|Too many invitees|JSON|body too large/.test(e.message);
+    const bad = /must be |rank must|Not an email|Too many invitees|JSON|body too large/.test(e.message);
     /* PGRST204 = a column the page sent doesn't exist yet (table not migrated) */
     const missingColumn = /PGRST204|Could not find the .* column/.test(e.message);
     return sendJSON(res, bad ? 400 : 502, {
       error: bad ? 'bad_request' : (missingColumn ? 'schema' : 'storage'),
       message: bad ? e.message
-        : missingColumn ? 'The projects table is missing a newer column — run the latest update SQL in Supabase (see api/projects.js).'
+        : missingColumn ? 'The projects table is missing a newer column — run supabase/projects-priority.sql (or ALL.sql) in Supabase.'
         : 'Could not reach the projects database. ' + (e.status === 404 ? 'Check the projects table exists.' : 'Try again shortly.')
     });
   }
