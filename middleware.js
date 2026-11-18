@@ -32,7 +32,9 @@ const ADMIN_PAGES = new Set([]);
 /* the HEAplus tab (cpao-admin.html) is open to all staff: api/cpao.js decides
    who sees the admin side and who sees only their own progress */
 /* managers (CPAO_MANAGERS, not HEAplus admins) see only these */
-const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', '/social.html']);
+const MANAGER_PAGES = new Set(['/home.html', '/cpao-admin.html', '/print.html', '/social.html', '/photos.html']);
+/* event photos show people: unlike other images, they need a signed-in account (any staff) */
+const PRIVATE_IMAGES = /^\/photos\//;
 function emailList(name, dflt) {
   return (process.env[name] || dflt).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 }
@@ -94,7 +96,7 @@ export default async function middleware(request) {
   const path = new URL(request.url).pathname;
   /* server code, tests, tooling and SQL are never needed by a page: don't serve them */
   if (SOURCE_DIRS.test(path)) { return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }); }
-  if (OPEN_PAGES.has(path) || ASSET.test(path)) { return; }
+  if (OPEN_PAGES.has(path) || (ASSET.test(path) && !PRIVATE_IMAGES.test(path))) { return; }
   /* accounts not set up on this deployment: nobody could sign in, so don't lock the site */
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) { return; }
   let who = null;
@@ -105,7 +107,7 @@ export default async function middleware(request) {
   }
   if (who) {
     if ((REPORT_PAGES.has(path) && !who.reports) || (COST_PAGES.has(path) && !who.costs) || (ADMIN_PAGES.has(path) && !who.admin) ||
-        (who.limited && !MANAGER_PAGES.has(path))) {
+        (who.limited && !MANAGER_PAGES.has(path) && !PRIVATE_IMAGES.test(path))) {
       const home = new URL('/home.html', request.url);
       if (path !== '/') { home.searchParams.set('denied', path.replace(/^\/+/, '')); }
       return new Response(null, { status: 302, headers: { Location: home.toString(), 'Cache-Control': 'no-store' } });
