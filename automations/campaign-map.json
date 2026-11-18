@@ -1,0 +1,5 @@
+{
+  "_readme": "Donorbox campaign id → plan campaign id (the ids in data/sci-fundraising-data.json). The metrics sync (f3) reads this file from GitHub on every run. Find a Donorbox campaign's id in Donorbox (the number in the campaign's edit URL) or in GET /api/v1/campaigns. Campaigns not listed here are matched by name; anything that matches nothing is still counted in the totals.",
+  "map": {
+  }
+}

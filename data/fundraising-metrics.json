@@ -1,0 +1,98 @@
+{
+  "generatedAt": null,
+  "totals": {
+    "raisedUsd": 0,
+    "donations": 0,
+    "donors": 0,
+    "newDonors30d": 0,
+    "activeMembers": 0,
+    "mrrUsd": 0,
+    "membersLost30d": 0,
+    "failedRecovered30d": 0,
+    "feeCoverRatePct": null,
+    "upgradeRate90dPct": 0
+  },
+  "membersByTier": {
+    "10": 0,
+    "25": 0,
+    "50": 0,
+    "100": 0,
+    "other": 0
+  },
+  "campaigns": [],
+  "dailyRaised": [],
+  "monthlyMrr": [],
+  "bySource": [],
+  "automations": [
+    {
+      "id": "f1",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f2",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f3",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f4",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f5",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f6",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f7",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f8",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f9",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    },
+    {
+      "id": "f10",
+      "lastRun": null,
+      "lastStatus": "never",
+      "runs7d": 0,
+      "errors7d": 0
+    }
+  ]
+}

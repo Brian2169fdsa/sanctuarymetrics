@@ -27,3 +27,10 @@ sanctuary_m365_license_cleanup_*.csv
 # Google Admin user exports: raw CSVs hold full names and emails. The page
 # ships only the trimmed google-users.js built by tools/build-google-js.py.
 google_users*.csv
+
+# SCI donor lists (names): they go into the private store through the
+# import on donors.html, never into the repo.
+*donor*.csv
+*donor*.tsv
+*Donor*.csv
+*supporter*.csv

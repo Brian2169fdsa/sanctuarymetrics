@@ -6,18 +6,33 @@
     "api/cpao.js": {
       "maxDuration": 60,
       "includeFiles": "cpao/assets/**"
+    },
+    "api/projects.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cpao",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/projects?store=donors&action=sync",
+      "schedule": "20 13 * * *"
     }
   ],
   "rewrites": [
     {
       "source": "/pal-email",
       "destination": "/pal-email.html"
+    },
+    {
+      "source": "/api/fundraising-state",
+      "destination": "/api/projects?store=fundraising"
+    },
+    {
+      "source": "/api/donors",
+      "destination": "/api/projects?store=donors"
     }
   ]
 }

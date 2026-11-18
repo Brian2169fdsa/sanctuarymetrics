@@ -1,0 +1,315 @@
+{
+  "name": "SCI f7-f8 · Donor journey and lapsed donors",
+  "nodes": [
+    {
+      "id": "n0039-sci",
+      "name": "Daily 9:12 a.m.",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "12 9 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n0040-sci",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// ── SCI fundraising: settings for this workflow ─────────────────────────────\n// Non-secret settings only. Keys, tokens and passwords live in n8n\n// credentials (see automations/README.md), never here.\n// Fill in the Microsoft IDs once; the README says where each one comes from.\nreturn [{ json: {\n  siteUrl: 'https://sanctuarymetrics.vercel.app',           // the dashboard; /api/fundraising-state lives here\n  githubRepo: 'Brian2169fdsa/sanctuarymetrics',             // owner/name\n  githubBranch: 'main',                                      // the branch Vercel deploys\n  tz: 'America/Phoenix',\n  donorboxApi: 'https://donorbox.org/api/v1',\n  majorGiftUsd: 250,\n  // Microsoft 365 (SCI's own tenant)\n  sharepointSiteId: '',         // Graph site id of SCI's SharePoint site\n  donorListId: '',              // the private \"SCI Donors\" list (the only place donor details land)\n  teamId: '',                   // Teams team for the fundraising channel\n  channelId: '',                // the fundraising channel\n  plannerPlanId: '',            // Planner plan for follow-up tasks\n  plannerBucketId: '',          // bucket in that plan\n  joeyUserId: '',               // Joey's Entra user id (major-gift call tasks)\n  senderMailbox: '',            // the monitored SCI address that sends donor email\n  digestRecipients: [],         // weekly digest email addresses\n  orgName: 'Sanctuary Community Initiative',\n  orgAddress: '11645 N Cave Creek Rd, Phoenix, AZ 85020',\n  donorPortalUrl: 'https://donorbox.org/user/sign_in',      // VERIFY: Donorbox donor login page\n  wallOfSupportUrl: 'https://www.sanctuaryci.org/The-Sanctuary.html',\n  // Safety switch: until the email templates are reviewed and approved, every\n  // donor email goes to senderMailbox instead of the donor, marked [REVIEW].\n  emailsApproved: false,\n  // Social queue (f9): a scheduling tool, if one is connected. Leave false to\n  // get Teams reminders only. Auto-posting also needs the switch on the page.\n  schedulerConnected: false\n} }];\n"
+      },
+      "notes": "Non-secret settings. Fill in the Microsoft IDs.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0041-sci",
+      "name": "GET donor list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.microsoft.com/v1.0/sites/' + $('Config').first().json.sharepointSiteId + '/lists/' + $('Config').first().json.donorListId + '/items?$expand=fields&$top=999' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "responseContainsNextURL",
+              "nextURL": "={{ $response.body[\"@odata.nextLink\"] }}",
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body[\"@odata.nextLink\"] }}",
+              "limitPagesFetched": true,
+              "maxRequests": 100
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "credentials": {
+        "oAuth2Api": {
+          "id": "set-on-import",
+          "name": "SCI Microsoft Graph"
+        }
+      }
+    },
+    {
+      "id": "n0042-sci",
+      "name": "GET unsubscribe replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://graph.microsoft.com/v1.0/users/' + encodeURIComponent($('Config').first().json.senderMailbox) + '/messages?$search=\"unsubscribe\"&$top=100&$select=from,subject,bodyPreview,receivedDateTime' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "oAuth2Api": {
+          "id": "set-on-import",
+          "name": "SCI Microsoft Graph"
+        }
+      }
+    },
+    {
+      "id": "n0043-sci",
+      "name": "Journey",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// f7 Donor journey and f8 Lapsed donors, once a day over the private donor list.\n// Unsubscribe replies in the sending mailbox are applied first, so they are\n// honored in this run and in every other sequence (f4-f6 read the same column).\n// shared helpers, pasted at the top of Code nodes that need them\nconst CFG = $('Config').first().json;\nfunction phxDate(d) {\n  return DateTime.fromJSDate(d instanceof Date ? d : new Date(d)).setZone(CFG.tz).toISODate();\n}\nfunction phxNow() { return DateTime.now().setZone(CFG.tz); }\nfunction money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('en-US'); }\nfunction initial(s) { s = String(s || '').trim(); return s ? s[0].toUpperCase() + '.' : ''; }\nfunction shortName(first, last) { return (String(first || '').trim() || 'A donor') + (last ? ' ' + initial(last) : ''); }\nfunction esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\nfunction rows(nodeName) {\n  // items from an HTTP node; tolerates the empty {} that alwaysOutputData adds\n  return $(nodeName).all().map(function (i) { return i.json; }).filter(function (x) { return x && x.id !== undefined; });\n}\nfunction graphRows(nodeName) {\n  // SharePoint list items across pages (each page is one item with .value)\n  const out = [];\n  $(nodeName).all().forEach(function (i) { (i.json.value || []).forEach(function (r) { out.push(r); }); });\n  return out;\n}\nfunction emailHtml(bodyHtml) {\n  // every donor email: the body, a way to unsubscribe, and SCI's street address\n  const unsub = 'mailto:' + CFG.senderMailbox + '?subject=Unsubscribe';\n  return '<div style=\"font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#22323B\">' + bodyHtml +\n    '<hr style=\"border:0;border-top:1px solid #ddd;margin:24px 0 12px\">' +\n    '<p style=\"font-size:12px;color:#6C7C86\">' + esc(CFG.orgName) + ' · ' + esc(CFG.orgAddress) + ' · EIN 39-2503445<br>' +\n    'You are receiving this because you gave to ' + esc(CFG.orgName) + '. ' +\n    '<a href=\"' + unsub + '\">Unsubscribe</a> (or reply with the word unsubscribe) and we will stop all fundraising email to you.</p></div>';\n}\nfunction mail(to, subject, bodyHtml) {\n  // a Graph sendMail request; while emailsApproved is false it goes to the review mailbox\n  const review = !CFG.emailsApproved;\n  return {\n    url: 'https://graph.microsoft.com/v1.0/users/' + encodeURIComponent(CFG.senderMailbox) + '/sendMail',\n    body: { message: {\n      subject: (review ? '[REVIEW, would go to a donor] ' : '') + subject,\n      body: { contentType: 'HTML', content: emailHtml(bodyHtml) },\n      toRecipients: [{ emailAddress: { address: review ? CFG.senderMailbox : to } }]\n    }, saveToSentItems: true }\n  };\n}\nfunction teams(html) {\n  return { url: 'https://graph.microsoft.com/v1.0/teams/' + CFG.teamId + '/channels/' + CFG.channelId + '/messages',\n           body: { body: { contentType: 'html', content: html } } };\n}\n\nconst today = phxNow();\nconst donors = graphRows('GET donor list');\nconst listBase = 'https://graph.microsoft.com/v1.0/sites/' + CFG.sharepointSiteId + '/lists/' + CFG.donorListId + '/items';\nconst out = [], count = { f7: 0, f8: 0, unsub: 0 };\nfunction graph(method, url, body, flow) { out.push({ json: { method: method, url: url, body: body, flow: flow } }); }\n\n/* unsubscribe replies */\nconst asked = {};\n$('GET unsubscribe replies').all().forEach(function (i) {\n  (i.json.value || []).forEach(function (m) {\n    const from = (((m.from || {}).emailAddress || {}).address || '').toLowerCase();\n    if (from && /unsubscribe/i.test((m.subject || '') + ' ' + (m.bodyPreview || ''))) { asked[from] = true; }\n  });\n});\n\n/* TEMPLATES: review the wording, then set emailsApproved in Config. */\nconst T = {\n  day1: ['Thank you from Joey', function (f) { return '<p>Dear ' + esc(f || 'friend') + ',</p><p>Thank you for your gift to Sanctuary Community Initiative. ' +\n    'When treatment ends, the need for a safe bed, a ride to work and a valid ID does not. Your gift helps fund exactly that.</p><p>[REVIEW: Joey\\'s own words]</p><p>Joey<br>[Title]</p>'; }],\n  day14: ['What your gift makes possible', function (f) { return '<p>Dear ' + esc(f || 'friend') + ',</p><p>Two weeks ago you gave to the safety net. ' +\n    'Among Sanctuary participants since July 2025, 94% had no new arrests across all check-ins. Stable housing and practical support are what that number is made of.</p>' +\n    '<p>[REVIEW: one released story or a housing staff note, if available]</p><p>[Signature]</p>'; }],\n  day60: ['Be the steady support', function (f) { return '<p>Dear ' + esc(f || 'friend') + ',</p><p>A one-time gift covers a ride. A monthly gift keeps a bed open. ' +\n    'Would you join The Sanctuary, our monthly givers, from $10 a month? <a href=\"' + esc(CFG.wallOfSupportUrl) + '\">Join The Sanctuary</a>.</p><p>[Signature]</p>'; }],\n  month11: ['A year of support', function (f) { return '<p>Dear ' + esc(f || 'friend') + ',</p><p>Almost a year ago you gave to Sanctuary Community Initiative. ' +\n    'Would you renew your support this year? [REVIEW: link to the current campaign]</p><p>[Signature]</p>'; }]\n};\n\ndonors.forEach(function (r) {\n  const f = r.fields || {}, email = String(f.Email || '').toLowerCase();\n  if (email && asked[email] && !f.Unsubscribed) { graph('PATCH', listBase + '/' + r.id + '/fields', { Unsubscribed: true }, 'unsub'); count.unsub++; f.Unsubscribed = true; }\n  const patch = {};\n  /* f8: lapsed — no gift in 12 months */\n  if (f.LastGiftDate && DateTime.fromISO(String(f.LastGiftDate).slice(0, 10)) <= today.minus({ months: 12 }) && f.Segment !== 'october-reactivation') {\n    patch.Segment = 'october-reactivation'; count.f8++;\n  }\n  /* f7: one journey step per donor per day, in order */\n  if (!f.Unsubscribed && email && f.FirstGiftDate) {\n    const days = Math.floor(today.diff(DateTime.fromISO(String(f.FirstGiftDate).slice(0, 10)), 'days').days);\n    const sinceLast = f.LastGiftDate ? today.diff(DateTime.fromISO(String(f.LastGiftDate).slice(0, 10)), 'months').months : 0;\n    const step = f.JourneyStep || 'new';\n    let send = null, next = null;\n    if (step === 'new' && days >= 1) { send = 'day1'; next = 'thanked'; }\n    else if (step === 'thanked' && days >= 14) { send = 'day14'; next = 'impact'; }\n    else if (step === 'impact' && days >= 60) { if (!f.Recurring) { send = 'day60'; } next = 'upgrade-asked'; }\n    else if ((step === 'upgrade-asked' || step === 'renewed') && sinceLast >= 11 && f.JourneyRenewalFor !== String(f.LastGiftDate)) {\n      send = 'month11'; next = 'renewed'; patch.JourneyRenewalFor = String(f.LastGiftDate);\n    }\n    if (next) { patch.JourneyStep = next; patch.JourneyAt = today.toISODate(); }\n    if (send) {\n      const m = mail(email, T[send][0], T[send][1](f.FirstName));\n      graph('POST', m.url, m.body, 'f7'); count.f7++;\n    }\n  }\n  if (Object.keys(patch).length) { graph('PATCH', listBase + '/' + r.id + '/fields', patch, 'f7'); }\n});\n$getWorkflowStaticData('global').counts = count;\nreturn out;\n"
+      },
+      "alwaysOutputData": true,
+      "notes": "Day 1, 14, 60, month 11. Templates inside: review before emailsApproved.",
+      "notesInFlow": true
+    },
+    {
+      "id": "n0044-sci",
+      "name": "Anything to send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-url",
+              "leftValue": "={{ !!$json.url }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n0045-sci",
+      "name": "Graph request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        220
+      ],
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "set-on-import",
+          "name": "SCI Microsoft Graph"
+        }
+      }
+    },
+    {
+      "id": "n0046-sci",
+      "name": "Runs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        420
+      ],
+      "parameters": {
+        "jsCode": "// one run report per automation in this workflow\nconst c = $getWorkflowStaticData('global').counts || {};\nconst s = $getWorkflowStaticData('global').summary;\nreturn [\"f7\",\"f8\"].map(function (id) { return { json: { runId: id, runMessage: s || (c[id] !== undefined ? c[id] + ' sent' : '') } }; });"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "n0047-sci",
+      "name": "Report runs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.siteUrl + '/api/fundraising-state?action=run' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $json.runId, status: $json.runStatus || 'success', message: String($json.runMessage || $json.summary || '').slice(0, 280) }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "set-on-import",
+          "name": "SCI Fundraising sync secret"
+        }
+      },
+      "notes": "Tells the Fundraising page this automation ran.",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Daily 9:12 a.m.": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "GET donor list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET donor list": {
+      "main": [
+        [
+          {
+            "node": "GET unsubscribe replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET unsubscribe replies": {
+      "main": [
+        [
+          {
+            "node": "Journey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journey": {
+      "main": [
+        [
+          {
+            "node": "Anything to send?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything to send?": {
+      "main": [
+        [
+          {
+            "node": "Graph request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runs": {
+      "main": [
+        [
+          {
+            "node": "Report runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Phoenix",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "SCI fundraising"
+    }
+  ]
+}
