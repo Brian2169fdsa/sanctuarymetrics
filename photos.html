@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photos — Sanctuary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.ph-bar{display:flex;flex-direction:column;gap:12px;margin:14px 0 6px}
+.ph-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ph-group > span{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;min-width:62px}
+.ph-chip{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.ph-chip small{color:var(--muted);font-weight:600;margin-left:5px}
+.ph-chip[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.ph-chip[aria-pressed="true"] small{color:#d6e4ea}
+.ph-chip:focus-visible,.ph-tile:focus-visible,.lb-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ph-search{font-family:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;min-width:240px;flex:0 1 320px}
+.ph-search:focus{outline:2px solid var(--blue);outline-offset:1px}
+.ph-clear{all:unset;cursor:pointer;font-size:12.5px;font-weight:700;color:#C0492B}
+.ph-count{font-size:13px;color:var(--muted);margin:4px 0 0}
+.ph-album{margin:22px 0 0}
+.ph-album h3{font-family:Fraunces,serif;font-size:22px;font-weight:600;margin:0}
+.ph-album .meta{font-size:13px;color:var(--muted);margin:3px 0 12px}
+.ph-grid{columns:4 240px;column-gap:12px}
+.ph-tile{all:unset;box-sizing:border-box;display:block;width:100%;margin:0 0 12px;break-inside:avoid;cursor:zoom-in;border-radius:9px;overflow:hidden;
+  background:var(--paper);box-shadow:0 2px 8px rgba(22,38,59,.10);position:relative}
+.ph-tile img{display:block;width:100%;height:auto;transition:transform .25s}
+.ph-tile:hover img{transform:scale(1.03)}
+.ph-tile .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;font-size:12px;color:#fff;
+  background:linear-gradient(transparent,rgba(16,28,38,.78));opacity:0;transition:opacity .2s}
+.ph-tile:hover .cap,.ph-tile:focus-visible .cap{opacity:1}
+.ph-sp{display:flex;gap:14px;align-items:flex-start;background:#eef6fb;border:1px solid #cfe3ef;border-left:4px solid #1C9AD6;border-radius:10px;padding:14px 16px;margin:6px 0 4px}
+.ph-sp b{display:block;font-size:15px;color:var(--ink)}
+.ph-sp p{margin:3px 0 0;font-size:13.5px;color:var(--ink)}
+.ph-sp .ic{flex:0 0 auto;width:34px;height:34px;border-radius:8px;background:#1C9AD6;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px}
+.ph-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:0 0 16px}
+.ph-link{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;transition:border-color .15s,box-shadow .15s}
+.ph-link:hover{border-color:#1C9AD6;box-shadow:0 4px 14px rgba(28,154,214,.15)}
+.ph-link:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ph-link .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#1C9AD6}
+.ph-link b{font-size:15px}
+.ph-link span{font-size:12.5px;color:var(--muted)}
+.ph-link .go{font-size:12.5px;font-weight:700;color:var(--teal);margin-top:2px}
+.ph-sub{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;margin:6px 0 8px}
+.ph-soon{border:2px dashed #cbd8df;border-radius:11px;padding:30px;text-align:center;color:var(--muted);background:#fbfdfe;font-size:14px}
+dialog.lb{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100vw;height:100vh}
+dialog.lb::backdrop{background:rgba(10,18,26,.92)}
+.lb-wrap{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto;color:#fff}
+.lb-stage{display:flex;align-items:center;justify-content:center;min-height:0;padding:16px 64px 0}
+.lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.lb-info{padding:12px 20px 18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+.lb-info .t{font-size:14px}
+.lb-info .t b{display:block;font-size:15px}
+.lb-info .labs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.lb-info .labs button{all:unset;cursor:pointer;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.14);color:#fff}
+.lb-btn{all:unset;cursor:pointer;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;text-decoration:none}
+.lb-btn:hover{background:rgba(255,255,255,.24)}
+.lb-nav{position:fixed;top:50%;transform:translateY(-50%);font-size:26px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0}
+.lb-prev{left:12px}.lb-next{right:12px}
+.lb-close{position:fixed;top:12px;right:12px}
+@media (max-width:720px){.ph-grid{columns:2 140px;column-gap:8px}.ph-tile{margin-bottom:8px}.lb-stage{padding:56px 8px 0}.lb-nav{top:auto;bottom:90px}.ph-search{min-width:0;flex:1 1 100%}}
+@media (max-width:720px), (pointer:coarse){.ph-chip{min-height:38px;display:inline-flex;align-items:center}}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script src="photos.js"></script>
+<script>
+/* ── Sanctuary photos ──────────────────────────────────────────────────────
+   Albums and photos come from photos.js. Filters are built from what the
+   photos are labeled with: the event (album), each label, and the year.
+   Filters live in the address (#album=…&label=…&year=…&q=…) so a filtered
+   view can be shared as a link.                                           */
+var F = { album: '', label: '', year: '', q: '' };
+var LIST = [], OPEN = -1;
+
+function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function album(id) { return PHOTO_ALBUMS.filter(function (a) { return a.id === id; })[0] || { id: id, title: id }; }
+function yearOf(p) { var a = album(p.album), d = p.taken || a.date || a.year || ''; return /^\d{4}/.test(d) ? d.slice(0, 4) : ''; }
+function thumb(p) { return p.file.replace(/\.webp$/, '-thumb.webp'); }
+function longDate(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }) : ''; }
+
+function readHash() {
+  var q = new URLSearchParams(location.hash.slice(1));
+  F = { album: q.get('album') || '', label: q.get('label') || '', year: q.get('year') || '', q: q.get('q') || '' };
+}
+function writeHash() {
+  var q = new URLSearchParams();
+  Object.keys(F).forEach(function (k) { if (F[k]) { q.set(k, F[k]); } });
+  var s = q.toString();
+  history.replaceState(null, '', location.pathname + (s ? '#' + s : ''));
+}
+function matches(p, skip) {
+  if (skip !== 'album' && F.album && p.album !== F.album) { return false; }
+  if (skip !== 'label' && F.label && (p.labels || []).indexOf(F.label) < 0) { return false; }
+  if (skip !== 'year' && F.year && yearOf(p) !== F.year) { return false; }
+  if (F.q) {
+    var hay = ((p.caption || '') + ' ' + (p.labels || []).join(' ') + ' ' + album(p.album).title).toLowerCase();
+    if (hay.indexOf(F.q.toLowerCase()) < 0) { return false; }
+  }
+  return true;
+}
+/* chip counts reflect the other filters, so a chip shows what you'd get */
+function chipRow(name, key, values) {
+  if (!values.length) { return ''; }
+  return '<div class="ph-group" role="group" aria-label="' + h(name) + '"><span>' + h(name) + '</span>' +
+    '<button type="button" class="ph-chip" data-f="' + key + '" data-v="" aria-pressed="' + (!F[key]) + '">All</button>' +
+    values.map(function (v) {
+      var n = PHOTOS.filter(function (p) { return matches(p, key) && (key === 'album' ? p.album === v.id : key === 'label' ? (p.labels || []).indexOf(v.id) >= 0 : yearOf(p) === v.id); }).length;
+      return '<button type="button" class="ph-chip" data-f="' + key + '" data-v="' + h(v.id) + '" aria-pressed="' + (F[key] === v.id) + '">' + h(v.title) + '<small>' + n + '</small></button>';
+    }).join('') + '</div>';
+}
+function render() {
+  var labels = [], years = [];
+  PHOTOS.forEach(function (p) {
+    (p.labels || []).forEach(function (l) { if (labels.indexOf(l) < 0) { labels.push(l); } });
+    var y = yearOf(p); if (y && years.indexOf(y) < 0) { years.push(y); }
+  });
+  labels.sort(); years.sort().reverse();
+  LIST = PHOTOS.filter(function (p) { return matches(p); });
+  var any = F.album || F.label || F.year || F.q;
+  var albums = PHOTO_ALBUMS.filter(function (a) { return !F.album || a.id === F.album; });
+
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Photos', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Internal', 'Content housed in SharePoint', 'photos') +
+    '<section><div class="eyebrow">Sanctuary photos</div><h2 style="font-size:26px;margin:6px 0 0">Photos</h2>' +
+    '<p class="lead" style="margin-bottom:10px">Sample photos from Sanctuary events, with links to the full photo and video collections. ' +
+    'Filter by event, by what\'s in the photo, or by year; select a photo to see it larger. For use in Sanctuary materials only: check before posting anyone\'s photo publicly.</p>' +
+    '<div class="ph-sp" role="note"><span class="ic" aria-hidden="true">S</span><div><b>Content housed in SharePoint</b>' +
+    '<p>The full photo and video collections are stored in Sanctuary\'s SharePoint. This page shows only a few sample photos; use the SharePoint links under each event to see, download or share everything. ' +
+    'The links open with your Sanctuary Microsoft account.</p></div></div>' +
+    '<div class="ph-bar">' +
+      chipRow('Event', 'album', PHOTO_ALBUMS.map(function (a) { return { id: a.id, title: a.title }; })) +
+      chipRow('Label', 'label', labels.map(function (l) { return { id: l, title: l }; })) +
+      (years.length > 1 ? chipRow('Year', 'year', years.map(function (y) { return { id: y, title: y }; })) : '') +
+      '<div class="ph-group"><span>Search</span><input type="search" class="ph-search" id="ph-q" placeholder="Captions and labels" value="' + h(F.q) + '" aria-label="Search photos">' +
+      (any ? '<button type="button" class="ph-clear" id="ph-clear">Clear filters</button>' : '') + '</div>' +
+    '</div><p class="ph-count" role="status">' + (PHOTOS.length ? (any ? LIST.length + ' of ' + PHOTOS.length + ' sample photos match.' : PHOTOS.length + ' sample photo' + (PHOTOS.length === 1 ? '' : 's') + ' · full collections in SharePoint.') : 'No sample photos yet.') + '</p>' +
+    albums.map(function (a) {
+      var mine = LIST.filter(function (p) { return p.album === a.id; });
+      var total = PHOTOS.filter(function (p) { return p.album === a.id; }).length;
+      if (!mine.length && total && !F.album) { return ''; }       /* filtered out entirely */
+      var meta = [longDate(a.date), a.place, total ? total + ' sample photo' + (total === 1 ? '' : 's') : ''].filter(Boolean).join(' · ');
+      var links = (a.links || []).map(function (l) {
+        return '<a class="ph-link" href="' + h(l.url) + '" target="_blank" rel="noopener"><span class="k">SharePoint · ' + (l.kind === 'video' ? 'Video' : 'Photos') + '</span>' +
+          '<b>' + h(l.label) + '</b>' + (l.note ? '<span>' + h(l.note) + '</span>' : '') + '<span class="go">Open in SharePoint ↗</span></a>';
+      }).join('');
+      return '<div class="ph-album" id="album-' + h(a.id) + '"><h3>' + h(a.title) + '</h3><p class="meta">' + h(meta) + (a.description ? (meta ? ' · ' : '') + h(a.description) : '') + '</p>' +
+        (links ? '<p class="ph-sub">Full collections · housed in SharePoint</p><div class="ph-links">' + links + '</div>' : '') +
+        (total ? '<p class="ph-sub">Sample photos</p>' : '') +
+        (!total ? (links ? '' : '<div class="ph-soon">Photos coming soon.</div>')
+          : !mine.length ? '<div class="ph-soon">No photos in this album match the filters.</div>'
+          : '<div class="ph-grid">' + mine.map(function (p) {
+              var i = LIST.indexOf(p);
+              return '<button type="button" class="ph-tile" data-i="' + i + '" aria-label="Open photo' + (p.caption ? ': ' + h(p.caption) : '') + '">' +
+                '<img src="' + h(thumb(p)) + '" alt="' + h(p.caption || a.title + ' photo') + '" loading="lazy"' + (p.w && p.h ? ' width="' + p.w + '" height="' + p.h + '"' : '') + '>' +
+                (p.caption || (p.labels || []).length ? '<span class="cap">' + h(p.caption || p.labels.join(' · ')) + '</span>' : '') + '</button>';
+            }).join('') + '</div>') + '</div>';
+    }).join('') +
+    '</section>' +
+    '<dialog class="lb" id="lb" aria-label="Photo viewer"></dialog>' +
+    pageFooter('Sanctuary photo albums · full collections housed in SharePoint');
+  wire();
+}
+function lightbox() {
+  var d = document.getElementById('lb'), p = LIST[OPEN];
+  if (!p) { if (d.open) { d.close(); } return; }
+  var a = album(p.album);
+  d.innerHTML = '<div class="lb-wrap"><div class="lb-stage"><img src="' + h(p.file) + '" alt="' + h(p.caption || a.title + ' photo') + '"></div>' +
+    '<div class="lb-info"><div class="t"><b>' + h(p.caption || a.title) + '</b>' + h(a.title) + ' · ' + (OPEN + 1) + ' of ' + LIST.length +
+      ((p.labels || []).length ? '<div class="labs">' + p.labels.map(function (l) { return '<button type="button" data-lbl="' + h(l) + '">' + h(l) + '</button>'; }).join('') + '</div>' : '') + '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' + ((a.links || [])[0] ? '<a class="lb-btn" href="' + h(a.links[0].url) + '" target="_blank" rel="noopener">Full set in SharePoint ↗</a>' : '') +
+      '<a class="lb-btn" href="' + h(p.file) + '" download>Download sample</a></div></div></div>' +
+    (LIST.length > 1 ? '<button type="button" class="lb-btn lb-nav lb-prev" id="lb-prev" aria-label="Previous photo">‹</button><button type="button" class="lb-btn lb-nav lb-next" id="lb-next" aria-label="Next photo">›</button>' : '') +
+    '<button type="button" class="lb-btn lb-close" id="lb-close">Close ✕</button>';
+  if (!d.open) { d.showModal(); }
+  var go = function (n) { OPEN = (OPEN + n + LIST.length) % LIST.length; lightbox(); };
+  var prev = document.getElementById('lb-prev'), next = document.getElementById('lb-next');
+  if (prev) { prev.onclick = function () { go(-1); }; next.onclick = function () { go(1); }; }
+  document.getElementById('lb-close').onclick = function () { OPEN = -1; d.close(); };
+  d.querySelectorAll('[data-lbl]').forEach(function (b) { b.onclick = function () { F.label = b.getAttribute('data-lbl'); OPEN = -1; d.close(); writeHash(); render(); }; });
+}
+function wire() {
+  document.querySelectorAll('[data-f]').forEach(function (b) {
+    b.addEventListener('click', function () { F[b.getAttribute('data-f')] = b.getAttribute('data-v'); writeHash(); render(); });
+  });
+  var q = document.getElementById('ph-q'), t;
+  if (q) {
+    q.addEventListener('input', function () {
+      clearTimeout(t);
+      t = setTimeout(function () { F.q = q.value.trim(); writeHash(); render(); var n = document.getElementById('ph-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250);
+    });
+  }
+  var c = document.getElementById('ph-clear');
+  if (c) { c.addEventListener('click', function () { F = { album: '', label: '', year: '', q: '' }; writeHash(); render(); }); }
+  document.querySelectorAll('[data-i]').forEach(function (b) { b.addEventListener('click', function () { OPEN = +b.getAttribute('data-i'); lightbox(); }); });
+  var d = document.getElementById('lb');
+  d.addEventListener('close', function () { OPEN = -1; });
+  d.addEventListener('keydown', function (e) {
+    if (OPEN < 0 || LIST.length < 2) { return; }
+    if (e.key === 'ArrowRight') { OPEN = (OPEN + 1) % LIST.length; lightbox(); }
+    if (e.key === 'ArrowLeft') { OPEN = (OPEN - 1 + LIST.length) % LIST.length; lightbox(); }
+  });
+}
+addEventListener('hashchange', function () { readHash(); render(); });
+readHash();
+render();
+</script>
+</body></html>

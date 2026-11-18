@@ -97,6 +97,12 @@
    instead; every change goes to marketing as one request (/api/requests →
    a task on the Projects page), filed under the signed-in person's name.  */
 var Q = new URLSearchParams(location.search);
+/* a flyer that isn't letter-size sets `ratio` (width/height of its image) in flyers.js,
+   so the image isn't squeezed and the click areas line up */
+function flyerRatio() {
+  var r = (VERSION && VERSION.ratio) || (FLYER && FLYER.ratio) || '';
+  return /^\d+\/\d+$/.test(r) ? ' style="aspect-ratio:' + r + '"' : '';
+}
 var FLYER = FLYER_CATALOG.filter(function (f) { return f.id === Q.get('id'); })[0];
 var VERSION = null;
 var EDITS = {};          /* area name → requested change, kept per version */
@@ -125,7 +131,7 @@ function artHtml() {
   /* bigger boxes first so smaller ones sit on top and win the click */
   var order = smallest(list).reverse();
   return '<div class="fe-art" id="fe-art">' +
-    '<div class="fe-img"><img src="' + esc(flyerImg(VERSION)) + '" alt="' + esc(FLYER.title + ' — ' + VERSION.label) + ' flyer">' +
+    '<div class="fe-img"' + flyerRatio() + '><img src="' + esc(flyerImg(VERSION)) + '" alt="' + esc(FLYER.title + ' — ' + VERSION.label) + ' flyer">' +
     order.map(function (a) {
       var i = list.indexOf(a), b = a.box;
       return '<button type="button" class="fe-hot' + (EDITS[a.name] ? ' done' : '') + (OPEN === a.name ? ' on' : '') + '" ' +

@@ -15,8 +15,32 @@
       says now (quoted in the request so marketing knows exactly what's
       meant), and where it sits on the flyer as % of the image: [left, top,
       width, height]. Areas may overlap; the smaller one wins a click.
+   5. Flyers are letter-size (1545 × 1999) unless the entry sets `ratio`,
+      the image's width/height, e.g. ratio: '1600/2000' for an 8 × 10.
    ========================================================================== */
 var FLYER_CATALOG = [
+  {
+    id: 'veterans',
+    title: 'No Wrong Door for a Veteran',
+    audience: 'Veterans and military families',
+    /* 8 x 10 in (4:5), unlike the letter-size flyers below */
+    ratio: '1600/2000',
+    versions: [{ id: 'veterans-no-wrong-door', label: 'No Wrong Door for a Veteran', note: '8 × 10 in' }],
+    areas: [
+      { name: 'Logo', box: [5, 2, 31, 16], now: 'Sanctuary Recovery Centers logo (red, white and blue)' },
+      { name: 'Tagline', box: [5, 19.5, 39, 3.5], now: 'True Healing. Real Recovery. Lasting Change.' },
+      { name: 'Headline', box: [5, 23.5, 45, 25], now: 'NO WRONG DOOR FOR A VETERAN.' },
+      { name: 'Subheadline', box: [5.5, 49.5, 34, 6.5], now: 'Honoring Your Service. Healing Your Future.' },
+      { name: 'Body copy', box: [5.5, 56.3, 46, 7.5],
+        now: 'Trauma-informed, evidence-based treatment built for Veterans. We understand military culture and the invisible wounds that follow service. You served for us. Now let us serve you.' },
+      { name: 'Main photo', box: [52, 0, 48, 66], now: 'Eagle graphic and a Veteran in uniform facing a mountain sunset' },
+      { name: 'Our services', box: [4, 67, 92, 19],
+        now: 'Our Services: Residential Treatment · PHP (Day Treatment) · IOP (Evening) · IOP with Housing · Sober Living Homes · Community Case Management · Peer Support Services · Court & Justice Support' },
+      { name: 'Phone number', box: [4, 91.5, 32, 6.5], now: 'Admissions & Referrals (480) 690-2898' },
+      { name: 'Closing line & website', box: [48, 91.5, 48, 7],
+        now: 'You fought for our freedom. We fight for your recovery. Together, We Win. sanctuaryrecoverycenters.com' }
+    ]
+  },
   {
     id: 'life-story',
     title: 'Change Your Life Story',
