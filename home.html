@@ -44,7 +44,7 @@ function render(socialNew) {
                    : 'Send photos and a few words from an event — marketing turns them into a post.',
       can('admin') && socialNew ? socialNew + ' to post' : '') +
     tile('print.html', '🖨️', 'Print shop', 'Business cards, flyers and presentations — order or ask for changes.') +
-    tile('photos.html', '📷', 'Photos', 'Sanctuary event photos, starting with PAL Forward 2026. Filter by event and label.') +
+    tile('photos.html', '📷', 'Photos', 'Sample event photos and links to the full photo and video collections in SharePoint, starting with PAL Forward 2026.') +
     (can('limited_nav') ? '' : tile('website.html', '🌐', 'Website edits', 'Ask for a change on any page of sanctuaryrecoverycenters.com.')) +
     (can('limited_nav') ? '' : tile('salesforce.html', '☁️', 'Salesforce', 'What we built in Salesforce, and a form to request new features or fixes.')) +
     (can('admin') ? '' : can('cpao_admin') ? tile('cpao-admin.html', '🪪', 'HEAplus (CP-AO)', 'Invite staff, track every step, upload CPAO letters and certificates.')

@@ -29,6 +29,19 @@
 .ph-tile .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;font-size:12px;color:#fff;
   background:linear-gradient(transparent,rgba(16,28,38,.78));opacity:0;transition:opacity .2s}
 .ph-tile:hover .cap,.ph-tile:focus-visible .cap{opacity:1}
+.ph-sp{display:flex;gap:14px;align-items:flex-start;background:#eef6fb;border:1px solid #cfe3ef;border-left:4px solid #1C9AD6;border-radius:10px;padding:14px 16px;margin:6px 0 4px}
+.ph-sp b{display:block;font-size:15px;color:var(--ink)}
+.ph-sp p{margin:3px 0 0;font-size:13.5px;color:var(--ink)}
+.ph-sp .ic{flex:0 0 auto;width:34px;height:34px;border-radius:8px;background:#1C9AD6;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px}
+.ph-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:0 0 16px}
+.ph-link{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;transition:border-color .15s,box-shadow .15s}
+.ph-link:hover{border-color:#1C9AD6;box-shadow:0 4px 14px rgba(28,154,214,.15)}
+.ph-link:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ph-link .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#1C9AD6}
+.ph-link b{font-size:15px}
+.ph-link span{font-size:12.5px;color:var(--muted)}
+.ph-link .go{font-size:12.5px;font-weight:700;color:var(--teal);margin-top:2px}
+.ph-sub{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;margin:6px 0 8px}
 .ph-soon{border:2px dashed #cbd8df;border-radius:11px;padding:30px;text-align:center;color:var(--muted);background:#fbfdfe;font-size:14px}
 dialog.lb{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100vw;height:100vh}
 dialog.lb::backdrop{background:rgba(10,18,26,.92)}
@@ -65,7 +78,7 @@ var LIST = [], OPEN = -1;
 
 function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function album(id) { return PHOTO_ALBUMS.filter(function (a) { return a.id === id; })[0] || { id: id, title: id }; }
-function yearOf(p) { var d = p.taken || album(p.album).date || ''; return /^\d{4}/.test(d) ? d.slice(0, 4) : ''; }
+function yearOf(p) { var a = album(p.album), d = p.taken || a.date || a.year || ''; return /^\d{4}/.test(d) ? d.slice(0, 4) : ''; }
 function thumb(p) { return p.file.replace(/\.webp$/, '-thumb.webp'); }
 function longDate(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }) : ''; }
 
@@ -111,24 +124,33 @@ function render() {
   var albums = PHOTO_ALBUMS.filter(function (a) { return !F.album || a.id === F.album; });
 
   document.getElementById('sheet').innerHTML =
-    pageHeader('Photos', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Internal', PHOTOS.length + ' photo' + (PHOTOS.length === 1 ? '' : 's') + ' · ' + PHOTO_ALBUMS.length + ' album' + (PHOTO_ALBUMS.length === 1 ? '' : 's'), 'photos') +
+    pageHeader('Photos', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Internal', 'Content housed in SharePoint', 'photos') +
     '<section><div class="eyebrow">Sanctuary photos</div><h2 style="font-size:26px;margin:6px 0 0">Photos</h2>' +
-    '<p class="lead" style="margin-bottom:6px">Photos from Sanctuary events and programs. Filter by event, by what\'s in the photo, or by year; select a photo to see it full size and download it. ' +
-    'For use in Sanctuary materials only: check before posting anyone\'s photo publicly.</p>' +
+    '<p class="lead" style="margin-bottom:10px">Sample photos from Sanctuary events, with links to the full photo and video collections. ' +
+    'Filter by event, by what\'s in the photo, or by year; select a photo to see it larger. For use in Sanctuary materials only: check before posting anyone\'s photo publicly.</p>' +
+    '<div class="ph-sp" role="note"><span class="ic" aria-hidden="true">S</span><div><b>Content housed in SharePoint</b>' +
+    '<p>The full photo and video collections are stored in Sanctuary\'s SharePoint. This page shows only a few sample photos; use the SharePoint links under each event to see, download or share everything. ' +
+    'The links open with your Sanctuary Microsoft account.</p></div></div>' +
     '<div class="ph-bar">' +
       chipRow('Event', 'album', PHOTO_ALBUMS.map(function (a) { return { id: a.id, title: a.title }; })) +
       chipRow('Label', 'label', labels.map(function (l) { return { id: l, title: l }; })) +
       (years.length > 1 ? chipRow('Year', 'year', years.map(function (y) { return { id: y, title: y }; })) : '') +
       '<div class="ph-group"><span>Search</span><input type="search" class="ph-search" id="ph-q" placeholder="Captions and labels" value="' + h(F.q) + '" aria-label="Search photos">' +
       (any ? '<button type="button" class="ph-clear" id="ph-clear">Clear filters</button>' : '') + '</div>' +
-    '</div><p class="ph-count" role="status">' + (PHOTOS.length ? (any ? LIST.length + ' of ' + PHOTOS.length + ' photos match.' : PHOTOS.length + ' photos.') : 'No photos yet.') + '</p>' +
+    '</div><p class="ph-count" role="status">' + (PHOTOS.length ? (any ? LIST.length + ' of ' + PHOTOS.length + ' sample photos match.' : PHOTOS.length + ' sample photo' + (PHOTOS.length === 1 ? '' : 's') + ' · full collections in SharePoint.') : 'No sample photos yet.') + '</p>' +
     albums.map(function (a) {
       var mine = LIST.filter(function (p) { return p.album === a.id; });
       var total = PHOTOS.filter(function (p) { return p.album === a.id; }).length;
       if (!mine.length && total && !F.album) { return ''; }       /* filtered out entirely */
-      var meta = [longDate(a.date), a.place, total ? total + ' photo' + (total === 1 ? '' : 's') : ''].filter(Boolean).join(' · ');
+      var meta = [longDate(a.date), a.place, total ? total + ' sample photo' + (total === 1 ? '' : 's') : ''].filter(Boolean).join(' · ');
+      var links = (a.links || []).map(function (l) {
+        return '<a class="ph-link" href="' + h(l.url) + '" target="_blank" rel="noopener"><span class="k">SharePoint · ' + (l.kind === 'video' ? 'Video' : 'Photos') + '</span>' +
+          '<b>' + h(l.label) + '</b>' + (l.note ? '<span>' + h(l.note) + '</span>' : '') + '<span class="go">Open in SharePoint ↗</span></a>';
+      }).join('');
       return '<div class="ph-album" id="album-' + h(a.id) + '"><h3>' + h(a.title) + '</h3><p class="meta">' + h(meta) + (a.description ? (meta ? ' · ' : '') + h(a.description) : '') + '</p>' +
-        (!total ? '<div class="ph-soon">Photos coming soon.</div>'
+        (links ? '<p class="ph-sub">Full collections · housed in SharePoint</p><div class="ph-links">' + links + '</div>' : '') +
+        (total ? '<p class="ph-sub">Sample photos</p>' : '') +
+        (!total ? (links ? '' : '<div class="ph-soon">Photos coming soon.</div>')
           : !mine.length ? '<div class="ph-soon">No photos in this album match the filters.</div>'
           : '<div class="ph-grid">' + mine.map(function (p) {
               var i = LIST.indexOf(p);
@@ -139,7 +161,7 @@ function render() {
     }).join('') +
     '</section>' +
     '<dialog class="lb" id="lb" aria-label="Photo viewer"></dialog>' +
-    pageFooter('Sanctuary photo albums');
+    pageFooter('Sanctuary photo albums · full collections housed in SharePoint');
   wire();
 }
 function lightbox() {
@@ -149,7 +171,8 @@ function lightbox() {
   d.innerHTML = '<div class="lb-wrap"><div class="lb-stage"><img src="' + h(p.file) + '" alt="' + h(p.caption || a.title + ' photo') + '"></div>' +
     '<div class="lb-info"><div class="t"><b>' + h(p.caption || a.title) + '</b>' + h(a.title) + ' · ' + (OPEN + 1) + ' of ' + LIST.length +
       ((p.labels || []).length ? '<div class="labs">' + p.labels.map(function (l) { return '<button type="button" data-lbl="' + h(l) + '">' + h(l) + '</button>'; }).join('') + '</div>' : '') + '</div>' +
-      '<a class="lb-btn" href="' + h(p.file) + '" download>Download</a></div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' + ((a.links || [])[0] ? '<a class="lb-btn" href="' + h(a.links[0].url) + '" target="_blank" rel="noopener">Full set in SharePoint ↗</a>' : '') +
+      '<a class="lb-btn" href="' + h(p.file) + '" download>Download sample</a></div></div></div>' +
     (LIST.length > 1 ? '<button type="button" class="lb-btn lb-nav lb-prev" id="lb-prev" aria-label="Previous photo">‹</button><button type="button" class="lb-btn lb-nav lb-next" id="lb-next" aria-label="Next photo">›</button>' : '') +
     '<button type="button" class="lb-btn lb-close" id="lb-close">Close ✕</button>';
   if (!d.open) { d.showModal(); }
