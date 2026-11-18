@@ -168,6 +168,7 @@ section.muted .dot{opacity:.35}
 }
 
 /* importance tags */
+.tag.urgent{background:#C0492B;color:#fff}
 .tag.hot{background:#fbeae6;color:#C0492B}
 .tag.med{background:#fdf3e0;color:#B06F14}
 .tag.cold{background:#e8f4fb;color:#17739E}

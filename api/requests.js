@@ -210,7 +210,8 @@ function toRow(body, user, deck) {
     owner: (kind === 'salesforce' ? str(process.env.SALESFORCE_OWNER, 120) : kind === 'offboarding' ? str(process.env.OFFBOARDING_OWNER, 120) : '') ||
       str(process.env.PRINT_OWNER, 120) || 'Brian Reinhart',
     status: 'New',
-    importance: str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
+    /* offboarding is always Urgent: it goes in the Urgent section at the top of the Projects page */
+    importance: kind === 'offboarding' ? 'Urgent' : str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
     due: needed || (kind === 'offboarding' && /^\d{4}-\d{2}-\d{2}$/.test(str(body.last_day, 10)) ? str(body.last_day, 10) : null),
     notes: lines.join('\n').slice(0, 4000),
     source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · '

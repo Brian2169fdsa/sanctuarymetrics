@@ -153,6 +153,11 @@ body.pdragging{cursor:grabbing;user-select:none}
 @media (max-width:720px){.an-k{grid-template-columns:1fr 1fr}.an-row{grid-template-columns:1fr 56px}.an-row .track{grid-column:1/-1;grid-row:2}.an-list li{grid-template-columns:1fr}}
 @media (max-width:720px), (pointer:coarse){.pv-tabs button{min-height:40px;display:inline-flex;align-items:center}}
 .psec{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
+.purgent{margin:16px 0 22px;padding:14px 16px 6px;border:1px solid #f0c9bd;border-left:4px solid #C0492B;border-radius:10px;background:#fdf6f4}
+.purgent h3{margin:0;font-size:16px;color:#8C2A14}
+.purgent h3 span{display:inline-block;min-width:20px;padding:1px 7px;margin-left:4px;border-radius:10px;background:#C0492B;color:#fff;font-size:12px;text-align:center}
+.purgent .tw{background:#fff;border-radius:8px}
+.purgent-none{margin:0 0 10px;color:var(--muted);font-size:13.5px}
 </style>
 </head>
 <body><div class="sheet" id="sheet"></div>
@@ -177,7 +182,7 @@ body.pdragging{cursor:grabbing;user-select:none}
    The first time a browser connects, anything it saved under the old
    browser-only tracker (localStorage) is copied up once.                  */
 var STATUSES = ['On-track', 'Off Track', 'In Progress', 'On Hold', 'New', 'Complete', 'Cancelled'];
-var IMPORTANCE = ['Hot', 'Med', 'Cold'];
+var IMPORTANCE = ['Urgent', 'Hot', 'Med', 'Cold'];   /* Urgent items sit in their own section at the top */
 var API = '/api/projects';
 var PW_KEY = 'src_projects_pw';
 var OLD_LIST_KEY = 'src_projects_v1';       /* old browser-only store */
@@ -357,7 +362,7 @@ function mapLink(addr) {
 function chips(items) {
   var counts = {};
   items.forEach(function (i) { var k = i.status.split(' (')[0]; counts[k] = (counts[k] || 0) + 1; });
-  var hot = items.filter(function (i) { return i.importance === 'Hot' && !isClosed(i.status); }).length;
+  var hot = items.filter(function (i) { return (i.importance === 'Hot' || i.importance === 'Urgent') && !isClosed(i.status); }).length;
   var done = items.filter(function (i) { return isDone(i.status); }).length;
   var cancelled = items.filter(function (i) { return isCancelled(i.status); }).length;
   var events = items.filter(function (i) { return i.isEvent && !isClosed(i.status); }).length;
@@ -921,12 +926,17 @@ function render() {
       '</section>';
   } else {
     /* open items first, ticked-off items sink to the bottom */
-    var items = byPriority(seedItems().concat(customItems('project')));
-    var rocks = byPriority(customItems('rock')), helps = byPriority(customItems('help'));
+    /* open Urgent items (offboarding, anything marked Urgent) leave their own list for the Urgent section */
+    var isUrgent = function (i) { return i.importance === 'Urgent' && !isClosed(i.status); };
+    var notUrgent = function (i) { return !isUrgent(i); };
+    var allItems = seedItems().concat(customItems());
+    var urgent = byUrgency(allItems.filter(isUrgent));
+    var items = byPriority(seedItems().concat(customItems('project')).filter(notUrgent));
+    var rocks = byPriority(customItems('rock').filter(notUrgent)), helps = byPriority(customItems('help').filter(notUrgent));
     var tabs = '<div class="pv-tabs" role="tablist" aria-label="Projects views">' +
       '<button type="button" role="tab" data-pview="tracker" aria-selected="' + (PVIEW === 'tracker') + '">Tracker</button>' +
       '<button type="button" role="tab" data-pview="analytics" aria-selected="' + (PVIEW === 'analytics') + '">Analytics</button></div>';
-    body = PVIEW === 'analytics' ? analyticsHtml(items.concat(rocks, helps), tabs) :
+    body = PVIEW === 'analytics' ? analyticsHtml(allItems, tabs) :
       '<section>' +
         '<div class="eyebrow">Project tracker</div>' +
         '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' + tabs +
@@ -934,6 +944,7 @@ function render() {
         'projects. Click a title or <b>Edit</b> to add notes, a due date or event details; tick the box to mark it done. ' +
         'Open a project to message the team about it — replies ring everyone\'s bell. This list is shared: everyone sees the same items.' +
         (BUSY ? ' <b>Saving…</b>' : '') + '</p>' +
+        urgentHtml(urgent) +
         '<div class="ptools">' + chips(items) +
           '<button type="button" class="btn" id="np-open"' + (BUSY ? ' disabled' : '') + '>+ New project</button></div>' +
         '<p class="porder-msg" id="porder-msg">Drag the <b>⋮⋮</b> handle to set priority (1 = top). Everyone sees the same order.</p>' +
@@ -956,6 +967,24 @@ function render() {
     pageFooter('L10 Leadership dashboard (Rocks sheet), ' + L10.asOf + ' meeting column · shared project list');
   applyDataLabels();
   wire();
+}
+
+/* Urgent: newest unsorted items first (a new offboarding lands on top), then the order set by dragging */
+function byUrgency(list) {
+  var fresh = list.filter(function (i) { return i.rank == null; }).sort(function (a, b) { return String(b.addedAt).localeCompare(String(a.addedAt)); });
+  return fresh.concat(byPriority(list.filter(function (i) { return i.rank != null; })));
+}
+function urgentHtml(list) {
+  return '<div class="purgent" id="urgent">' +
+    '<h3>Urgent priority' + (list.length ? ' <span>' + list.length + '</span>' : '') + '</h3>' +
+    '<p class="sub" style="margin:2px 0 8px">Anything marked <b>Urgent</b>: offboarding requests land here automatically. ' +
+      'Tick it off when it\'s done, or set the importance lower in Edit to move it back to its list.</p>' +
+    (list.length
+      ? '<div class="tw"><table class="ptable"><thead><tr><th title="Priority">#</th><th>Done</th><th>Item</th><th>Owner</th><th>Status</th>' +
+        '<th>Importance</th><th>Due</th><th><span class="vh">Edit</span></th></tr></thead>' +
+        '<tbody data-list="urgent">' + rowsHtml(list, true) + '</tbody></table></div>'
+      : '<p class="purgent-none">Nothing urgent right now.</p>') +
+  '</div>';
 }
 
 /* the Rocks and Request help sections under the project list */
@@ -1003,7 +1032,7 @@ function analyticsHtml(all, tabs) {
     var k = i.theme.key;
     by[k] = by[k] || { theme: i.theme, total: 0, done: 0, doing: 0, todo: 0, cancelled: 0, hot: 0, items: [] };
     by[k].total++; by[k][i.stage]++; by[k].items.push(i);
-    if (i.importance === 'Hot' && i.stage !== 'done' && i.stage !== 'cancelled') { by[k].hot++; }
+    if ((i.importance === 'Hot' || i.importance === 'Urgent') && i.stage !== 'done' && i.stage !== 'cancelled') { by[k].hot++; }
   });
   var themes = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || b.done - a.done; });
   var done = items.filter(function (i) { return i.stage === 'done'; }).length;
