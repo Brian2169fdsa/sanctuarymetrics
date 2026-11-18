@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salesforce Build — Sanctuary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+<style>
+.sf-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0}
+.sf-tabs button{all:unset;cursor:pointer;font-size:12px;font-weight:700;padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.sf-tabs button[aria-selected="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.sf-tabs button.req{border-color:var(--coral);color:#B23A1B;background:#fff}
+.sf-tabs button.req[aria-selected="true"]{background:var(--coral);border-color:var(--coral);color:#fff}
+.sf-tabs button:focus-visible,.sf-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sf-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:18px 0}
+.sf-step{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:16px 16px 14px;position:relative}
+.sf-step .n{font-family:Fraunces,serif;font-size:26px;color:var(--coral);line-height:1}
+.sf-step h3{font-family:Inter,sans-serif;font-size:15px;font-weight:700;margin:8px 0 6px}
+.sf-step p{font-size:13.5px;margin:0;color:var(--ink)}
+.sf-flow .sf-step:not(:last-child)::after{content:"→";position:absolute;right:-13px;top:18px;color:var(--muted);font-weight:700}
+.sf-tag{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--coral);font-weight:700}
+.sf-quote{font-family:Fraunces,serif;font-size:19px;color:var(--teal);margin:8px 0 0;line-height:1.4}
+.sf-list{margin:6px 0 0;padding-left:18px;font-size:14px}
+.sf-list li{margin:0 0 6px}
+.sf-pipe{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 12px}
+.sf-pipe span{font-size:12.5px;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 11px}
+.sf-pipe i{color:var(--muted);font-style:normal}
+.sf-pipe span.end{background:var(--teal);color:#fff;border-color:var(--teal)}
+.sf-obj{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.sf-obj .card{margin:0;position:relative;padding-right:56px}
+.sf-obj .fields{position:absolute;top:14px;right:14px;background:var(--coral);color:#fff;font-weight:700;font-size:13px;border-radius:8px;padding:4px 8px;text-align:center;line-height:1.1}
+.sf-obj .fields small{display:block;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;opacity:.9}
+.sf-obj p{font-size:13.5px;margin:0}
+.sf-time{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:16px 0 8px;border-top:4px solid var(--teal)}
+.sf-time div{padding:10px 8px 0 0;font-size:13px}
+.sf-time b{font-family:Fraunces,serif;font-size:24px;display:block;color:var(--teal)}
+.sf-roles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.sf-roles div{border-radius:9px;padding:12px;text-align:center;font-weight:700;font-size:13.5px;color:#fff}
+.sf-reports{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin:8px 0 0}
+.sf-reports div{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13.5px;font-weight:600}
+.sf-callout{border-left:4px solid var(--coral);background:#fbf3ec;border-radius:0 9px 9px 0;padding:12px 16px;margin:14px 0;font-size:14px}
+.sf-callout.ok{border-left-color:#2E8B6F;background:#eef7f3}
+.sf-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sf-form .f{display:flex;flex-direction:column;gap:5px}
+.sf-form .f.wide{grid-column:1/-1}
+.sf-form label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.sf-form input,.sf-form select,.sf-form textarea{font-family:inherit;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.sf-form textarea{min-height:110px;resize:vertical}
+.sf-form input:focus,.sf-form select:focus,.sf-form textarea:focus{outline:2px solid var(--blue);outline-offset:1px}
+.sf-form .hint{font-size:12px;color:var(--muted)}
+.sf-btn{font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--coral);border:0;border-radius:8px;padding:11px 22px;cursor:pointer}
+.sf-btn:hover{filter:brightness(1.05)}
+.sf-btn:disabled{opacity:.6;cursor:default}
+.sf-btn.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
+.sf-msg{font-size:13.5px;margin:10px 0 0}
+.sf-msg.err{color:#C0492B}
+.sf-cta{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:14px 18px;margin:22px 0 0}
+.sf-cta p{margin:0;font-size:14px}
+@media (max-width:720px){.sf-form{grid-template-columns:1fr}.sf-roles{grid-template-columns:1fr 1fr}.sf-time{grid-template-columns:1fr 1fr}.sf-flow .sf-step::after{display:none}}
+@media (max-width:720px), (pointer:coarse){.sf-tabs button{min-height:40px;display:inline-flex;align-items:center}.sf-form input,.sf-form select,.sf-form textarea{font-size:15px;min-height:44px}.sf-btn{min-height:44px}}
+</style>
+</head>
+<body><div class="sheet" id="sheet"></div>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="account.js"></script>
+<script>
+/* ── Salesforce Build ──────────────────────────────────────────────────────
+   What was built in Sanctuary's Salesforce org, from the "What We Built"
+   deck (inventory read from the org on 11/17/2026), one sub-tab per topic,
+   plus a form to request new build-outs and features. Requests go to
+   /api/requests (kind: 'salesforce') and land on the Projects page as a
+   task with a message thread, like print and website requests.            */
+var AS_OF = 'November 17, 2026';
+var TABS = [
+  ['overview', 'Overview'], ['journey', 'Participant journey'], ['data', 'How the data gets there'], ['cohort', 'Release window'],
+  ['refresh', 'Refresh from ADCRR'], ['model', 'Data model'], ['tracks', 'Program tracks'], ['automation', 'Automation'],
+  ['security', 'Integration & security'], ['reporting', 'Reporting'], ['roadmap', 'Go-live & roadmap'], ['request', 'Request a build']
+];
+var VIEW = 'overview', SENT = null;
+
+function h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function steps(list, flow) {
+  return '<div class="sf-steps' + (flow ? ' sf-flow' : '') + '">' + list.map(function (s, i) {
+    return '<div class="sf-step"><div class="n">' + (s.n || String(i + 1).padStart(2, '0')) + '</div><h3>' + h(s.t) + '</h3><p>' + h(s.d) + '</p></div>';
+  }).join('') + '</div>';
+}
+function stat(lab, num, note) { return { lab: lab, num: num, note: note }; }
+function pipe(list) {
+  return '<div class="sf-pipe">' + list.map(function (x, i) { return (i ? '<i>→</i>' : '') + '<span' + (i === list.length - 1 ? ' class="end"' : '') + '>' + h(x) + '</span>'; }).join('') + '</div>';
+}
+function lead(t) { return '<p class="lead">' + t + '</p>'; }
+function cta() {
+  return '<div class="sf-cta"><p><b>Need something added or changed?</b> Ask for a new feature, report, field or fix.</p>' +
+    '<button type="button" class="sf-btn" data-go="request">Request a build</button></div>';
+}
+
+var V = {};
+V.overview = function () {
+  return sechead('What we built', 'var(--coral)', 'Sanctuary\'s Salesforce org · inventory read from the org on ' + AS_OF, '') +
+    lead('One system for the whole reentry path: from ADCRR custody, through mentorship, into training and employment. ' +
+      'Sanctuary\'s org carries the Reentry Services app, eight custom objects, the Account and Opportunity design, 26 flows, the ADCRR scraper integration ' +
+      'and a four-level permission model. Enterprise Edition, no custom code: all automation is declarative.') +
+    kpis([stat('Custom objects', '8', 'built for the reentry pipeline'), stat('Shared flows', '26', '24 active, no Apex'),
+          stat('Custom fields', '72', 'on the two program tracks'), stat('Permission levels', '4', 'Admin, Leadership, Staff, Data Entry')], 4) +
+    grid2(card('In the org today', kpis([stat('Population Records', '905', 'from ADCRR'), stat('Accounts', '9', ''), stat('Opportunities', '11', 'program enrollments'),
+          stat('Complexes and units', '67', '73 location mappings')], 2)),
+      card('Status', '<p style="margin:0;font-size:15px">Configured and lightly used, with <b>6 users</b>. Ready to go live once access setup and the routine feed are switched on.</p>' +
+        '<p style="margin:12px 0 0"><button type="button" class="sf-btn ghost" data-go="roadmap">What it takes to go live</button></p>')) +
+    '<h3 style="margin:22px 0 4px;font-size:18px">Explore the build</h3><div class="sf-steps">' + TABS.slice(1, -1).map(function (t) {
+      return '<button type="button" class="sf-step" data-go="' + t[0] + '" style="text-align:left;cursor:pointer;font:inherit"><h3 style="margin:0">' + h(t[1]) + ' →</h3></button>';
+    }).join('') + '</div>' + cta();
+};
+V.journey = function () {
+  return sechead('The participant journey', 'var(--coral)', 'What staff actually do with it, day to day', '') +
+    lead('The build manages a participant\'s whole reentry path in one place: from identification inside ADCRR custody, through mentorship before and after release, into vocational training and employment.') +
+    steps([
+      { t: 'Identify', d: 'ADCRR population data arrives automatically, with release dates, custody location, and 90-day release eligibility flagged.' },
+      { t: 'Enroll', d: 'Staff convert an eligible person to a Member Account in one step, with no duplicates and no automatic record creation.' },
+      { t: 'Mentor', d: 'Track intake, needs assessment, curriculum progress, and every letter or contact, with days since last correspondence calculated.' },
+      { t: 'Train', d: 'Enroll participants in vocational classes from partner providers and track attendance, completion, dropout, and credentials.' },
+      { t: 'Employ', d: 'Record placement, employer, wage, hours, and retention, and close each track with an outcome.' }
+    ], true) + '<p class="sf-quote">Identified in custody. Mentored through release. Trained and employed in the community.</p>' + cta();
+};
+V.data = function () {
+  return sechead('How the data gets there', 'var(--coral)', 'Behind Salesforce: the AZDOC data platform', '') +
+    lead('Salesforce supplies the staff experience. A separate data engine does the collecting: live ADCRR checks, normalization, change detection, reliable delivery, and a full audit trail. ' +
+      'Sanctuary has its own route, keys, credentials, queue, and audit records, so its data stays in its own tenant.') +
+    steps([
+      { t: 'Public ADCRR site', d: 'One person at a time through a protected, sequential gate with automatic stop rules on source blocking.' },
+      { t: 'Normalize and detect change', d: 'Stable record shape, dates parsed with review flags, payload hashes so only real source changes move forward.' },
+      { t: 'Supabase state', d: 'Normalized records, versioned snapshots, delivery state, retries, and audit history per tenant.' },
+      { t: 'n8n delivery', d: 'Claims queued work and sends only approved, source-owned fields. Retries temporary failures, quarantines bad records.' },
+      { t: 'Salesforce', d: 'Upserts Population Records on ADC Number. Never creates Accounts or Opportunities. Staff convert on purpose.' }
+    ], true) +
+    kpis([stat('Valid people in the inventory', '39,134', 'Salesforce receives approved subsets only'), stat('Conclusive hit rate', '98.67%', 'across the discovery ledger'),
+          stat('Deletes', '0', 'never removes a Salesforce record when someone leaves a cohort')], 3) + cta();
+};
+V.cohort = function () {
+  return sechead('A six-month release pipeline', 'var(--coral)', 'The routine cohort', '') +
+    lead('The backend is built to avoid flooding Salesforce with 39,000 records. Routine delivery is limited to people currently incarcerated with a release date inside a rolling six-month window, ' +
+      'so staff see a focused outreach list instead of a database.') +
+    grid2(card('', '<div class="sf-tag">Highest priority</div><div style="font-family:Fraunces,serif;font-size:30px;margin:4px 0">0 to 90 days</div>' +
+        '<p style="margin:0">Release is imminent. Eligibility is calculated daily, and these records lead every list, report, and dashboard.</p>'),
+      card('', '<div class="sf-tag">Second priority</div><div style="font-family:Fraunces,serif;font-size:30px;margin:4px 0">91 days to 6 months</div>' +
+        '<p style="margin:0">Time to start correspondence, intake, and planning before the 90-day mark arrives.</p>')) +
+    steps([{ n: '✓', t: 'Detainers stay visible', d: 'Included in the feed, flagged as potentially disqualifying.' },
+           { n: '✓', t: 'Leaving the cohort is not a delete', d: 'The record stays as history. Staff notes and decisions are untouched.' },
+           { n: '✓', t: 'Engaged people stay refreshable', d: 'Anyone already in Salesforce can be live-checked on demand.' }]) + cta();
+};
+V.refresh = function () {
+  return sechead('Refresh from ADCRR', 'var(--coral)', 'A live source check, on demand', '') +
+    lead('Staff press one button on a Population Record. The platform validates the tenant, org, user, ADC Number, and record, runs a live ADCRR check, and writes the result back to that exact record by Salesforce ID. ' +
+      'It never creates a new record and never touches Accounts, Opportunities, notes, or ownership.') +
+    card('Verified live canary, November 17', '<div class="sf-time"><div><b>0s</b>Request accepted</div><div><b>14s</b>Worker claims it</div><div><b>30s</b>Live scrape done</div><div><b>38s</b>Salesforce updated</div></div>' +
+      '<p class="note" style="font-size:12.5px;color:var(--muted);margin:8px 0 0">Workers run on 15-second cycles; the ADCRR source gate stays sequential and protected.</p>') +
+    grid2(card('Two dates, two meanings', '<p style="margin:0 0 8px"><b>Last Successful Scrape</b>: when we last checked ADCRR, even if nothing changed.</p>' +
+        '<p style="margin:0"><b>Last Source Update</b>: when the ADCRR information actually changed.</p>' +
+        '<p class="note" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Checked less than 12 hours ago? Salesforce asks first. Cancel uses the fresh data. Refresh Again authorizes a new source request.</p>'),
+      card('Where Sanctuary stands', '<p style="margin:0"><b>904 Population Records</b> delivered and reconciled with zero failed, held, duplicate, or deleted records.</p>' +
+        '<div class="sf-callout">The Salesforce-side refresh components are in place. Backend activation of the button is to be re-verified before it is called live for all users.</div>')) + cta();
+};
+V.model = function () {
+  var objs = [
+    ['ADCRR Population Record', 36, 'Staging record per incarcerated person from the scraper: identity, custody, release date and type, 90-day eligibility, pipeline status, scraper health.'],
+    ['ADCRR Account', 10, 'ADCRR complexes and units with physical and mailing addresses. Record types: Complex, Unit. 67 in the directory.'],
+    ['ADCRR Location Mapping', 8, 'Admin table mapping raw scraper complex/unit text to the correct ADCRR Account. 73 mappings.'],
+    ['ADCRR Sentence', 8, 'Sentence history: crime, offense date, county, sentence date and length.'],
+    ['ADCRR Disciplinary Incident', 7, 'Infraction, verdict, and dates, linked to the participant.'],
+    ['ADCRR Work Program', 6, 'Work assignment with assigned and completed dates.'],
+    ['Training Class', 14, 'Vocational classes offered by Training Provider accounts: schedule, capacity, length, credential, application link.'],
+    ['Vocational Enrollment', 13, 'A participant\'s enrollment in one class: application and enrollment status, dates, missed classes, dropout and disqualification.']
+  ];
+  var W = chartW(false);
+  return sechead('Eight custom objects', 'var(--coral)', 'Everything keys on the ADC Number · the orange number is custom fields per object', '') +
+    card('Custom fields per object', hbar(objs.map(function (o) { return { label: o[0], value: o[1] }; }).concat([{ label: 'Accounts', value: 24, color: '#2C5468' }, { label: 'Opportunities', value: 72, color: '#2C5468' }]),
+      { W: W, color: '#E17F55' }), 'Opportunities carry the most fields because they hold both program tracks.') +
+    '<div class="sf-obj">' + objs.map(function (o) {
+      return '<div class="card"><div class="fields">' + o[1] + '<small>fields</small></div><h3>' + h(o[0]) + '</h3><p>' + h(o[2]) + '</p></div>';
+    }).join('') + '</div>' +
+    grid2(card('Accounts · 24 custom fields', '<p style="margin:0">Member Account and Training Provider record types. Unique ADC Number, photo, demographics, veteran status, encrypted SSN, release date, assigned complex and unit.</p>'),
+      card('Opportunities · 72 custom fields', '<p style="margin:0">Used as program enrollments across two tracks: Mentorship and Vocational. <a href="#tracks" data-go="tracks">See the tracks</a>.</p>')) + cta();
+};
+V.tracks = function () {
+  return sechead('Mentorship and Vocational', 'var(--coral)', 'Two tracks, one participant record', '') +
+    lead('Both tracks live on the Opportunity object. Mentorship runs before and after release; Vocational runs from assessment through employment. Release date flows from Mentorship into Vocational automatically.') +
+    card('Mentorship', pipe(['Open', 'Acceptance', 'Working Curriculum', 'Corresponding', 'Closed: Admitted / Released / Lost']) +
+      '<p style="margin:0 0 8px">Captures release date and type (47 ADCRR release types), incarceration history, intake and needs assessment, curriculum and mentorship progress, correspondence tracking, outcome and exit notes.</p>' +
+      '<div class="sf-callout ok">Every letter is logged as an Activity with a Correspondence Direction. The Log Activity flow keeps incoming, outgoing, and total counts on the record.</div>') +
+    card('Vocational', pipe(['Vocational Assessment', 'Training', 'Employment Placement', 'Employed', 'Completed / Exited']) +
+      '<p style="margin:0 0 8px">Captures vocational goals and track, work preferences and restrictions, resume and certifications, employer, job title, wage, hours, retention, and exit reason.</p>' +
+      '<div class="sf-callout ok">A validation rule requires an exit reason when a track is Exited. Only one active enrollment per participant is allowed.</div>') + cta();
+};
+V.automation = function () {
+  var groups = [
+    ['Data quality', 'Blocks duplicate ADC Numbers. Prevents multiple active vocational enrollments. Syncs test-record flags.'],
+    ['ADCRR sync', 'Calculates 90-day release eligibility. Maps complex and unit to the Member Account. Sets mailing address and photo. Links sentence, incident, and work program records. Pushes release date to the latest Mentorship.'],
+    ['Vocational track', 'Sets stage to Employed. Updates stage and close date. Sets application status on enrollment.'],
+    ['Mentorship', 'Syncs release date back to the Account. Two flows are built but inactive: ADCRR Link History and Opportunity Naming.']
+  ];
+  return sechead('What runs on its own', 'var(--coral)', 'Automation · 26 flows, 24 active', '') +
+    lead('Five flows are buttons staff click; the rest run in the background when a record is saved. There is no custom code anywhere: every rule is a flow an admin can open and read.') +
+    kpis([stat('Flows', '26', 'shared'), stat('Active', '24', '2 built but inactive'), stat('Staff-facing', '5', 'screen flows'), stat('Custom code', '0', 'no Apex')], 4) +
+    card('Staff-facing screen flows', '<ol class="sf-list">' + ['Convert an ADCRR Population Record to a Member Account', 'Create Mentorship Opportunity',
+      'Create Vocational Opportunity, copying release data from the latest Mentorship', 'Log Activity with attachment, usable by read-only Data Entry staff',
+      'Refresh from ADCRR for one ADC Number on demand'].map(function (x) { return '<li>' + h(x) + '</li>'; }).join('') + '</ol>') +
+    '<div class="sf-steps">' + groups.map(function (g) { return '<div class="sf-step"><h3 style="margin-top:0">' + h(g[0]) + '</h3><p>' + h(g[1]) + '</p></div>'; }).join('') + '</div>' + cta();
+};
+V.security = function () {
+  return sechead('How data gets in, and who can touch it', 'var(--coral)', 'Integration and security', '') +
+    lead('The scraper loads; staff convert. Nothing creates a participant record without a person deciding to.') +
+    grid2(card('ADCRR integration', '<ul class="sf-list">' +
+        '<li><b>Scraper pipeline.</b> An external scraper loads Population Records through a dedicated, API-only integration user.</li>' +
+        '<li><b>Staff conversion.</b> The integration cannot create Accounts or Opportunities. People convert records deliberately with the Convert flow.</li>' +
+        '<li><b>Single-record Refresh.</b> Runs through a named credential and External Service with a staff-safe status and error display.</li>' +
+        '<li><b>Tenant isolation.</b> Sanctuary\'s Refresh uses its own endpoint, credentials, and queue, so data stays in its own tenant.</li></ul>'),
+      card('Four-level security model', '<div class="sf-roles"><div style="background:#22323B">Admin</div><div style="background:#2C5468">Leadership</div><div style="background:#1C9AD6">Staff</div><div style="background:#6C7C86">Data Entry</div></div>' +
+        '<p style="margin:0 0 8px">Built from 13 shared permission sets covering app access, program editing, intake, leadership tools, the ADCRR pipeline, conversion authorization, and integration.</p>' +
+        '<ul class="sf-list"><li><b>Restricted actions.</b> Only Admins and Leadership can convert ADCRR records. Only Admins can delete.</li>' +
+        '<li><b>Sensitive data.</b> Social Security Numbers are encrypted at the field level.</li></ul>')) + cta();
+};
+V.reporting = function () {
+  var reports = ['Caseload by Mentor', 'Caseload by Stage', 'Engagement by Mentor', 'Historical Correspondence', 'Outcomes', 'Pipeline by Stage',
+                 'Upcoming Releases', 'No Correspondence Recorded', 'Opportunities with Future Release Dates', 'In-Reach Referrals'];
+  return sechead('What leadership can see', 'var(--coral)', 'Reporting', '') +
+    card('Ten mentorship reports', '<div class="sf-reports">' + reports.map(function (r) { return '<div>' + h(r) + '</div>'; }).join('') + '</div>') +
+    grid2(card('Dashboard', '<p style="margin:0"><b>Mentorship Dashboard</b>: caseload, pipeline, engagement, and upcoming releases in one view.</p>'),
+      card('Record pages', '<p style="margin:0">Custom Lightning pages for Member Account, Training Provider, ADCRR Complex and Unit, Population Record, Mentorship, and Vocational Opportunities.</p>')) +
+    '<div class="sf-callout ok"><b>Ready to add:</b> 10 additional reports, including Activity by Day, Week, and Month by Mentor and Population Records 90 Days or Less, plus a Mentorship Pipeline Dashboard.</div>' + cta();
+};
+V.roadmap = function () {
+  return sechead('From configured to live', 'var(--coral)', 'In progress and open items', '') +
+    card('To go live in Sanctuary', steps([
+      { t: 'Access', d: 'Turn on User Access Policies and assign roles so users receive permission groups automatically.' },
+      { t: 'Stage definitions', d: 'Confirm the "Released" and "Exited" stage definitions so Exited tracks do not count as open pipeline.' },
+      { t: 'Reports', d: 'Add the 10 additional reports and the Mentorship Pipeline Dashboard.' },
+      { t: 'Clean-up', d: 'Clean up the 2 placeholder fields, duplicate record page, and dashboard name.' },
+      { t: 'Routine feed', d: 'Confirm the routine-feed activation and next population tranche for Sanctuary.' }
+    ])) +
+    card('On the roadmap', '<ul class="sf-list">' +
+      '<li><b>ADCRR history back-link.</b> Built but inactive; links sentences, incidents, and work programs to a new Member Account.</li>' +
+      '<li><b>Pre-release and Edovo workflow.</b> Participant, Touchpoint, and Enrollment objects planned, not yet built.</li>' +
+      '<li><b>Continuous acquisition.</b> Built and canary-tested; paused at a safety review stop after a source challenge. Clear the review and rerun the canary before restarting.</li>' +
+      '<li><b>Nonprofit Cloud.</b> Program, outcome, fundraising, and volunteer management licenses already in hand.</li></ul>') +
+    '<p class="sf-quote">The foundation is in place. Sanctuary can go live on this build and grow from there.</p>' + cta();
+};
+
+/* ── request a build ───────────────────────────────────────────────────── */
+var TYPES = ['New feature', 'New report or dashboard', 'Change something that exists', 'New data or integration',
+             'Access or permissions', 'Something is broken', 'Training or how-to', 'Other'];
+var AREAS = ['Participant journey', 'ADCRR data feed', 'Refresh from ADCRR', 'Data model', 'Mentorship track',
+             'Vocational track', 'Automation (flows)', 'Security and access', 'Reporting', 'Not sure'];
+var DRAFT = {};
+V.request = function () {
+  if (SENT) {
+    return sechead('Request a build', 'var(--coral)', 'New build-outs, features, reports and fixes in Salesforce', '') +
+      '<div class="sf-callout ok"><b>Request sent: ' + h(SENT) + '.</b> It\'s on the Projects page as a new task, and you can follow it and message about it under ' +
+      '<a href="projects.html">My requests</a>.</div><p><button type="button" class="sf-btn ghost" id="another">Ask for something else</button></p>';
+  }
+  var opt = function (list, val) { return '<option value="">Choose…</option>' + list.map(function (x) { return '<option' + (x === val ? ' selected' : '') + '>' + h(x) + '</option>'; }).join(''); };
+  var signedIn = !!SM.me;
+  return sechead('Request a build', 'var(--coral)', 'New build-outs, features, reports and fixes in Salesforce', '') +
+    lead('Ask for anything you need in Salesforce: a new feature, a report, a change to how something works, access for someone, or a fix. ' +
+      'Your request goes onto the Projects page as a task, and you can follow it under My requests.') +
+    (signedIn ? '' : '<div class="warn"><b>Sign in first</b> so the request is filed under your name. <a href="login.html?next=salesforce.html%23request">Sign in</a></div>') +
+    '<form class="card sf-form" id="sfform" novalidate>' +
+      '<div class="f"><label for="rt">What kind of request</label><select id="rt" required>' + opt(TYPES, DRAFT.request_type) + '</select></div>' +
+      '<div class="f"><label for="ra">Which part of Salesforce</label><select id="ra" required>' + opt(AREAS, DRAFT.area) + '</select></div>' +
+      '<div class="f wide"><label for="rs">Short title</label><input id="rs" maxlength="160" required value="' + h(DRAFT.summary || '') + '" placeholder="e.g. Report of participants releasing in the next 30 days by mentor"></div>' +
+      '<div class="f wide"><label for="rd">What you need</label><textarea id="rd" maxlength="3000" required placeholder="Describe what you want it to do, where you\'d use it, and any fields, filters or steps involved.">' + h(DRAFT.details || '') + '</textarea></div>' +
+      '<div class="f wide"><label for="rw">Why, and who it helps</label><textarea id="rw" maxlength="1500" style="min-height:70px" placeholder="e.g. Mentors spend an hour a week building this list by hand.">' + h(DRAFT.why || '') + '</textarea></div>' +
+      '<div class="f"><label for="rn">Needed by (optional)</label><input id="rn" type="date" value="' + h(DRAFT.needed_by || '') + '"></div>' +
+      '<div class="f"><label for="rp">How urgent</label><select id="rp"><option value="Med">Normal</option><option value="Hot"' + (DRAFT.priority === 'Hot' ? ' selected' : '') + '>Urgent: it\'s blocking work</option></select></div>' +
+      '<div class="f wide"><span class="hint">Please don\'t include participant names, ADC Numbers or other personal details here. Describe the need; the details stay in Salesforce.</span></div>' +
+      '<div class="f wide"><div><button type="submit" class="sf-btn"' + (signedIn ? '' : ' disabled') + '>Send request</button></div><div class="sf-msg" id="sfmsg" role="status"></div></div>' +
+    '</form>';
+};
+
+/* ── page ──────────────────────────────────────────────────────────────── */
+function render() {
+  document.getElementById('sheet').innerHTML =
+    pageHeader('Salesforce Build', 'Sanctuary Recovery Centers &nbsp;·&nbsp; Internal', 'Inventory as of ' + AS_OF, 'salesforce') +
+    '<section><div class="eyebrow">Salesforce build · November 2026</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap"><h2 style="font-size:26px;margin:6px 0 0">What we built</h2>' +
+    (VIEW === 'request' ? '' : '<button type="button" class="sf-btn" data-go="request">Request a build</button>') + '</div>' +
+    '<div class="sf-tabs" role="tablist" aria-label="Salesforce build topics">' + TABS.map(function (t) {
+      return '<button type="button" role="tab" data-go="' + t[0] + '" aria-selected="' + (VIEW === t[0]) + '"' + (t[0] === 'request' ? ' class="req"' : '') + '>' + h(t[1]) + '</button>';
+    }).join('') + '</div></section>' +
+    '<section>' + V[VIEW]() + '</section>' +
+    pageFooter('Salesforce org inventory of ' + AS_OF);
+  wire();
+}
+function wire() {
+  document.querySelectorAll('[data-go]').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.preventDefault(); location.hash = b.getAttribute('data-go'); });
+  });
+  var f = document.getElementById('sfform');
+  if (f) {
+    var keep = function () {
+      DRAFT = { request_type: document.getElementById('rt').value, area: document.getElementById('ra').value, summary: document.getElementById('rs').value,
+                details: document.getElementById('rd').value, why: document.getElementById('rw').value, needed_by: document.getElementById('rn').value,
+                priority: document.getElementById('rp').value };
+    };
+    f.addEventListener('input', keep);
+    f.addEventListener('submit', function (e) {
+      e.preventDefault(); keep();
+      var m = document.getElementById('sfmsg');
+      var missing = !DRAFT.request_type ? 'Pick what kind of request it is.' : !DRAFT.area ? 'Pick the part of Salesforce it touches.'
+        : !DRAFT.summary.trim() ? 'Give it a short title.' : !DRAFT.details.trim() ? 'Describe what you need.' : '';
+      if (missing) { m.textContent = missing; m.className = 'sf-msg err'; return; }
+      var btn = f.querySelector('button[type=submit]'); btn.disabled = true; m.textContent = 'Sending…'; m.className = 'sf-msg';
+      SM.api('POST', '/api/requests', Object.assign({ kind: 'salesforce' }, DRAFT)).then(function () {
+        SENT = DRAFT.summary.trim(); DRAFT = {}; render(); scrollTo(0, 0);
+      }, function (err) { btn.disabled = false; m.textContent = err.message; m.className = 'sf-msg err'; });
+    });
+  }
+  var again = document.getElementById('another');
+  if (again) { again.addEventListener('click', function () { SENT = null; render(); }); }
+}
+function route() {
+  var t = location.hash.replace('#', '');
+  VIEW = TABS.some(function (x) { return x[0] === t; }) ? t : 'overview';
+  render();
+}
+addEventListener('hashchange', function () { route(); scrollTo(0, 0); });
+var resizeT, lastW = innerWidth;
+addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { if (innerWidth !== lastW) { lastW = innerWidth; if (VIEW !== 'request') { render(); } } }, 200); });
+route();
+SM.ready.then(function () { if (VIEW === 'request') { render(); } });
+</script>
+</body></html>

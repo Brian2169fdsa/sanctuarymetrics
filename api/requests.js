@@ -20,7 +20,12 @@
 
    Route (signed in, or the X-Projects-Password header). Admins with an
    account get an alert for each new request:
-     POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit' | 'presentation_edit', …}   file one request
+     POST {kind: 'business_cards' | 'flyer' | 'new_flyer' | 'website_edit' | 'presentation_edit' | 'salesforce', …}   file one request
+
+   A salesforce request (salesforce.html) asks for a new build-out, feature,
+   report or fix in Sanctuary's Salesforce org: request_type, area, summary,
+   details, why (who it helps), and an optional needed_by. It is assigned
+   to SALESFORCE_OWNER (defaults to PRINT_OWNER, then "Brian Reinhart").
 
    A flyer request (flyer.html) can carry edits area by area — area_edits:
    [{area, now, change}] — plus general edits, and a quantity of 0 when it's
@@ -47,7 +52,12 @@ const { authorize, admins, sendAlerts, access } = require('../lib/auth');
 
 const QUANTITIES = { business_cards: [250, 500, 1000], flyer: [0, 25, 50, 100, 250, 500, 1000],
                      new_flyer: [0, 25, 50, 100, 250, 500, 1000] };
-const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1, presentation_edit: 1 };
+const KINDS = { business_cards: 1, flyer: 1, new_flyer: 1, website_edit: 1, presentation_edit: 1, salesforce: 1 };
+/* Salesforce build requests (salesforce.html) */
+const SF_TYPES = ['New feature', 'New report or dashboard', 'Change something that exists', 'New data or integration',
+                  'Access or permissions', 'Something is broken', 'Training or how-to', 'Other'];
+const SF_AREAS = ['Participant journey', 'ADCRR data feed', 'Refresh from ADCRR', 'Data model', 'Mentorship track',
+                  'Vocational track', 'Automation (flows)', 'Security and access', 'Reporting', 'Not sure'];
 const MAX_AREA_EDITS = 30;
 const EDIT_TYPES = ['Change text', 'Page title / Google description', 'Images or video', 'Add a section',
                     'Remove something', 'Fix a link or button', 'New page', 'Other'];
@@ -117,6 +127,19 @@ function toRow(body, user, deck) {
     lines.push('On the site: presentations.html#deck=' + deck.id);
     slideEdits.forEach(function (e) { lines.push('', 'Slide ' + e.slide + ': ' + e.change); });
     if (edits) { lines.push('', slideEdits.length ? 'Also:' : 'Requested edits:', edits); }
+  } else if (kind === 'salesforce') {
+    const type = str(body.request_type, 60);
+    const area = str(body.area, 60);
+    const summary = str(body.summary, 160);
+    const details = str(body.details, 3000);
+    const why = str(body.why, 1500);
+    if (SF_TYPES.indexOf(type) < 0) { throw bad('Pick what kind of request it is.'); }
+    if (SF_AREAS.indexOf(area) < 0) { throw bad('Pick the part of Salesforce it touches.'); }
+    if (!summary) { throw bad('Give the request a short title.'); }
+    if (!details) { throw bad('Describe what you need.'); }
+    title = 'Salesforce: ' + summary + ' (' + type + ')';
+    lines.push('SALESFORCE REQUEST — ' + type, 'Area: ' + area, '', 'What is needed:', details);
+    if (why) { lines.push('', 'Why / who it helps:', why); }
   } else if (kind === 'new_flyer') {
     const topic = str(body.topic, 160);
     const audience = str(body.audience, 200);
@@ -151,12 +174,13 @@ function toRow(body, user, deck) {
 
   return {
     title: title.slice(0, 300),
-    owner: str(process.env.PRINT_OWNER, 120) || 'Brian Reinhart',
+    owner: (kind === 'salesforce' ? str(process.env.SALESFORCE_OWNER, 120) : '') || str(process.env.PRINT_OWNER, 120) || 'Brian Reinhart',
     status: 'New',
     importance: str(body.priority, 10) === 'Hot' ? 'Hot' : 'Med',
     due: needed || null,
     notes: lines.join('\n').slice(0, 4000),
     source: (kind === 'website_edit' ? 'Website edit request · ' : kind === 'new_flyer' ? 'New flyer request · '
+      : kind === 'salesforce' ? 'Salesforce request · '
       : kind === 'presentation_edit' ? 'Presentation edit request · ' : 'Print request · ') + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Phoenix' }),
     seed_key: null
   };
