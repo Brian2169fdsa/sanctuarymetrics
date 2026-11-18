@@ -110,11 +110,41 @@
   .pm-foot{flex-direction:column-reverse;align-items:stretch}
   .pm-foot > div{justify-content:flex-end}
 }
+/* ── Tracker | Analytics tabs ── */
+.pv-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0}
+.pv-tabs button{all:unset;cursor:pointer;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:20px;border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.pv-tabs button[aria-selected="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.pv-tabs button:focus-visible,.an-row:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.an-filters{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 4px}
+.an-filters .f{display:flex;flex-direction:column;gap:4px}
+.an-filters label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.an-k{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:16px 0 6px}
+.an-head{font-size:15px;margin:10px 0 0}
+.an-bars{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px}
+.an-row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(150px,230px) 1fr 64px;gap:12px;align-items:center;cursor:pointer;padding:5px 6px;border-radius:7px}
+.an-row:hover{background:#fff}
+.an-row[aria-pressed="true"]{background:#fff;box-shadow:inset 3px 0 0 var(--coral)}
+.an-row .lab{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.an-row .lab i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.an-row .track{display:flex;height:22px;border-radius:4px;overflow:hidden;background:var(--line)}
+.an-row .track span{display:block;height:100%}
+.an-row .n{font-size:13px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.an-row .n small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+.an-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0 0}
+.an-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.an-list{list-style:none;padding:0;margin:8px 0 0}
+.an-list li{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;align-items:baseline}
+.an-list li:last-child{border-bottom:0}
+.an-list .meta{font-size:12px;color:var(--muted);white-space:nowrap}
+@media (max-width:900px){.an-k{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:720px){.an-k{grid-template-columns:1fr 1fr}.an-row{grid-template-columns:1fr 56px}.an-row .track{grid-column:1/-1;grid-row:2}.an-list li{grid-template-columns:1fr}}
+@media (max-width:720px), (pointer:coarse){.pv-tabs button{min-height:40px;display:inline-flex;align-items:center}}
 </style>
 </head>
 <body><div class="sheet" id="sheet"></div>
 <script src="data.js"></script>
 <script src="ui.js"></script>
+<script src="project-themes.js"></script>
 <script src="account.js"></script>
 <script src="chat.js" defer></script>
 <script>
@@ -147,6 +177,8 @@ var MSGS = {};          /* ref → { total, unread } from /api/messages?summary=
 var CHAT_POLL = null;   /* refreshes the open popover's thread */
 var ERROR = '';
 var BUSY = false;
+var PVIEW = location.hash === '#analytics' ? 'analytics' : 'tracker';   /* Tracker | Analytics */
+var AN = { owner: '', period: 'all', theme: '' };                       /* analytics filters */
 
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
@@ -820,10 +852,13 @@ function render() {
   } else {
     /* open items first, ticked-off items sink to the bottom */
     var items = seedItems().concat(customItems()).sort(function (a, b) { return isDone(a.status) - isDone(b.status); });
-    body =
+    var tabs = '<div class="pv-tabs" role="tablist" aria-label="Projects views">' +
+      '<button type="button" role="tab" data-pview="tracker" aria-selected="' + (PVIEW === 'tracker') + '">Tracker</button>' +
+      '<button type="button" role="tab" data-pview="analytics" aria-selected="' + (PVIEW === 'analytics') + '">Analytics</button></div>';
+    body = PVIEW === 'analytics' ? analyticsHtml(items, tabs) :
       '<section>' +
         '<div class="eyebrow">Project tracker</div>' +
-        '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' +
+        '<h2 style="font-size:26px;margin:6px 0 0">Rocks &amp; projects</h2>' + tabs +
         '<p class="lead">Every marketing rock from the L10 dashboard with its latest reported status, plus the team\'s own ' +
         'projects. Click a title or <b>Edit</b> to add notes, a due date or event details; tick the box to mark it done. ' +
         'Open a project to message the team about it — replies ring everyone\'s bell. This list is shared: everyone sees the same items.' +
@@ -848,11 +883,135 @@ function render() {
   wire();
 }
 
+/* ── Analytics: where the work goes, by theme (project-themes.js) ────────── */
+var STAGES = [['done', 'Done', '#2E8B6F'], ['doing', 'In progress', '#1C9AD6'], ['todo', 'To do', '#CBD8DF']];
+function anItems(items) {
+  var cut = AN.period === 'all' ? null : new Date(Date.now() - (+AN.period) * 864e5).toISOString();
+  return items.filter(function (i) {
+    if (AN.owner && (i.owner || '—') !== AN.owner) { return false; }
+    /* L10 rocks have no added date: they are ongoing, so they count in every period */
+    if (cut && !i.seed && i.addedAt && i.addedAt < cut) { return false; }
+    return true;
+  }).map(function (i) {
+    var t = PROJECT_THEMES.themeOf(i);
+    return Object.assign({}, i, { theme: t, stage: PROJECT_THEMES.stageOf(i.status), origin: PROJECT_THEMES.originOf(i) });
+  });
+}
+function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
+function monthKey(iso) { return String(iso || '').slice(0, 7); }
+function monthLabel(k) { var p = k.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, 15)).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: '2-digit' }); }
+function analyticsHtml(all, tabs) {
+  var items = anItems(all), n = items.length;
+  var owners = {};
+  all.forEach(function (i) { owners[i.owner || '—'] = (owners[i.owner || '—'] || 0) + 1; });
+  var ownerList = Object.keys(owners).sort(function (a, b) { return owners[b] - owners[a]; });
+  /* by theme */
+  var by = {};
+  items.forEach(function (i) {
+    var k = i.theme.key;
+    by[k] = by[k] || { theme: i.theme, total: 0, done: 0, doing: 0, todo: 0, hot: 0, items: [] };
+    by[k].total++; by[k][i.stage]++; by[k].items.push(i);
+    if (i.importance === 'Hot' && i.stage !== 'done') { by[k].hot++; }
+  });
+  var themes = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || b.done - a.done; });
+  var done = items.filter(function (i) { return i.stage === 'done'; }).length;
+  var doing = items.filter(function (i) { return i.stage === 'doing'; }).length;
+  var todo = n - done - doing;
+  var top = themes[0], top3 = themes.slice(0, 3);
+  var top3n = top3.reduce(function (s, t) { return s + t.total; }, 0);
+  var headline = !n ? 'No items match these filters.'
+    : top.theme.name + ' takes the most work: ' + top.total + ' of ' + n + ' items (' + pct(top.total, n) + '%). ' +
+      'The top three themes (' + top3.map(function (t) { return t.theme.name; }).join(', ') + ') make up ' + pct(top3n, n) + '% of everything.';
+  var max = themes.length ? themes[0].total : 1;
+  var bars = themes.map(function (t) {
+    return '<button type="button" class="an-row" data-antheme="' + t.theme.key + '" aria-pressed="' + (AN.theme === t.theme.key) + '">' +
+      '<span class="lab"><i style="background:' + t.theme.color + '"></i>' + esc(t.theme.name) + '</span>' +
+      '<span class="track" style="width:' + Math.max(4, t.total / max * 100).toFixed(1) + '%" title="' + esc(t.done + ' done, ' + t.doing + ' in progress, ' + t.todo + ' to do') + '">' +
+        STAGES.map(function (s) { return t[s[0]] ? '<span style="flex:' + t[s[0]] + ';background:' + s[2] + '"></span>' : ''; }).join('') + '</span>' +
+      '<span class="n">' + t.total + '<small>' + pct(t.total, n) + '%</small></span></button>';
+  }).join('');
+  /* where the work comes from */
+  var origins = {};
+  items.forEach(function (i) { origins[i.origin] = (origins[i.origin] || 0) + 1; });
+  var originBars = Object.keys(origins).sort(function (a, b) { return origins[b] - origins[a]; }).map(function (k) { return { label: k, value: origins[k] }; });
+  var reqN = origins['Staff requests'] || 0;
+  /* added and finished per month */
+  var months = {};
+  items.forEach(function (i) {
+    if (i.addedAt && !i.seed) { var a = monthKey(i.addedAt); months[a] = months[a] || { added: 0, done: 0 }; months[a].added++; }
+    if (i.stage === 'done' && !i.seed && (i.editedAt || i.addedAt)) { var d = monthKey(i.editedAt || i.addedAt); months[d] = months[d] || { added: 0, done: 0 }; months[d].done++; }
+  });
+  var mk = Object.keys(months).sort().slice(-12);
+  var W = chartW(false), W2 = chartW(true);
+  var monthChart = '';
+  if (mk.length) {
+    var gap = 14, gw = (W - gap * (mk.length - 1)) / mk.length, bw = gw / 2 - 2, mx = 1;
+    mk.forEach(function (k) { mx = Math.max(mx, months[k].added, months[k].done); });
+    monthChart = '<svg viewBox="0 0 ' + W + ' 200" class="chart" role="img" aria-label="Items added and finished per month"><line x1="0" y1="176" x2="' + W + '" y2="176" stroke="#E4EBEF"/>' +
+      mk.map(function (k, i) {
+        var x = i * (gw + gap), ha = months[k].added / mx * 140, hd = months[k].done / mx * 140;
+        return '<rect x="' + r1(x) + '" y="' + r1(176 - ha) + '" width="' + r1(bw) + '" height="' + r1(ha) + '" rx="3" fill="#2C5468"/>' +
+          '<rect x="' + r1(x + bw + 4) + '" y="' + r1(176 - hd) + '" width="' + r1(bw) + '" height="' + r1(hd) + '" rx="3" fill="#2E8B6F"/>' +
+          (months[k].added ? '<text x="' + r1(x + bw / 2) + '" y="' + r1(169 - ha) + '" text-anchor="middle" class="bval">' + months[k].added + '</text>' : '') +
+          (months[k].done ? '<text x="' + r1(x + bw * 1.5 + 4) + '" y="' + r1(169 - hd) + '" text-anchor="middle" class="bval">' + months[k].done + '</text>' : '') +
+          '<text x="' + r1(x + gw / 2) + '" y="192" text-anchor="middle" class="blab">' + esc(monthLabel(k)) + '</text>';
+      }).join('') + '</svg>';
+  }
+  var busiest = mk.slice().sort(function (a, b) { return months[b].added - months[a].added; })[0];
+  /* the theme the person clicked */
+  var pick = AN.theme && by[AN.theme];
+  var drill = pick ? card(pick.theme.name + ': ' + pick.total + ' item' + (pick.total === 1 ? '' : 's'),
+    '<ul class="an-list">' + pick.items.slice().sort(function (a, b) { return (a.stage === 'done') - (b.stage === 'done'); }).map(function (i) {
+      return '<li><span>' + esc(i.title) + '</span><span class="meta">' + esc(i.owner || '—') + (i.addedAt && !i.seed ? ' · added ' + esc(fmtDate(i.addedAt.slice(0, 10))) : (i.seed ? ' · L10 rock' : '')) + '</span>' +
+        '<span class="tag ' + tagFor(i.status) + '">' + esc(i.status) + '</span></li>';
+    }).join('') + '</ul>') : '';
+  return '<section><div class="eyebrow">Project tracker</div><h2 style="font-size:26px;margin:6px 0 0">Where the work goes</h2>' + tabs +
+    '<p class="lead">Every rock, project and request on this page, sorted into themes automatically from where it came from and what it says. ' +
+    'New items are sorted as they arrive.</p>' +
+    '<div class="an-filters"><div class="f"><label for="an-owner">Whose work</label><select id="an-owner"><option value="">Everyone</option>' +
+      ownerList.map(function (o) { return '<option' + (o === AN.owner ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="f"><label for="an-period">Added</label><select id="an-period">' +
+      [['all', 'Any time'], ['365', 'Last 12 months'], ['90', 'Last 90 days'], ['30', 'Last 30 days']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === AN.period ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="an-k">' +
+      kpiBox('Items', n, AN.owner ? 'for ' + AN.owner : 'rocks, projects and requests') +
+      kpiBox('Done', done, pct(done, n) + '% of all items') +
+      kpiBox('In progress', doing, 'on track, off track or under way') +
+      kpiBox('To do', todo, 'new or on hold') +
+      kpiBox('Biggest theme', top ? pct(top.total, n) + '%' : '—', top ? top.theme.name : '') +
+    '</div><p class="an-head"><b>' + esc(headline) + '</b></p></section>' +
+    '<section>' + card('Items by theme', (themes.length ? '<div class="an-bars">' + bars + '</div>' : '<div class="empty">No items.</div>') +
+      '<div class="an-legend">' + STAGES.map(function (s) { return '<span><i style="background:' + s[2] + '"></i>' + s[1] + '</span>'; }).join('') + '<span>Select a theme to see its items.</span></div>') +
+    drill +
+    grid2(card('Where the work comes from', hbar(originBars, { W: W2, color: '#2C5468' }) +
+        '<p class="an-head" style="font-size:13.5px"><b>' + (n ? reqN + ' of ' + n + ' items (' + pct(reqN, n) + '%) came in as requests from staff.' : '') + '</b></p>'),
+      card('Added and finished per month', mk.length ? monthChart +
+        '<div class="an-legend"><span><i style="background:#2C5468"></i>Added</span><span><i style="background:#2E8B6F"></i>Finished</span></div>' +
+        '<p class="an-head" style="font-size:13.5px"><b>' + esc(busiest ? monthLabel(busiest) + ' was the busiest month, with ' + months[busiest].added + ' items added.' : '') + '</b></p>'
+        : '<div class="empty">Dates appear once items are added on this page.</div>', 'L10 rocks have no added date, so they count only toward totals, not months. "Finished" uses the date an item was last changed.')) +
+    card('By theme', table(['Theme', 'Items', 'Share', 'Done', 'In progress', 'To do', 'Hot and open'], themes.map(function (t) {
+      return ['<span style="display:inline-flex;align-items:center;gap:7px"><i style="width:9px;height:9px;border-radius:2px;display:inline-block;background:' + t.theme.color + '"></i>' + esc(t.theme.name) + '</span>',
+        String(t.total), pct(t.total, n) + '%', String(t.done), String(t.doing), String(t.todo), String(t.hot)];
+    }), { numeric: function (i) { return i > 0; } }), 'Themes come from project-themes.js. To move an item, add a word to its title; to change a rule, edit that file.') +
+    '</section>';
+}
+function kpiBox(lab, num, note) {
+  return '<div class="kpi"><div class="lab">' + esc(lab) + '</div><div class="num">' + esc(String(num)) + '</div><div class="note">' + esc(note) + '</div></div>';
+}
+
 /* ── event wiring ─────────────────────────────────────────────────────── */
 function on(sel, ev, fn) {
   document.querySelectorAll(sel).forEach(function (el) { el.addEventListener(ev, fn); });
 }
 function wire() {
+  on('[data-pview]', 'click', function () {
+    PVIEW = this.getAttribute('data-pview');
+    history.replaceState(null, '', location.pathname + (PVIEW === 'analytics' ? '#analytics' : ''));
+    render();
+  });
+  on('#an-owner', 'change', function () { AN.owner = this.value; AN.theme = ''; render(); });
+  on('#an-period', 'change', function () { AN.period = this.value; AN.theme = ''; render(); });
+  on('[data-antheme]', 'click', function () { var k = this.getAttribute('data-antheme'); AN.theme = AN.theme === k ? '' : k; render(); });
   on('#pwform', 'submit', function (e) {
     e.preventDefault();
     lsSet(PW_KEY, document.getElementById('pw').value);
@@ -902,7 +1061,11 @@ function openFromHash() {
   history.replaceState(null, '', location.pathname);
   if (itemByRef(ref)) { openModal(ref); }
 }
-addEventListener('hashchange', openFromHash);
+addEventListener('hashchange', function () {
+  var v = location.hash === '#analytics' ? 'analytics' : (location.hash === '#tracker' ? 'tracker' : PVIEW);
+  if (v !== PVIEW) { PVIEW = v; render(); }
+  openFromHash();
+});
 /* refresh the row badges when the bell rings for a message */
 setInterval(function () {
   if (STATE === 'ready' && SM.me && document.visibilityState === 'visible' && !(document.getElementById('pmodal') || {}).open) {

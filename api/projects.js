@@ -51,7 +51,7 @@
 
    Routes (all need a signed-in account — see api/auth.js — or the old
    X-Projects-Password header):
-     GET                  list every row
+     GET                  list every row, each with its theme (project-themes.js)
      POST   {fields}      add a project
      PATCH  ?id=… {fields}        edit a project
      PUT    {seed_key, fields}    create-or-update the edits to an L10 rock
@@ -64,6 +64,8 @@ const { authorize, access } = require('../lib/auth');
    (?store=fundraising, or /api/fundraising-state via vercel.json) because
    the site is at Vercel's 12-function limit — see lib/fundraising.js */
 const fundraising = require('../lib/fundraising');
+/* every row comes back with its theme (project-themes.js), so new tasks are sorted automatically */
+const { themeOf } = require('../project-themes.js');
 
 /* the only columns the page may write, with their maximum lengths */
 const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, prev_status: 120, source: 200,
@@ -133,6 +135,7 @@ async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const rows = await supabase('GET', '?select=*' + (staff ? '&seed_key=is.null&created_by=eq.' + me.id : '') + '&order=created_at.asc');
+      rows.forEach(function (r) { r.theme = themeOf(r).key; });
       return sendJSON(res, 200, { rows: rows, staff: staff });
     }
     if (staff) {
