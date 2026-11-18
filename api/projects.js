@@ -85,29 +85,53 @@ const DATE_FIELDS = { due: 1, event_date: 1 };
    be edited. */
 const ROCK = 'Team rock', HELP = 'Help request';
 const RENAMEABLE = '&source=in.(' + encodeURIComponent('"' + ROCK + '","' + HELP + '"') + ')';
-/* the starting rocks and the first help request, added once. A marker row
-   (unique seed_key) goes in first, so two people opening the page at the same
-   moment can't add them twice, and deleting them later doesn't bring them back. */
-const STARTER_KEY = '__team_rocks_v1';
-const STARTERS = [
-  { source: ROCK, title: 'Create a system to monitor actual Microsoft usage, to keep bloat and costs down', owner: 'Brian Reinhart' },
-  { source: ROCK, title: 'Stand up the Salesforce instance and data system for Sanctuary CI', owner: 'Brian Reinhart' },
-  { source: ROCK, title: 'Create the tracking and visibility website', owner: 'Brian Reinhart' },
-  { source: ROCK, title: 'Help drive SCI fundraising in Donorbox and on social media', owner: 'Brian Reinhart' },
-  { source: HELP, status: 'New', title: 'Help dial in the plan for the fundraising push and set a dollar goal to reach', owner: 'Joey, Jeremy, Elyssa',
-    notes: 'Help wanted with the SCI fundraising push: firm up the plan (what we run, where and when) and agree a dollar goal to aim for.' }
+/* one-time items, each added once. A marker row (unique seed_key) goes in
+   first, so two people opening the page at the same moment can't add them
+   twice, and deleting them later doesn't bring them back. Add a new batch
+   with a new key; never reuse or rename a key. */
+const GRAHAM_CARDS = [
+  'Business cards for the Sanctuary Graham County team (from Ben Soghigian\'s phone tree).',
+  '',
+  'Every card:',
+  '- Email: grahamaz@sanctuaryrc.com (the shared Graham County address, not personal emails)',
+  '- Main line for admissions and services: 480-680-7260',
+  '- Then the person\'s name and their own SRC number',
+  '',
+  'Cards needed:',
+  '[ ] Ashley Rios: 480-787-0876',
+  '[ ] Marissa Fischer: 480-418-8109',
+  '[ ] Javier Garcia: 480-631-7735',
+  '[ ] Kristen Johnson: 480-933-6759',
+  '[ ] Mary Richardson: 480-526-4669',
+  '',
+  'To check with Ben before printing: job titles for each card, quantities, and whether Ben and Angelo ' +
+  '(reached through the main line) need cards too. Each SRC number routes to that person\'s cell.'
+].join('\n');
+const STARTER_BATCHES = [
+  { key: '__team_rocks_v1', label: 'Starter rocks added', rows: [
+    { source: ROCK, title: 'Create a system to monitor actual Microsoft usage, to keep bloat and costs down', owner: 'Brian Reinhart' },
+    { source: ROCK, title: 'Stand up the Salesforce instance and data system for Sanctuary CI', owner: 'Brian Reinhart' },
+    { source: ROCK, title: 'Create the tracking and visibility website', owner: 'Brian Reinhart' },
+    { source: ROCK, title: 'Help drive SCI fundraising in Donorbox and on social media', owner: 'Brian Reinhart' },
+    { source: HELP, status: 'New', title: 'Help dial in the plan for the fundraising push and set a dollar goal to reach', owner: 'Joey, Jeremy, Elyssa',
+      notes: 'Help wanted with the SCI fundraising push: firm up the plan (what we run, where and when) and agree a dollar goal to aim for.' }
+  ] },
+  /* Urgent, so it sits first on the Projects page */
+  { key: '__graham_cards_v1', label: 'Graham County cards added', rows: [
+    { source: 'Print request · Graham County phone tree', status: 'New', importance: 'Urgent', owner: 'Brian Reinhart',
+      title: 'Business cards: Sanctuary Graham County team (grahamaz@sanctuaryrc.com)', notes: GRAHAM_CARDS }
+  ] }
 ];
-async function addStarters(me) {
-  const have = await supabase('GET', '?select=id&seed_key=eq.' + STARTER_KEY);
-  if (have.length) { return false; }
+const STARTER_KEYS = STARTER_BATCHES.map(function (b) { return b.key; });
+async function addStarters(me, batch) {
   try {
-    await projectWrite('POST', '', Object.assign({ seed_key: STARTER_KEY, title: STARTER_KEY, source: 'Starter rocks added', status: '' }, addedBy(me)));
+    await projectWrite('POST', '', Object.assign({ seed_key: batch.key, title: batch.key, source: batch.label, status: '' }, addedBy(me)));
   } catch (e) {
     if (e.status === 409) { return false; }   /* someone else just added them */
     throw e;
   }
   /* one at a time, so they keep this order on the page */
-  for (const r of STARTERS) {
+  for (const r of batch.rows) {
     await projectWrite('POST', '', Object.assign({ status: 'On-track', notes: null }, r, { seed_key: null }, addedBy(me)));
   }
   return true;
@@ -185,10 +209,15 @@ async function handler(req, res) {
     if (req.method === 'GET') {
       const q = '?select=*' + (staff ? '&seed_key=is.null&created_by=eq.' + me.id : '') + '&order=created_at.asc';
       let rows = await supabase('GET', q);
-      if (!staff && !rows.some(function (r) { return r.seed_key === STARTER_KEY; })) {
-        try { if (await addStarters(me)) { rows = await supabase('GET', q); } } catch (e) { /* the list still loads */ }
+      if (!staff) {
+        let added = false;
+        for (const b of STARTER_BATCHES) {
+          if (rows.some(function (r) { return r.seed_key === b.key; })) { continue; }
+          try { if (await addStarters(me, b)) { added = true; } } catch (e) { /* the list still loads */ }
+        }
+        if (added) { rows = await supabase('GET', q); }
       }
-      rows = rows.filter(function (r) { return r.seed_key !== STARTER_KEY; });
+      rows = rows.filter(function (r) { return STARTER_KEYS.indexOf(r.seed_key) < 0; });
       rows.forEach(function (r) { r.theme = themeOf(r).key; });
       return sendJSON(res, 200, { rows: rows, staff: staff });
     }
