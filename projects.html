@@ -939,7 +939,7 @@ function analyticsHtml(all, tabs) {
   var months = {};
   items.forEach(function (i) {
     if (i.addedAt && !i.seed) { var a = monthKey(i.addedAt); months[a] = months[a] || { added: 0, done: 0 }; months[a].added++; }
-    if (i.stage === 'done' && (i.editedAt || i.addedAt)) { var d = monthKey(i.editedAt || i.addedAt); months[d] = months[d] || { added: 0, done: 0 }; months[d].done++; }
+    if (i.stage === 'done' && !i.seed && (i.editedAt || i.addedAt)) { var d = monthKey(i.editedAt || i.addedAt); months[d] = months[d] || { added: 0, done: 0 }; months[d].done++; }
   });
   var mk = Object.keys(months).sort().slice(-12);
   var W = chartW(false), W2 = chartW(true);

@@ -36,7 +36,8 @@
     { key: 'events', name: 'Events & community', color: '#C0492B',
       source: null, words: /\b(event|events|outreach|community|conference|fair|summit|lunch|luncheon|open house|pal forward|ribbon)\b/i },
     { key: 'it', name: 'IT, systems & costs', color: '#6C7C86',
-      source: /^Cost cutting/i, words: /\b(it|tech|computer|laptop|email|e-mail|microsoft|m365|office 365|google workspace|license|licenses|password|tablet|tablets|adovo|edovo|teams|sharepoint|phone|printer|wifi|software|cost|costs)\b/i }
+      /* "IT" only in capitals (acronym): the word "it" in "Get it approved" is not IT */
+      source: /^Cost cutting/i, acronym: /\bIT\b/, words: /\b(tech|computer|laptop|email|e-mail|microsoft|m365|office 365|google workspace|license|licenses|password|tablet|tablets|adovo|edovo|teams|sharepoint|phone|printer|wifi|software|cost|costs)\b/i }
   ];
   var OTHER = { key: 'other', name: 'Other', color: '#B9C4CA' };
 
@@ -46,9 +47,11 @@
     var src = String(t.source || ''), title = String(t.title || ''), notes = String(t.notes || '');
     var i;
     for (i = 0; i < THEMES.length; i++) { if (THEMES[i].source && THEMES[i].source.test(src)) { return THEMES[i]; } }
-    for (i = 0; i < THEMES.length; i++) { if (THEMES[i].words.test(title)) { return THEMES[i]; } }
+    for (i = 0; i < THEMES.length; i++) { if (THEMES[i].words.test(title) || (THEMES[i].acronym && THEMES[i].acronym.test(title))) { return THEMES[i]; } }
     if (t.isEvent || t.is_event) { return THEMES.filter(function (x) { return x.key === 'events'; })[0]; }
-    for (i = 0; i < THEMES.length; i++) { if (THEMES[i].words.test(notes.slice(0, 600))) { return THEMES[i]; } }
+    for (i = 0; i < THEMES.length; i++) {
+      if (THEMES[i].words.test(notes.slice(0, 600)) || (THEMES[i].acronym && THEMES[i].acronym.test(notes.slice(0, 600)))) { return THEMES[i]; }
+    }
     return OTHER;
   }
   /* where a task came from, for the "requests vs planned work" split */
