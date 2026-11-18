@@ -110,7 +110,7 @@ V.overview = function () {
       'and a four-level permission model. Enterprise Edition, no custom code: all automation is declarative.') +
     kpis([stat('Custom objects', '8', 'built for the reentry pipeline'), stat('Shared flows', '26', '24 active, no Apex'),
           stat('Custom fields', '72', 'on the two program tracks'), stat('Permission levels', '4', 'Admin, Leadership, Staff, Data Entry')], 4) +
-    grid2(card('In the org today', kpis([stat('Population Records', '905', 'from ADCRR'), stat('Accounts', '9', ''), stat('Opportunities', '11', 'program enrollments'),
+    grid2(card('In the org today', kpis([stat('Population Records', '8,225', 'from ADCRR, backfilled'), stat('Accounts', '9', ''), stat('Opportunities', '11', 'program enrollments'),
           stat('Complexes and units', '67', '73 location mappings')], 2)),
       card('Status', '<p style="margin:0;font-size:15px">Configured and lightly used, with <b>6 users</b>. Ready to go live once access setup and the routine feed are switched on.</p>' +
         '<p style="margin:12px 0 0"><button type="button" class="sf-btn ghost" data-go="roadmap">What it takes to go live</button></p>')) +
@@ -167,8 +167,7 @@ V.pipeline = function () {
     ['Qualified 0–90-day Salesforce cohort', 1596, 'Currently incarcerated and meeting the delivery rules', '#E17F55'],
     ['Qualified 91-day-to-six-month cohort', 1059, 'Additional people after the first 90 days', '#E17F55'],
     ['Qualified six-month pipeline total', 2655, '1,596 + 1,059', '#E17F55'],
-    ['Phoenix Oasis Population Records', 8225, 'Includes historical and out-of-window records', '#1C9AD6'],
-    ['Sanctuary Population Records', 905, '904 delivered by our integration plus one pre-existing record', '#1C9AD6']
+    ['Sanctuary Population Records', 8225, 'Backfilled: includes historical and out-of-window records', '#1C9AD6']
   ];
   var windows = [
     ['Next 90 days', 1596, 3700, 4200, 'Approximately 2,100–2,600'],
@@ -186,11 +185,11 @@ V.pipeline = function () {
     '<div class="sf-callout ok" style="font-size:15px">The platform currently knows <b>39,134</b> valid ADCRR individuals and has identified <b>2,655</b> currently incarcerated people in the rolling six-month release pipeline, ' +
       'including <b>1,596</b> projected for release within 90 days. At complete statewide coverage, we estimate the active pipeline will normally contain approximately <b>3,700–4,200</b> people within 90 days and <b>7,000–7,500</b> within six months.</div>' +
     kpis([stat('Qualified six-month pipeline', '2,655', 'the best current number for people we already know about'), stat('Qualified 0–90 days', '1,596', 'currently incarcerated, meeting the delivery rules'),
-          stat('Qualified 91 days to 6 months', '1,059', 'the next wave after the first 90 days'), stat('Sanctuary Population Records', '905', '904 delivered + 1 pre-existing')], 4) +
+          stat('Qualified 91 days to 6 months', '1,059', 'the next wave after the first 90 days'), stat('Sanctuary Population Records', '8,225', 'backfilled, incl. historical and out-of-window')], 4) +
     card('Pipeline levels', hbar(levels.map(function (l) { return { label: l[0], value: l[1], color: l[3] }; }), { W: W, barX: Math.min(310, W * 0.42) / W * 560 }) +
       '<p class="fr-head" style="font-size:13.5px;margin:8px 0 0"><b>Of 39,134 people the scraper knows, 2,655 are currently incarcerated and qualified for the six-month pipeline.</b></p>' +
       '<div class="legend" style="margin-top:8px"><span><i style="background:#6C7C86"></i>ADCRR statewide</span><span><i style="background:#2C5468"></i>Our data</span>' +
-      '<span><i style="background:#E17F55"></i>Qualified Salesforce cohort</span><span><i style="background:#1C9AD6"></i>Records in Salesforce orgs</span></div>') +
+      '<span><i style="background:#E17F55"></i>Qualified Salesforce cohort</span><span><i style="background:#1C9AD6"></i>Records in Sanctuary\'s Salesforce</span></div>') +
     card('What each level means', table(['Pipeline level', 'People', 'Meaning'], levels.map(function (l) { return [h(l[0]), fmt(l[1]), h(l[2])]; }), { numeric: function (i) { return i === 1; } })) +
     card('Estimated full statewide opportunity', '<p style="margin:0 0 4px">ADCRR reported 1,112–1,304 releases per month from January through April 2026, averaging approximately <b>1,234 releases per month</b>, ' +
         'and approximately <b>34,825</b> people physically incarcerated. Using that release volume and the distribution in our captured data:</p>' +
@@ -217,7 +216,7 @@ V.refresh = function () {
     grid2(card('Two dates, two meanings', '<p style="margin:0 0 8px"><b>Last Successful Scrape</b>: when we last checked ADCRR, even if nothing changed.</p>' +
         '<p style="margin:0"><b>Last Source Update</b>: when the ADCRR information actually changed.</p>' +
         '<p class="note" style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Checked less than 12 hours ago? Salesforce asks first. Cancel uses the fresh data. Refresh Again authorizes a new source request.</p>'),
-      card('Where Sanctuary stands', '<p style="margin:0"><b>904 Population Records</b> delivered and reconciled with zero failed, held, duplicate, or deleted records.</p>' +
+      card('Where Sanctuary stands', '<p style="margin:0"><b>8,225 Population Records</b>, backfilled to include historical and out-of-window records.</p>' +
         '<div class="sf-callout">The Salesforce-side refresh components are in place. Backend activation of the button is to be re-verified before it is called live for all users.</div>')) + cta();
 };
 V.model = function () {
