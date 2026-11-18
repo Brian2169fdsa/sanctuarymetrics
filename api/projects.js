@@ -60,6 +60,8 @@
                           drag-and-drop priority: rank 1, 2, 3… in that order
                           (needs the rank column: supabase/projects-priority.sql)
    A cancelled project is status 'Cancelled' (prev_status keeps what it was).
+   Rocks (source 'Team rock') and help requests (source 'Help request') are
+   rows like any other, shown in their own sections; their titles can change.
    ========================================================================== */
 
 const { sendJSON, readBody, supabase, projectWrite, addedBy } = require('../lib/db');
@@ -77,6 +79,39 @@ const FIELDS = { title: 300, owner: 120, status: 120, importance: 20, due: 10, p
 const EMAIL = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[^\s@,;<>()]+$/;
 const MAX_ATTENDEES = 50;
 const DATE_FIELDS = { due: 1, event_date: 1 };
+
+/* the Rocks and Request help sections at the bottom of the Projects page are
+   ordinary rows told apart by their source. Unlike projects, their titles can
+   be edited. */
+const ROCK = 'Team rock', HELP = 'Help request';
+const RENAMEABLE = '&source=in.(' + encodeURIComponent('"' + ROCK + '","' + HELP + '"') + ')';
+/* the starting rocks and the first help request, added once. A marker row
+   (unique seed_key) goes in first, so two people opening the page at the same
+   moment can't add them twice, and deleting them later doesn't bring them back. */
+const STARTER_KEY = '__team_rocks_v1';
+const STARTERS = [
+  { source: ROCK, title: 'Create a system to monitor actual Microsoft usage, to keep bloat and costs down', owner: 'Brian Reinhart' },
+  { source: ROCK, title: 'Stand up the Salesforce instance and data system for Sanctuary CI', owner: 'Brian Reinhart' },
+  { source: ROCK, title: 'Create the tracking and visibility website', owner: 'Brian Reinhart' },
+  { source: ROCK, title: 'Help drive SCI fundraising in Donorbox and on social media', owner: 'Brian Reinhart' },
+  { source: HELP, status: 'New', title: 'Help dial in the plan for the fundraising push and set a dollar goal to reach', owner: 'Joey, Jeremy, Elyssa',
+    notes: 'Help wanted with the SCI fundraising push: firm up the plan (what we run, where and when) and agree a dollar goal to aim for.' }
+];
+async function addStarters(me) {
+  const have = await supabase('GET', '?select=id&seed_key=eq.' + STARTER_KEY);
+  if (have.length) { return false; }
+  try {
+    await projectWrite('POST', '', Object.assign({ seed_key: STARTER_KEY, title: STARTER_KEY, source: 'Starter rocks added', status: '' }, addedBy(me)));
+  } catch (e) {
+    if (e.status === 409) { return false; }   /* someone else just added them */
+    throw e;
+  }
+  /* one at a time, so they keep this order on the page */
+  for (const r of STARTERS) {
+    await projectWrite('POST', '', Object.assign({ status: 'On-track', notes: null }, r, { seed_key: null }, addedBy(me)));
+  }
+  return true;
+}
 
 /* keep only known columns; empty strings become null so dates stay valid */
 function clean(input) {
@@ -148,7 +183,12 @@ async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const rows = await supabase('GET', '?select=*' + (staff ? '&seed_key=is.null&created_by=eq.' + me.id : '') + '&order=created_at.asc');
+      const q = '?select=*' + (staff ? '&seed_key=is.null&created_by=eq.' + me.id : '') + '&order=created_at.asc';
+      let rows = await supabase('GET', q);
+      if (!staff && !rows.some(function (r) { return r.seed_key === STARTER_KEY; })) {
+        try { if (await addStarters(me)) { rows = await supabase('GET', q); } } catch (e) { /* the list still loads */ }
+      }
+      rows = rows.filter(function (r) { return r.seed_key !== STARTER_KEY; });
       rows.forEach(function (r) { r.theme = themeOf(r).key; });
       return sendJSON(res, 200, { rows: rows, staff: staff });
     }
@@ -168,9 +208,12 @@ async function handler(req, res) {
     if (req.method === 'PATCH') {
       if (!/^[0-9a-f-]{36}$/i.test(id || '')) { return sendJSON(res, 400, { error: 'id', message: 'Missing or bad id.' }); }
       const fields = clean(await readBody(req));
-      delete fields.title;   /* titles are fixed once added */
+      /* project titles are fixed once added; rocks and help requests can be renamed */
+      const title = fields.title;
+      delete fields.title;
       fields.updated_at = now;
       if (me) { fields.updated_by_name = me.name; }
+      if (title) { await projectWrite('PATCH', '?id=eq.' + id + RENAMEABLE, { title: title }); }
       const rows = await projectWrite('PATCH', '?id=eq.' + id, fields);
       if (!rows.length) { return sendJSON(res, 404, { error: 'not_found', message: 'That project no longer exists.' }); }
       return sendJSON(res, 200, { row: rows[0] });

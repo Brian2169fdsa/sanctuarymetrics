@@ -58,7 +58,7 @@
   function originOf(t) {
     var src = String((t && t.source) || '');
     if (/request|^Social media|^CP-AO portal/i.test(src)) { return 'Staff requests'; }
-    if (/^L10/i.test(src) || (t && t.seed)) { return 'L10 rocks'; }
+    if (/^(L10|Team rock)/i.test(src) || (t && t.seed)) { return 'L10 rocks'; }
     if (/^Cost cutting/i.test(src)) { return 'Cost cutting'; }
     return 'Added here';
   }
