@@ -39,6 +39,19 @@
 .po-ok{grid-column:1/-1;padding:12px 14px;border-radius:9px;background:#e9f5ee;color:#1f5a37;font-size:14px}
 .po-err[hidden],.po-ok[hidden],.po-f[hidden]{display:none}
 /* ── the shop: one tile per product ── */
+.cs-tag{display:inline-block;font-family:Inter,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+ padding:3px 9px;border-radius:20px;background:#fdf3e0;color:#B06F14;border:1px solid #f3dcb3;vertical-align:middle;white-space:nowrap}
+.cs-tag.big{font-size:12px;padding:5px 12px}
+.us-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin:8px 0 0}
+.us-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.us-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.us-kind{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--coral)}
+.us-card h3{font-family:Fraunces,serif;font-size:20px;font-weight:600;margin:2px 0 0}
+.us-card p{margin:0;font-size:13.5px;color:var(--muted)}
+.us-fly{margin-top:8px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px}
+.us-fly b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+.us-fly span{color:var(--muted);font-style:italic}
+.us-fly ul{margin:0;padding-left:18px}
 .sh-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
 .sh-cats{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
 .sh-cat{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;
@@ -379,12 +392,31 @@ function shopSection() {
     '<div class="eyebrow">Print shop</div>' +
     '<h2 style="font-size:28px;margin:6px 0 0">What do you need printed?</h2>' +
     '<p class="lead">Pick a product to customize it. Every order goes to marketing as a task, and you\'ll hear back before anything prints. ' +
-      '<a href="#orders">See where orders are at ↓</a></p>' +
+      '<a href="#orders">See where orders are at ↓</a> · <a href="#usage">Where flyers are used</a> <span class="cs-tag">Coming soon</span></p>' +
     '<div class="sh-cats" role="group" aria-label="Show">' + CATS.map(function (c) {
       return '<button type="button" class="sh-cat" data-cat="' + c[0] + '" aria-pressed="' + (CAT === c[0]) + '">' +
         esc(c[1]) + '<small>' + count(c[0]) + '</small></button>';
     }).join('') + '</div>' +
     '<div class="sh-grid">' + tiles.map(tileHtml).join('') + '</div>' +
+  '</section>';
+}
+/* ── Where flyers are used (coming soon) ── */
+function usageSection() {
+  var events = typeof FLYER_EVENTS !== 'undefined' ? FLYER_EVENTS : [];
+  var title = function (id) { var f = FLYER_CATALOG.filter(function (x) { return x.id === id; })[0]; return f ? f.title : id; };
+  return '<section id="usage">' + backLink() +
+    '<div class="eyebrow">Flyers</div>' +
+    '<h2 style="font-size:26px;margin:6px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">Where flyers are used <span class="cs-tag big">Coming soon</span></h2>' +
+    '<p class="lead">Every event and place where Sanctuary flyers go out, which flyers each one gets, and how many. ' +
+      'This page is being built: the events are listed below, and the flyers and counts for each are coming soon.</p>' +
+    '<div class="us-grid">' + events.map(function (e) {
+      return '<div class="us-card"><div class="us-top"><span class="us-kind">' + esc(e.kind || 'Event') + '</span><span class="cs-tag">Coming soon</span></div>' +
+        '<h3>' + esc(e.name) + '</h3>' + (e.detail ? '<p>' + esc(e.detail) + '</p>' : '') +
+        '<div class="us-fly"><b>Flyers used</b>' + (e.flyers && e.flyers.length
+          ? '<ul>' + e.flyers.map(function (id) { return '<li><a href="flyer.html?id=' + encodeURIComponent(id) + '">' + esc(title(id)) + '</a></li>'; }).join('') + '</ul>'
+          : '<span>To be added</span>') + '</div></div>';
+    }).join('') + '</div>' +
+    '<p class="sub" style="margin-top:18px">Handed out flyers at one of these? Log it in the <a href="#handouts">hand-out log</a> for now, so it\'s counted when this page goes live.</p>' +
   '</section>';
 }
 function backLink() { return '<a class="sh-back" href="#">← Print shop</a>'; }
@@ -407,12 +439,12 @@ function newFlyerSection() {
     '</form></div></section>';
 }
 
-/* #cards and #new-flyer are their own views; anything else is the shop
+/* #cards, #new-flyer and #usage are their own views; anything else is the shop
    (#flyers opens it filtered to flyers) */
 function render() {
   var view = location.hash.slice(1);
   if (view === 'flyers') { CAT = 'flyers'; }
-  var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : shopSection() + ordersSection();
+  var body = view === 'cards' ? cardsSection() : view === 'new-flyer' ? newFlyerSection() : view === 'usage' ? usageSection() : shopSection() + ordersSection();
   document.getElementById('sheet').innerHTML =
     pageHeader('Print Orders', 'Cards, flyers &amp; presentations &nbsp;·&nbsp; Internal', 'Requests go to the marketing project list', 'print') +
     (passwordCard() ? '<section style="padding-bottom:0">' + passwordCard() + '</section>' : '') +

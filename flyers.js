@@ -380,3 +380,18 @@ function flyerPdfName(f, v) {
     .replace(/[\u2013\u2014]/g, '-').replace(/[’‘]/g, "'").replace(/[^\x20-\x7E]+/g, '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ');
 }
 function flyerThumb(v) { return 'print/flyers/' + v.id + '-thumb.webp'; }
+
+/* ============================================================================
+   Where flyers are used (print.html#usage). COMING SOON: the page lists
+   these events now; which flyers go to each, and how many, will be filled in
+   later. To add an event, add an entry. `flyers` takes flyer ids from
+   FLYER_CATALOG above once they're known.
+   ========================================================================== */
+var FLYER_EVENTS = [
+  { id: 'pal', name: 'PAL events', detail: 'PAL Forward and other PAL (You Are Not Alone) family recovery events',
+    kind: 'Community event', flyers: [] },
+  { id: 'adcrr-resource-fair', name: 'ADCRR Resource Fair', detail: 'Arizona Department of Corrections, Rehabilitation & Reentry resource fairs',
+    kind: 'Reentry resource fair', flyers: [] },
+  { id: 'sober-fest', name: 'Sober Fest', detail: 'Sober Fest community recovery celebration',
+    kind: 'Recovery community event', flyers: [] }
+];
