@@ -10,6 +10,16 @@
 .ws{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:20px;align-items:start}
 .ws-list{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;
   border:1px solid var(--line);border-radius:11px;background:var(--paper);overflow:hidden}
+.ww{border-left:4px solid var(--coral)}
+.ww-item{padding:12px 0;border-top:1px solid var(--line)}
+.ww-item:first-of-type{border-top:0;padding-top:4px}
+.ww-item b{font-size:14.5px}
+.ww-item p{margin:4px 0 0;font-size:13.5px}
+.ww-item details{margin:6px 0 0;font-size:13px}
+.ww-item summary{cursor:pointer;font-weight:600;color:var(--teal)}
+.ww-item ul{margin:6px 0 0;padding-left:18px}
+.ww-item li{margin:0 0 3px;word-break:break-word}
+.ww-note{font-size:12.5px;color:var(--muted);margin:10px 0 0}
 .ws-tools{padding:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;background:#fff}
 .ws-tools input{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px}
 .ws-tools input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
@@ -181,6 +191,32 @@ function detailPane() {
       '<p class="ws-more">Shared header and footer are left out. Text as of the ' + esc(fmtCrawl(WEBSITE.crawled)) + ' crawl.</p></div>';
 }
 
+/* ── What we're working on: edit this list as projects start and finish ── */
+var WORKING = [
+  { title: 'Removing all adolescent wording from the site',
+    status: 'In progress',
+    what: 'Sanctuary is no longer marketing an adolescent program. Every adolescent and teen reference is coming off sanctuaryrecoverycenters.com: ' +
+      'adolescent pages are being unpublished and redirected, and remaining mentions in other pages, menus, the footer, page titles and Google descriptions are being removed.',
+    pages: ['/adolescent-program', '/adolescent-addictoin-treatment-faqs', '/faq (Adolescent Program FAQs)', '/parent-screening-page',
+      '/helping-teens-heal-without-falling-behind-inside-sanctuarys-adolescent-mental-health-program',
+      '/adolescents-are-not-just-smaller-adults-the-unique-challenges-of-residential-treatment-for-teens',
+      '/the-power-of-lived-experience-in-adolescent-recovery-why-connection-matters', '/signs-of-drug-use-in-teens',
+      'Mentions on /addiction-treatment-mothers, /core and three blog posts'] },
+  { title: 'Turning the adolescent home page into a residential home page',
+    status: 'In progress',
+    what: 'The adolescent program page for the Roadrunner Home (/adolescent-mental-health-programs) is being rewritten as a standard residential home page, ' +
+      'like the other homes, and merged with /roadrunner-home.',
+    pages: ['/adolescent-mental-health-programs → /roadrunner-home'] }
+];
+function workingCard() {
+  if (!WORKING.length) { return ''; }
+  return '<div class="card ww"><h3>What we\'re working on</h3>' + WORKING.map(function (w) {
+    return '<div class="ww-item"><b>' + esc(w.title) + '</b> <span class="tag med">' + esc(w.status) + '</span><p>' + esc(w.what) + '</p>' +
+      (w.pages && w.pages.length ? '<details><summary>Pages affected (' + w.pages.length + ')</summary><ul>' +
+        w.pages.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></details>' : '') + '</div>';
+  }).join('') + '<p class="ww-note">No need to request edits to adolescent pages: they\'re already being changed.</p></div>';
+}
+
 function render() {
   document.getElementById('sheet').innerHTML =
     pageHeader('Website Edits', 'sanctuaryrecoverycenters.com &nbsp;·&nbsp; Internal',
@@ -189,7 +225,7 @@ function render() {
       '<h2 style="font-size:26px;margin:6px 0 0">Request website edits</h2>' +
       '<p class="lead">Every page on the website and what\'s on it. Find the page, point at the text that needs to change, and ' +
       'say what it should be. Requests go to marketing as tasks — nothing on the live site changes until they make it.</p>' +
-      pwCard() +
+      workingCard() + pwCard() +
       '<div class="ws">' + listPane() + '<div id="ws-detail">' + detailPane() + '</div></div>' +
     '</section>' +
     pageFooter('sanctuaryrecoverycenters.com sitemap crawl, ' + fmtCrawl(WEBSITE.crawled));
